@@ -5,6 +5,7 @@ S Miller - UAH - 4-Feb-2020
 """
 import os
 
+import matplotlib.pyplot as plt
 from astropy.io import fits
 
 from emccd_detect.emccd_detect import emccd_detect
@@ -12,11 +13,14 @@ from emccd_detect.remove_cosmics import remove_cosmics
 from emccd_detect.util.imagesc import imagesc
 
 
+plt.close('all')
+
 # Input frame
 current_path = os.path.dirname(os.path.abspath(__file__))
 fits_name = 'ref_frame.fits'
 fluxmap = fits.getdata(os.path.join(current_path, 'emccd_detect', 'fits',
                        fits_name))
+
 # Simulation inputs
 cr_rate = 5  # hits/cm^2/s (set to 0 for no cosmics; 5 for L2 expected)
 frametime = 100.0  # seconds
@@ -30,11 +34,16 @@ dark_current = 0.005  # e-/pix/s
 cic = 0.02  # e-/pix/frame
 read_noise = 120  # e-/pix/frame -- amplifier noise (EMCCD CCD201 Type C)
 
-# Simulate image with cosmic ray hits
-sim_im = emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
+# Simulate image without cosmic ray hits
+sim_im = emccd_detect(fluxmap, 0, frametime, em_gain, bias, qe, fwc_im,
                       fwc_gr, dark_current, cic, read_noise)
-
 imagesc(sim_im)
+
+# Simulate image with cosmic ray hits
+sim_im_cosm = emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe,
+                           fwc_im, fwc_gr, dark_current, cic, read_noise)
+
+imagesc(sim_im_cosm)
 
 
 sat_thresh = 0.99
