@@ -3,20 +3,20 @@
 
 S Miller - UAH - 4-Feb-2020
 """
-import numpy as np
+import os
+
+from astropy.io import fits
 
 from emccd_detect.emccd_detect import emccd_detect
 from emccd_detect.remove_cosmics import remove_cosmics
 from emccd_detect.util.imagesc import imagesc
-from emccd_detect.util.peaks import peaks
 
 
 # Input frame
-roi_size = 200
-max_flux = 100
-temp = peaks(roi_size)**2  # dummy image inupt
-fluxmap = max_flux * (temp - np.min(temp)) / (np.max(temp)-np.min(temp))
-
+current_path = os.path.dirname(os.path.abspath(__file__))
+fits_name = 'ref_frame.fits'
+fluxmap = fits.getdata(os.path.join(current_path, 'emccd_detect', 'fits',
+                       fits_name))
 # Simulation inputs
 cr_rate = 5  # hits/cm^2/s (set to 0 for no cosmics; 5 for L2 expected)
 frametime = 100.0  # seconds
