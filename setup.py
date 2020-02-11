@@ -22,6 +22,7 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     packages=find_packages(),
+    scripts=['example_script.py'],
     python_requires='>=2.7',
     install_requires=[
         'matplotlib',

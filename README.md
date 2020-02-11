@@ -29,7 +29,7 @@ to install Tkinter on your machine.
 
 ### Usage
 
-For an example of how to use emccd\_detect, run fits\_script.
+For an example of how to use emccd\_detect, run example\_script.
 
 ## Authors
 
