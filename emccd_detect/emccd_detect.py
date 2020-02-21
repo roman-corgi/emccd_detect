@@ -12,8 +12,8 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
 
     Parameters
     ----------
-    fluxmap : :obj:`ndarray` of :obj:`float`
-        Input array.
+    fluxmap : array_like, float
+        Input array (photons/pix/s).
     cr_rate : float
         Cosmic ray impact rate on image plane (hits/cm^2/s).
     frametime : float
@@ -37,7 +37,7 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
 
     Returns
     -------
-    out : :obj:`ndarray` of :obj:`float`
+    out : array_like, float
         Output array.
 
     Notes
@@ -52,16 +52,15 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
     """
     matrixh, matrixw = np.shape(fluxmap)
 
-    # dark current is specified in e-/pix/s
+    # Mean expected dark current after integrationg over frametime
     mean_expected_dark = dark_current * frametime
 
-    # mean expected electrons after inegrating in frametime
+    # Mean expected electrons after inegrating over frametime
     mean_expected_e = fluxmap * frametime * qe
 
-    # fixed pattern
     fixed_pattern = np.zeros(fluxmap.shape)  # this will be modeled later
 
-    # electrons actualized at the pixels
+    # Electrons actualized at the pixels
     if shot_noise_off:
         expected_e = np.random.poisson(np.ones(mean_expected_e.shape) *
                                        (mean_expected_dark + cic)).astype(float)
@@ -70,19 +69,19 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
         expected_e = np.random.poisson(mean_expected_e + mean_expected_dark + cic).astype(float)  # noqa: E501
 
     if cr_rate:
-        # cosmic hits on image area
-        pixel_pitch = 13 * 10**-6  # distance between pixel centers (m)
-        pixel_radius = 3  # radius of pixels affected by one cosmic hit (pix)
+        # Cosmic hits on image area
+        pixel_pitch = 13 * 10**-6  # Distance between pixel centers (m)
+        pixel_radius = 3  # Radius of pixels affected by one cosmic hit (pix)
         [expected_e, cosm_props] = cosmic_hits(expected_e, matrixh, matrixw,
                                                cr_rate, frametime,
                                                pixel_pitch, pixel_radius,
                                                fwc_im)
 
-    # electrons capped at full well capacity of imaging area
+    # Electrons capped at full well capacity of imaging area
     expected_e[expected_e > fwc_im] = fwc_im
     expected_e_flat = expected_e.ravel(1)
 
-    # go through EM register
+    # Go through EM register
     em_frame = np.zeros([matrixh, matrixw])
     em_frame_flat = em_frame.ravel(1)
     indnz = expected_e.ravel(1).nonzero()[0]
@@ -95,14 +94,14 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
     em_frame = em_frame_flat.reshape(em_frame.shape, order='F')
 
     if cr_rate:
-        # tails from cosmic hits
+        # Tails from cosmic hits
         em_frame = cosmic_tails(em_frame, matrixh, matrixw, fwc_gr,
                                 cosm_props.h, cosm_props.k, cosm_props.r)
 
-    # cap at full well capacity of gain register
+    # Cap at full well capacity of gain register
     em_frame[em_frame > fwc_gr] = fwc_gr
 
-    # read_noise
+    # Read_noise
     read_noise_map = read_noise * np.random.standard_normal([matrixh, matrixw])
 
     out = em_frame + read_noise_map + fixed_pattern + bias
