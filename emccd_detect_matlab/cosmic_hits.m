@@ -1,4 +1,4 @@
-function [outMatrix, props] = cosmicHits(frame, pars, frameTime)
+function [outMatrix, props] = cosmic_hits(frame, pars, frameTime)
 % Inputs:
 %           frame            : input frame
 %           pars             : detector parameters

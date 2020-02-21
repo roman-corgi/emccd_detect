@@ -28,7 +28,7 @@ nFrames = ceil( t_exp / frameTime ); % how many frames we desire
 tic;
 frameStack = zeros(NpixRow, NpixCol, nFrames);
 for iFrame = 1:nFrames
-    frameStack(:,:,iFrame) = EMCCDdetect(photonInputFluxMap, readNoise, darkCurrent, CIC, CRrate, frameTime, EMgain, FWC_image, FWC_serial, QE); %#ok<*SAGROW>
+    frameStack(:,:,iFrame) = emccd_detect(photonInputFluxMap, readNoise, darkCurrent, CIC, CRrate, frameTime, EMgain, FWC_image, FWC_serial, QE); %#ok<*SAGROW>
 end
 tt = toc;
 fprintf('basic:  simulating %u (%u x %u) images took %4.1f seconds (%3.2f sec/image).\n', iFrame, Nwid, Nwid, tt, tt/iFrame);

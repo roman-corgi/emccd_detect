@@ -1,5 +1,5 @@
-function [y, meta] = EMCCDdetect(fluxMap, readNoise, darkCurrent, CIC, CRrate, frameTime, EMgain, FWCim, FWCgr, QE, fixedPattern, bias)
-%  EMCCDdetect(fluxMap, readNoise, darkCurrent, CIC, CRrate, frameTime, EMgain, FWCim, FWCgr, QE, fixedPattern, bias)
+function [y, meta] = emccd_detect(fluxMap, readNoise, darkCurrent, CIC, CRrate, frameTime, EMgain, FWCim, FWCgr, QE, fixedPattern, bias)
+%  emccd_detect(fluxMap, readNoise, darkCurrent, CIC, CRrate, frameTime, EMgain, FWCim, FWCgr, QE, fixedPattern, bias)
 %
 % Create an EMCCD-detected image corresponding to an input flux map. The flux map must be in units of
 % photons per pixel per second. Read noise is in electrons and is the amplifier read noise and not

@@ -1,4 +1,4 @@
-function outMatrix = cosmicTails(frame, pars, props)
+function outMatrix = cosmic_tails(frame, pars, props)
 % Inputs:
 %           frame            : input frame
 %           pars             : detector parameters
