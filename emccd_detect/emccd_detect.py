@@ -29,11 +29,11 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
     fwc_gr : float
         Full well capacity, gain register.
     dark_current: float
-        Detector dark current.
+        Detector dark current (e-/pix/s).
     cic : float
-        Clock induced charge.
+        Clock induced charge (e-/pix/frame).
     read_noise : float
-        Detector read noise.
+        Detector read noise (e-).
 
     Returns
     -------
@@ -42,11 +42,10 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
 
     Notes
     -----
-    The flux map must be in units of photons per pixel per second. Read noise
-    is in electrons and is the amplifier read noise and not the effective read
-    noise after the application of EM gain. Dark current must be supplied in
-    units of electrons per pixel per second, and CIC is the clock induced
-    charge in units of e-/pix/frame.
+    The flux map must be in units of photons/pix/s. Read noise is in electrons
+    and is the amplifier read noise and not the effective read noise after the
+    application of EM gain. Dark current must be supplied in units of e-/pix/s,
+    and CIC is the clock induced charge in units of e-/pix/frame.
 
     B Nemati and S Miller - UAH - 18-Jan-2019
     """
