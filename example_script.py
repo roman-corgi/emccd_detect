@@ -17,7 +17,7 @@ fits_name = 'ref_frame.fits'
 fits_path = os.path.join(current_path, 'emccd_detect', 'fits', fits_name)
 fluxmap = fits.getdata(fits_path)
 
-plot_images = True
+plot_images = False
 
 # Simulation inputs
 frametime = 100.0  # seconds
