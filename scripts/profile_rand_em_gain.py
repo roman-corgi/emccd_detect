@@ -8,8 +8,6 @@ import numpy as np
 from rand_em_gain import rand_em_gain
 
 
-#plt.close('all')
-
 em_gain = 5700.0
 
 ntimes = 100
