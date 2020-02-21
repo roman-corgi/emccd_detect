@@ -56,7 +56,7 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
     mean_expected_dark = dark_current * frametime
 
     # mean expected electrons after inegrating in frametime
-    mean_expected_e = fluxmap*frametime*qe
+    mean_expected_e = fluxmap * frametime * qe
 
     # fixed pattern
     fixed_pattern = np.zeros(fluxmap.shape)  # this will be modeled later

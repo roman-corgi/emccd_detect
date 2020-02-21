@@ -51,19 +51,19 @@ for gain in gain_array:
 gain = 1000.0
 sim_im = emccd_detect(fluxmap, cr_rate, frametime, gain, bias, qe, fwc_im,
                       fwc_gr, dark_current, cic, read_noise)
-imagesc(sim_im, 'Analogue')
+imagesc(sim_im, 'Analog', cmap='gray')
 
-pc_thresh = 100  # Photon counting threshold (to be multiplied by readnoise)
+pc_thresh = 5  # Photon counting threshold (to be multiplied by readnoise)
 sim_in_pc = photon_count(sim_im, read_noise, pc_thresh)
-imagesc(sim_in_pc, 'Photon Counted')
+imagesc(sim_in_pc, 'Photon Counted', cmap='gray')
 
 
 # Simulate co-added photon counted frames with short frametime
 # For best performance, choose frametime such that average e/pix/frame in
 # the region of interest (ROI) is roughly 0.1
 frametime_short = 1.0
-gain_short = 1000.0
-pc_thresh_short = 10
+gain_short = 5000.0
+pc_thresh_short = 5
 
 n_frames = 100
 sim_ims = np.zeros((fluxmap.shape[0], fluxmap.shape[1], n_frames))
@@ -75,8 +75,8 @@ for i in range(n_frames):
     sim_ims_pc[:, :, i] = photon_count(sim_ims[:, :, i], read_noise,
                                        pc_thresh_short)
 
-co_added = np.sum(sim_ims, axis=2)
+co_added = np.sum(sim_ims/gain_short, axis=2)
 co_added_pc = np.sum(sim_ims_pc, axis=2)
 
-imagesc(co_added, 'Co-Added Analogue')
-imagesc(co_added_pc, 'Co-Added Photon Counted')
+imagesc(co_added, 'Co-Added Analog', vmax=100, cmap='gray')
+imagesc(co_added_pc, 'Co-Added Photon Counted', vmax=100, cmap='gray')
