@@ -48,7 +48,7 @@ expectedElectrons = poissrnd(meanExpectedElectrons);
 
 if CRrate ~= 0
     % cosmic hits on image area
-    [expectedElectrons, props] = cosmicHits(expectedElectrons, pars, frameTime);
+    [expectedElectrons, props] = cosmic_hits(expectedElectrons, pars, frameTime);
 end
 
 % electrons capped at full well capacity of imaging area
@@ -60,12 +60,12 @@ indnz = find(expectedElectrons);
 
 for ii = 1:length(indnz)
     ie = indnz(ii);
-    emFrame(ie) = randEMGain(expectedElectrons(ie), EMgain);
+    emFrame(ie) = rand_em_gain(expectedElectrons(ie), EMgain);
 end
 
 if CRrate ~= 0
     % tails from cosmic hits
-    emFrame = cosmicTails(emFrame, pars, props);
+    emFrame = cosmic_tails(emFrame, pars, props);
 end
 
 % cap at full well capacity of gain register
