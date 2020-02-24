@@ -4,9 +4,9 @@
 
 
 % Input fluxmap
-current_path = '/Users/sammiller/Documents/GitHub/emccd_detect';
+current_path = pwd;
 fits_name = 'ref_frame.fits';
-fits_path = fullfile(current_path, 'emccd_detect_matlab', 'fits', fits_name);
+fits_path = fullfile(current_path, 'fits', fits_name);
 fluxmap = fitsread(fits_path);
 
 plot_images = true;
