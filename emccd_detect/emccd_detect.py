@@ -8,7 +8,7 @@ from rand_em_gain import rand_em_gain
 
 def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
                  fwc_gr, dark_current, cic, read_noise, shot_noise_off=False):
-    """Create an EMCCD-detected image corresponding to an input flux map.
+    """Create an EMCCD-detected image for a given flux map.
 
     Parameters
     ----------
