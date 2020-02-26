@@ -5,6 +5,8 @@ from cosmic_hits import cosmic_hits
 from cosmic_tails import cosmic_tails
 from rand_em_gain import rand_em_gain
 
+np.random.seed(1)
+
 
 def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
                  fwc_gr, dark_current, cic, read_noise, shot_noise_off=False):
@@ -61,8 +63,8 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
 
     # Electrons actualized at the pixels
     if shot_noise_off:
-        expected_e = np.random.poisson(np.ones(frame_h, frame_w) *
-                                       (mean_expected_dark + cic)
+        expected_e = np.random.poisson(np.ones(frame_h, frame_w)
+                                       * (mean_expected_dark + cic)
                                        ).astype(float)
         expected_e += mean_expected_e
     else:
@@ -74,9 +76,8 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
         pixel_pitch = 13 * 10**-6  # Distance between pixel centers (m)
         pixel_radius = 3  # Radius of pixels affected by one cosmic hit (pix)
         [expected_e, cosm_props] = cosmic_hits(expected_e, frame_h, frame_w,
-                                               cr_rate, frametime,
-                                               pixel_pitch, pixel_radius,
-                                               fwc_im)
+                                               cr_rate, frametime, pixel_pitch,
+                                               pixel_radius, fwc_im)
 
     # Electrons capped at full well capacity of imaging area
     expected_e[expected_e > fwc_im] = fwc_im
