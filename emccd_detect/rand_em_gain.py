@@ -15,7 +15,7 @@ def rand_em_gain(n_in, em_gain):
 
     Returns
     -------
-    out : float
+    n_out : float
         Number of electrons exiting EM register.
 
     Notes
@@ -58,23 +58,23 @@ def rand_em_gain(n_in, em_gain):
         xn_in = (n_in-1) * np.log(x+1)
 
     # Basden 2003 probability distribution function
-    # The prob. dis function is
-    # pdf = x.^(n_in-1) .* exp(-x/em_gain) / (em_gain^n_in * factorial(n_in-1))
+    # The probability distribution function is as follows:
+    # pdf = x^(n_in-1) * exp(-x/em_gain) / (em_gain^n_in * factorial(n_in-1))
     # Because of the cancellation of very large numbers, first work in log
     # space
     logpdf = xn_in - x/em_gain - n_in*np.log(em_gain) - em_gamma
     pdf = np.exp(logpdf)
 
-    # a very ad-hoc correction: compensate for chopped off high tail by skewing
+    # A very ad-hoc correction: compensate for chopped off high tail by skewing
     # the pdf
     corr_skew = 1 + xcorr * np.arange(0, 1+1.0/(len(x)-1), 1.0/(len(x)-1))
     pdf = pdf * corr_skew
 
-    # generate random numbers according to pdf
+    # Generate random numbers according to pdf
     pdf = pdf / sum(pdf)
     cdf = np.cumsum(pdf)
 
-    # create a uniformly distributed random number for lookup in CDF
+    # Create a uniformly distributed random number for lookup in CDF
     cdf_lookup = np.random.random(1)
 
     if cdf_lookup < cdf[0]:
@@ -88,6 +88,6 @@ def rand_em_gain(n_in, em_gain):
         chi = cdf[ihi]
         randout = xlo + (cdf_lookup - clo) * ((xhi - xlo)/(chi-clo))
 
-    out = round(randout)
+    n_out = round(randout)
 
-    return out
+    return n_out
