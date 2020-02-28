@@ -12,12 +12,10 @@ from emccd_detect.util.imagesc import imagesc
 
 
 # Input fluxmap
-current_path = os.path.dirname(os.path.abspath(__file__))
 fits_name = 'ref_frame.fits'
-fits_path = os.path.join(current_path, 'emccd_detect', 'fits', fits_name)
+current_path = os.path.dirname(os.path.abspath(__file__))
+fits_path = os.path.join(current_path, 'fits', fits_name)
 fluxmap = fits.getdata(fits_path)
-
-plot_images = True
 
 # Simulation inputs
 frametime = 100.0  # seconds
@@ -35,7 +33,8 @@ read_noise = 100  # e-/pix/frame -- amplifier noise (EMCCD CCD201 Type C)
 sim_im = emccd_detect(fluxmap, cr_rate, frametime, gain, bias, qe, fwc_im,
                       fwc_gr, dark_current, cic, read_noise)
 
-# Plot image
+# Plot images
+plot_images = True
 if plot_images:
     imagesc(fluxmap, 'Input Fluxmap')
     imagesc(sim_im, 'Output Fluxmap\n'

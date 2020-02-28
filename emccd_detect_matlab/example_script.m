@@ -4,12 +4,10 @@
 
 
 % Input fluxmap
-current_path = pwd;
 fits_name = 'ref_frame.fits';
-fits_path = fullfile(current_path, 'fits', fits_name);
+current_path = pwd;
+fits_path = fullfile(fileparts(current_path), 'fits', fits_name);
 fluxmap = fitsread(fits_path);
-
-plot_images = true;
 
 % Simulation inputs
 frametime = 100.0;  % seconds
@@ -27,7 +25,8 @@ read_noise = 100;  % e-/pix/frame -- amplifier noise (EMCCD CCD201 Type C)
 sim_im = emccd_detect(fluxmap, cr_rate, frametime, gain, bias, qe, fwc_im,...
                       fwc_gr, dark_current, cic, read_noise);
 
-% Plot image
+% Plot images
+plot_images = true;
 if plot_images
     figure;
     imagesc(fluxmap); colorbar;
