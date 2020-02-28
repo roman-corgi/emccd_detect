@@ -8,7 +8,7 @@ def cosmic_hits(frame, matrixh, matrixw, cr_rate, frametime, pixel_pitch,
 
     Parameters
     ----------
-    frame : :obj:`ndarray` of :obj:`float`
+    frame : array_like
         Input array.
     matrixh : int
         Height of array (pix).
@@ -27,7 +27,7 @@ def cosmic_hits(frame, matrixh, matrixw, cr_rate, frametime, pixel_pitch,
 
     Returns
     -------
-    frame : :obj:`ndarray` of :obj:`float`
+    frame : array_like
         Output array.
     props : instance
         Class instance containing cosmic hits properties. Attributes are as
@@ -42,20 +42,20 @@ def cosmic_hits(frame, matrixh, matrixw, cr_rate, frametime, pixel_pitch,
 
     S Miller - UAH - 16-Jan-2019
     """
-    # find size of frame
+    # Find size of frame
     framesize = matrixh*pixel_pitch * matrixw*pixel_pitch  # m^2
 
-    # find number of hits/frame
+    # Find number of hits/frame
     hits_per_second = cr_rate * framesize/10.0**-4
     hits_per_frame = int(round(hits_per_second * frametime))
 
-    # generate hits
+    # Generate hits
     s1 = np.random.get_state()
     hitsx = np.random.random([1, hits_per_frame])[0] * (matrixh-1)
     s2 = np.random.get_state()
     hitsy = np.random.random([1, hits_per_frame])[0] * (matrixw-1)
 
-    # describe each hit as a gaussian centered at (hitsx, hitsy), landing on
+    # Describe each hit as a gaussian centered at (hitsx, hitsy), landing on
     # pixel (h, k), and having energies described by r (since radius is
     # proportional to energy)
     xx = np.arange(0, matrixw)
@@ -67,9 +67,9 @@ def cosmic_hits(frame, matrixh, matrixw, cr_rate, frametime, pixel_pitch,
     r = np.round(np.random.random([1, len(hitsx)])[0]*2
                  * (pixel_radius-1)+1).astype(int)
 
-    # create hits
+    # Create hits
     for i in range(0, len(hitsx)):
-        # set constants for gaussian
+        # Set constants for gaussian
         sigma = r[i] / 3.75
         a = 1 / (np.sqrt(2*np.pi) * sigma)
         b = 2.0 * sigma**2
@@ -80,7 +80,7 @@ def cosmic_hits(frame, matrixh, matrixw, cr_rate, frametime, pixel_pitch,
         cosm_section = a * np.exp(-((xx[cols]-hitsx[i])**2
                                   + (yy[rows]-hitsy[i])**2) / b)
         cosm_section[cosm_section <= cutoff] = 0
-        # normalize and scale by fwc_im
+        # Normalize and scale by fwc_im
 
         cosm_section = cosm_section / np.max(cosm_section) * fwc_im
 

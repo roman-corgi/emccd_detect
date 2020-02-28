@@ -5,8 +5,6 @@ from cosmic_hits import cosmic_hits
 from cosmic_tails import cosmic_tails
 from rand_em_gain import rand_em_gain
 
-np.random.seed(1)
-
 
 def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
                  fwc_gr, dark_current, cic, read_noise, shot_noise_off=False):
@@ -104,7 +102,7 @@ def emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe, fwc_im,
     em_frame[em_frame > fwc_gr] = fwc_gr
 
     # Read_noise
-    read_noise_map = read_noise * np.random.standard_normal([frame_h, frame_w])
+    read_noise_map = read_noise * np.random.randn(frame_h, frame_w)
 
     sim_im = em_frame + read_noise_map + fixed_pattern + bias
 

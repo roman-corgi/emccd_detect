@@ -7,7 +7,7 @@ def cosmic_tails(frame, matrixh, matrixw, fwc_gr, h, k, r):
 
     Parameters
     ----------
-    frame : :obj:`ndarray` of :obj:`float`
+    frame : array_like
         Input array.
     matrixh : int
         Height of array (pix).
@@ -24,12 +24,12 @@ def cosmic_tails(frame, matrixh, matrixw, fwc_gr, h, k, r):
 
     Returns
     -------
-    frame : :obj:`ndarray` of :obj:`float`
+    frame : array_like
         Output array.
 
     S Miller - UAH - 16-Jan-2019
     """
-    # tails are composed of one rapidly decaying exponential and another
+    # Tails are composed of one rapidly decaying exponential and another
     # gradually decaying, with a smooth transition between
     # These must be floats
     n1 = 0.010  # 0.010
@@ -38,7 +38,7 @@ def cosmic_tails(frame, matrixh, matrixw, fwc_gr, h, k, r):
     a = 0.970  # 0.970
     b = 0.030  # 0.030
 
-    # create tails
+    # Create tails
     for j in np.arange(0, len(k)):
         rows = np.arange(max(k[j]-r[j], 0), min(k[j]+r[j], matrixh-1)+1)
         cols = np.arange(max(h[j]-r[j], 0), min(h[j]+r[j], matrixw-1)+1)
