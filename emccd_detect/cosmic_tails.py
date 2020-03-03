@@ -11,11 +11,11 @@ def cosmic_tails(frame, fwc_gr, h, k, r):
         Input array.
     fwc_gr : float
         Full well capacity, gain register.
-    h : :obj:`ndarray` of :obj:`float`
+    h : array_like
         Column coordinates of cosmic hits (pix).
-    k : :obj:`ndarray` of :obj:`float`
+    k : array_like
         Row coordinates of cosmic hits (pix).
-    r : :obj:`ndarray` of :obj:`float`
+    r : array_like
         Radii of cosmic hits (pix).
 
     Returns
@@ -37,7 +37,7 @@ def cosmic_tails(frame, fwc_gr, h, k, r):
     b = 0.030  # 0.030
 
     # Create tails
-    for j in np.arange(0, len(k)):
+    for j in np.arange(len(k)):
         rows = np.arange(max(k[j]-r[j], 0), min(k[j]+r[j], frame_h-1)+1)
         cols = np.arange(max(h[j]-r[j], 0), min(h[j]+r[j], frame_w-1)+1)
         nonzero = np.sum(frame[rows[0]:rows[-1]+1, cols[0]:cols[-1]+1] > fwc_gr, 1)  # noqa: E501

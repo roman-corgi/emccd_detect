@@ -64,10 +64,11 @@ def emccd_detect(frame, cr_rate, frametime, em_gain, bias, qe, fwc_im,
     # Electrons actualized at the pixels
     if shot_noise_off:
         expected_e = np.random.poisson(np.ones(frame_h, frame_w)
-                                       * shot_noise)).astype(float)
+                                       * shot_noise).astype(float)
         expected_e += mean_expected_e
     else:
-        expected_e = np.random.poisson(mean_expected_e + shot_noise).astype(float)
+        expected_e = np.random.poisson(mean_expected_e
+                                       + shot_noise).astype(float)
 
     if cr_rate:
         # Cosmic hits on image area

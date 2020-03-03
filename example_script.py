@@ -20,7 +20,7 @@ fluxmap = fits.getdata(fits_path)
 # Simulation inputs
 frametime = 100.0  # seconds
 gain = 1000.0
-cr_rate = 0  # hits/cm^2/s (set to 0 for no cosmics; 5 for L2 expected)
+cr_rate = 1  # hits/cm^2/s (set to 0 for no cosmics; 5 for L2 expected)
 bias = 0.0
 qe = 0.9  # quantum efficiency
 fwc_im = 50000.0  # full well capacity (image plane)
