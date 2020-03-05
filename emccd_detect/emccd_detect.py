@@ -70,12 +70,11 @@ def emccd_detect(frame, cr_rate, frametime, em_gain, bias, qe, fwc_im,
         expected_e = np.random.poisson(mean_expected_e
                                        + shot_noise).astype(float)
 
-    if cr_rate:
-        # Cosmic hits on image area
-        pixel_pitch = 13 * 10**-6  # Distance between pixel centers (m)
-        pixel_radius = 3  # Radius of pixels affected by one cosmic hit (pix)
-        [expected_e, h, k, r] = cosmic_hits(expected_e, cr_rate, frametime,
-                                            pixel_pitch, pixel_radius, fwc_im)
+    # Cosmic hits on image area
+    cr_max_radius = 3  # Max radius of pixels affected by cosmic hit (pix)
+    pixel_pitch = 13 * 10**-6  # Distance between pixel centers (m)
+    expected_e = cosmic_hits(expected_e, cr_rate, cr_max_radius, frametime,
+                             pixel_pitch, fwc_im)
 
     # Electrons capped at full well capacity of imaging area
     expected_e[expected_e > fwc_im] = fwc_im
