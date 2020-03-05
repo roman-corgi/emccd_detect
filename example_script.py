@@ -19,7 +19,7 @@ fluxmap = fits.getdata(fits_path)  # photons/pix/s
 
 # Simulation inputs
 exptime = 100.0  # Frame time (seconds)
-gain = 1000.0  # CCD gain (e-/photon)
+gain = 100.0  # CCD gain (e-/photon)
 full_well_serial = 10000.0  # Serial register capacity (e-)
 full_well = 60000.0  # Readout register capacity (e-)
 dark_rate = 0.0056  # Dark rate (e-/pix/s)

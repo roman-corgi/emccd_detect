@@ -79,29 +79,25 @@ def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
     # Electrons capped at full well capacity of imaging area
     expected_e[expected_e > full_well] = full_well
 
+
     # Go through EM register
-    expected_e_flat = expected_e.ravel(1)
-    em_frame = np.zeros(fluxmap.shape)
-    em_frame_flat = em_frame.ravel(1)
-    indnz = expected_e.ravel(1).nonzero()[0]
+    expected_e_flat = expected_e.ravel()
+    em_frame_flat = np.zeros(fluxmap.size)
 
-    for ii in range(len(indnz)):
-        ie = indnz[ii]
-        em_frame_flat[ie] = rand_em_gain(expected_e_flat[ie], gain)
+    for i in range(len(expected_e_flat)):
+        em_frame_flat[i] = rand_em_gain(expected_e_flat[i], gain)
 
-    expected_e = expected_e_flat.reshape(expected_e.shape, order='F')
-    em_frame = em_frame_flat.reshape(em_frame.shape, order='F')
+    em_frame = em_frame_flat.reshape(expected_e.shape)
 
-    if cr_rate:
-        # Tails from cosmic hits
-        em_frame = cosmic_tails(em_frame, full_well_serial, h, k, r)
+#    if cr_rate:
+#        # Tails from cosmic hits
+#        em_frame = cosmic_tails(em_frame, full_well_serial, h, k, r)
 
     # Cap at full well capacity of gain register
     em_frame[em_frame > full_well_serial] = full_well_serial
 
     # Read_noise
-    read_noise_map = read_noise * np.random.randn([fluxmap.shape[0],
-                                                   fluxmap.shape[1]])
+    read_noise_map = read_noise * np.random.normal(size=fluxmap.shape)
 
     sim_im = em_frame + read_noise_map + fixed_pattern + bias
 
