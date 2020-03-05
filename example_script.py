@@ -28,12 +28,13 @@ read_noise = 100  # Read noise (e-/pix/frame)
 bias = 0.0  # Bias offset (e-)
 quantum_efficiency = 0.9
 cr_rate = 5  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
+pixel_pitch = 13 * 10**-6  # Distance between pixel centers (m)
 apply_smear = True  # Apply LOWFS readout smear
 
 # Simulate single image
 sim_im = emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
                       dark_rate, cic_noise, read_noise, bias,
-                      quantum_efficiency, cr_rate, apply_smear)
+                      quantum_efficiency, cr_rate, pixel_pitch, apply_smear)
 
 # Plot images
 plot_images = True

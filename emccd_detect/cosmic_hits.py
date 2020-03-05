@@ -2,23 +2,21 @@
 import numpy as np
 
 
-def cosmic_hits(frame, cr_rate, cr_max_radius, frametime, pixel_pitch, fwc_im):
+def cosmic_hits(frame, cr_rate, exptime, pixel_pitch, full_well):
     """Generate cosmic hits.
 
     Parameters
     ----------
     frame : array_like
-        Input array.
+        Input frame.
     cr_rate : float
         Cosmic ray impact rate on image plane (hits/cm^2/s).
-    cr_radius : float
-        Maximum radius of pixels affected by one cosmic hit (pix).
-    frametime : float
+    exptime : float
         Frame time (s).
     pixel_pitch : float
         Distance between pixel centers (m).
-    fwc_im : float
-        Full well capacity, image plane.
+    full_well : float
+        Readout register capacity (e-).
 
     Returns
     -------
@@ -33,12 +31,13 @@ def cosmic_hits(frame, cr_rate, cr_max_radius, frametime, pixel_pitch, fwc_im):
     # Find number of hits/frame
     framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10.0**-4  # cm^2
     hits_per_second = cr_rate * framesize
-    hits_per_frame = int(round(hits_per_second * frametime))  # XXX zero case
+    hits_per_frame = int(round(hits_per_second * exptime))  # XXX zero case
 
     # Generate hits
     # Describe each hit as a gaussian centered at (hit_col, hit_row) and having
     # an energy of hit_rad (since radius is assumed to be proportional to
     # energy)
+    cr_max_radius = 3  # Maximum radius of pixels affected by cosmic hit (pix)
     hit_row = np.random.uniform(low=0, high=frame_r-1, size=hits_per_frame)
     hit_col = np.random.uniform(low=0, high=frame_c-1, size=hits_per_frame)
     hit_rad = np.random.uniform(low=1, high=cr_max_radius, size=hits_per_frame)
@@ -64,7 +63,7 @@ def cosmic_hits(frame, cr_rate, cr_max_radius, frametime, pixel_pitch, fwc_im):
         cosm_section[cosm_section <= cutoff] = 0
 
         # Scale and add cosmic
-        cosm_section = cosm_section / np.max(cosm_section) * fwc_im
+        cosm_section = cosm_section / np.max(cosm_section) * full_well
         frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
 
     return frame

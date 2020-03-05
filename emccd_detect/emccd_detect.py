@@ -8,7 +8,7 @@ from rand_em_gain import rand_em_gain
 
 def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
                  dark_rate, cic_noise, read_noise, bias, quantum_efficiency,
-                 cr_rate, apply_smear=True):
+                 cr_rate, pixel_pitch, apply_smear=True):
     """Create an EMCCD-detected image for a given fluxmap.
 
     Parameters
@@ -35,6 +35,8 @@ def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
         Quantum efficiency.
     cr_rate : float
         Cosmic ray rate (hits/cm^2/s).
+    pixel_pitch : float
+        Distance between pixel centers (m).
     apply_smear : bool, optional
         Apply LOWFS readout smear. Defaults to True.
 
@@ -71,10 +73,8 @@ def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
         expected_e += mean_expected_e
 
     # Cosmic hits on image area
-    cr_max_radius = 3  # Max radius of pixels affected by cosmic hit (pix)
-    pixel_pitch = 13 * 10**-6  # Distance between pixel centers (m)
-    expected_e = cosmic_hits(expected_e, cr_rate, cr_max_radius, exptime,
-                             pixel_pitch, full_well)
+    expected_e = cosmic_hits(expected_e, cr_rate, exptime, pixel_pitch,
+                             full_well)
 
     # Electrons capped at full well capacity of imaging area
     expected_e[expected_e > full_well] = full_well
