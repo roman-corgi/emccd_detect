@@ -7,7 +7,8 @@ from rand_em_gain import rand_em_gain
 
 
 def emccd_detect(frame, cr_rate, frametime, em_gain, bias, qe, fwc_im,
-                 fwc_gr, dark_current, cic, read_noise, shot_noise_off=False):
+                 fwc_gr, dark_current, cic, read_noise, shot_noise_off=False,
+                 ):
     """Create an EMCCD-detected image for a given flux map.
 
     Parameters
@@ -51,8 +52,7 @@ def emccd_detect(frame, cr_rate, frametime, em_gain, bias, qe, fwc_im,
 
     B Nemati and S Miller - UAH - 18-Jan-2019
     """
-    frame_h, frame_w = frame.shape
-    fixed_pattern = np.zeros(frame.shape)  # this will be modeled later
+    fixed_pattern = np.zeros(frame.shape)  # This will be modeled later
 
     # Mean expected electrons after inegrating over frametime
     mean_expected_e = frame * frametime * qe
@@ -63,7 +63,7 @@ def emccd_detect(frame, cr_rate, frametime, em_gain, bias, qe, fwc_im,
 
     # Electrons actualized at the pixels
     if shot_noise_off:
-        expected_e = np.random.poisson(np.ones(frame_h, frame_w)
+        expected_e = np.random.poisson(np.ones(frame.shape)
                                        * shot_noise).astype(float)
         expected_e += mean_expected_e
     else:
@@ -82,7 +82,7 @@ def emccd_detect(frame, cr_rate, frametime, em_gain, bias, qe, fwc_im,
 
     # Go through EM register
     expected_e_flat = expected_e.ravel(1)
-    em_frame = np.zeros([frame_h, frame_w])
+    em_frame = np.zeros(frame.shape)
     em_frame_flat = em_frame.ravel(1)
     indnz = expected_e.ravel(1).nonzero()[0]
 
@@ -101,7 +101,8 @@ def emccd_detect(frame, cr_rate, frametime, em_gain, bias, qe, fwc_im,
     em_frame[em_frame > fwc_gr] = fwc_gr
 
     # Read_noise
-    read_noise_map = read_noise * np.random.randn(frame_h, frame_w)
+    read_noise_map = read_noise * np.random.randn([frame.shape[0],
+                                                   frame.shape[1]])
 
     sim_im = em_frame + read_noise_map + fixed_pattern + bias
 
