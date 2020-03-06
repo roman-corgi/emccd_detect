@@ -76,6 +76,8 @@ def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
     readout_frame = cosmic_hits(readout_frame, cr_rate, exptime, pixel_pitch,
                                 full_well)
 
+    readout_frame += fixed_pattern
+
     # Electrons capped at full well capacity of imaging area
     readout_frame[readout_frame > full_well] = full_well
 
@@ -130,14 +132,15 @@ def _readout_register(fluxmap, exptime, full_well, dark_rate, cic_noise,
     readout_frame = cosmic_hits(readout_frame, cr_rate, exptime, pixel_pitch,
                                 full_well)
 
+    readout_frame += fixed_pattern
+
     # Electrons capped at full well capacity of imaging area
     readout_frame[readout_frame > full_well] = full_well
 
     return readout_frame
 
 
-def _serial_register(readout_frame, gain, full_well_serial, read_noise, bias,
-                     fixed_pattern):
+def _serial_register(readout_frame, gain, full_well_serial, read_noise, bias):
     """Simulate detector serial register."""
     readout_frame_flat = readout_frame.ravel()
     serial_frame_flat = np.zeros(readout_frame.size)
@@ -157,6 +160,6 @@ def _serial_register(readout_frame, gain, full_well_serial, read_noise, bias,
     # Read_noise
     read_noise_map = read_noise * np.random.normal(size=readout_frame.shape)
 
-    serial_frame += read_noise_map + fixed_pattern + bias
+    serial_frame += read_noise_map + bias
 
     return serial_frame
