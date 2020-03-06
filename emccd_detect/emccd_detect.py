@@ -65,40 +65,98 @@ def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
 
     # Electrons actualized at the pixels
     if apply_smear:
-        expected_e = np.random.poisson(mean_expected_e
-                                       + shot_noise).astype(float)
+        readout_frame = np.random.poisson(mean_expected_e
+                                          + shot_noise).astype(float)
     else:
-        expected_e = np.random.poisson(np.ones(fluxmap.shape)
-                                       * shot_noise).astype(float)
-        expected_e += mean_expected_e
+        readout_frame = np.random.poisson(np.ones(fluxmap.shape)
+                                          * shot_noise).astype(float)
+        readout_frame += mean_expected_e
 
     # Cosmic hits on image area
-    expected_e = cosmic_hits(expected_e, cr_rate, exptime, pixel_pitch,
-                             full_well)
+    readout_frame = cosmic_hits(readout_frame, cr_rate, exptime, pixel_pitch,
+                                full_well)
 
     # Electrons capped at full well capacity of imaging area
-    expected_e[expected_e > full_well] = full_well
+    readout_frame[readout_frame > full_well] = full_well
 
 
     # Go through EM register
-    expected_e_flat = expected_e.ravel()
-    em_frame_flat = np.zeros(fluxmap.size)
+    readout_frame_flat = readout_frame.ravel()
+    serial_frame_flat = np.zeros(readout_frame.size)
 
-    for i in range(len(expected_e_flat)):
-        em_frame_flat[i] = rand_em_gain(expected_e_flat[i], gain)
+    for i in range(len(readout_frame_flat)):
+        serial_frame_flat[i] = rand_em_gain(readout_frame_flat[i], gain)
 
-    em_frame = em_frame_flat.reshape(expected_e.shape)
+    serial_frame = serial_frame_flat.reshape(readout_frame.shape)
 
 #    if cr_rate:
 #        # Tails from cosmic hits
-#        em_frame = cosmic_tails(em_frame, full_well_serial, h, k, r)
+#        serial_frame = cosmic_tails(serial_frame, full_well_serial, h, k, r)
 
     # Cap at full well capacity of gain register
-    em_frame[em_frame > full_well_serial] = full_well_serial
+    serial_frame[serial_frame > full_well_serial] = full_well_serial
 
     # Read_noise
     read_noise_map = read_noise * np.random.normal(size=fluxmap.shape)
 
-    sim_im = em_frame + read_noise_map + fixed_pattern + bias
+    sim_im = serial_frame + read_noise_map + fixed_pattern + bias
 
     return sim_im
+
+
+def _readout_register(fluxmap, exptime, full_well, dark_rate, cic_noise,
+                      quantum_efficiency, cr_rate, pixel_pitch,
+                      apply_smear=True):
+    """Simulate detector readout register."""
+    fixed_pattern = np.zeros(fluxmap.shape)  # This will be modeled later
+
+    # Mean expected electrons after inegrating over exptime
+    mean_expected_e = fluxmap * exptime * quantum_efficiency
+
+    # Mean expected dark current after integrationg over exptime
+    mean_expected_dark = dark_rate * exptime
+    shot_noise = mean_expected_dark + cic_noise
+
+    # Electrons actualized at the pixels
+    if apply_smear:
+        readout_frame = np.random.poisson(mean_expected_e
+                                          + shot_noise).astype(float)
+    else:
+        readout_frame = np.random.poisson(np.ones(fluxmap.shape)
+                                          * shot_noise).astype(float)
+        readout_frame += mean_expected_e
+
+    # Cosmic hits on image area
+    readout_frame = cosmic_hits(readout_frame, cr_rate, exptime, pixel_pitch,
+                                full_well)
+
+    # Electrons capped at full well capacity of imaging area
+    readout_frame[readout_frame > full_well] = full_well
+
+    return readout_frame
+
+
+def _serial_register(readout_frame, gain, full_well_serial, read_noise, bias,
+                     fixed_pattern):
+    """Simulate detector serial register."""
+    readout_frame_flat = readout_frame.ravel()
+    serial_frame_flat = np.zeros(readout_frame.size)
+
+    for i in range(len(readout_frame_flat)):
+        serial_frame_flat[i] = rand_em_gain(readout_frame_flat[i], gain)
+
+    serial_frame = serial_frame_flat.reshape(readout_frame.shape)
+
+#    if cr_rate:
+#        # Tails from cosmic hits
+#        serial_frame = cosmic_tails(serial_frame, full_well_serial, h, k, r)
+
+    # Cap at full well capacity of gain register
+    serial_frame[serial_frame > full_well_serial] = full_well_serial
+
+    # Read_noise
+    read_noise_map = read_noise * np.random.normal(size=readout_frame.shape)
+
+    serial_frame += read_noise_map + fixed_pattern + bias
+
+    return serial_frame
