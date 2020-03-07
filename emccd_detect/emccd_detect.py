@@ -70,8 +70,6 @@ def readout_register(fluxmap, exptime, full_well, dark_rate, cic_noise,
                      quantum_efficiency, cr_rate, pixel_pitch,
                      apply_smear):
     """Simulate detector readout register."""
-    fixed_pattern = np.zeros(fluxmap.shape)  # This will be modeled later
-
     # Mean expected electrons after inegrating over exptime
     mean_expected_e = fluxmap * exptime * quantum_efficiency
 
@@ -88,11 +86,12 @@ def readout_register(fluxmap, exptime, full_well, dark_rate, cic_noise,
                                           * shot_noise).astype(float)
         readout_frame += mean_expected_e
 
+    fixed_pattern = _generate_fixed_pattern(readout_frame)
+    readout_frame += fixed_pattern
+
     # Cosmic hits on image area
     readout_frame = cosmic_hits(readout_frame, cr_rate, exptime, pixel_pitch,
                                 full_well)
-
-    readout_frame += fixed_pattern
 
     # Electrons capped at full well capacity of imaging area
     readout_frame[readout_frame > full_well] = full_well
@@ -102,6 +101,7 @@ def readout_register(fluxmap, exptime, full_well, dark_rate, cic_noise,
 
 def serial_register(readout_frame, gain, full_well_serial, read_noise, bias):
     """Simulate detector serial register."""
+    # Readout frame is flattened on a row by row basis
     readout_frame_flat = readout_frame.ravel()
     serial_frame_flat = np.zeros(readout_frame.size)
 
@@ -123,3 +123,10 @@ def serial_register(readout_frame, gain, full_well_serial, read_noise, bias):
     serial_frame += read_noise_map + bias
 
     return serial_frame
+
+
+def _generate_fixed_pattern(readout_frame):
+    """Simulate EMCCD fixed pattern."""
+    fixed_pattern = np.zeros(readout_frame.shape)  # This will be modeled later
+
+    return fixed_pattern
