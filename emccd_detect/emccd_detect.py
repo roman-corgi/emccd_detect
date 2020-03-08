@@ -70,30 +70,30 @@ def readout_register(fluxmap, exptime, full_well, dark_rate, cic_noise,
                      quantum_efficiency, cr_rate, pixel_pitch,
                      apply_smear):
     """Simulate detector readout register."""
-    # Mean expected electrons after inegrating over exptime
-    mean_expected_e = fluxmap * exptime * quantum_efficiency
+    # Mean electrons after inegrating over exptime
+    mean_e = fluxmap * exptime * quantum_efficiency
 
-    # Mean expected dark current after integrationg over exptime
-    mean_expected_dark = dark_rate * exptime
-    shot_noise = mean_expected_dark + cic_noise
+    # Mean shot noise after integrating over exptime
+    mean_dark = dark_rate * exptime
+    shot_noise = mean_dark + cic_noise
 
     # Electrons actualized at the pixels
     if apply_smear:
-        readout_frame = np.random.poisson(mean_expected_e
-                                          + shot_noise).astype(float)
+        readout_frame = np.random.poisson(mean_e + shot_noise).astype(float)
     else:
-        readout_frame = np.random.poisson(np.ones(fluxmap.shape)
-                                          * shot_noise).astype(float)
-        readout_frame += mean_expected_e
+        readout_frame = np.random.poisson(shot_noise,
+                                          size=mean_e.shape).astype(float)
+        readout_frame += mean_e
 
+    # Apply fixed pattern
     fixed_pattern = _generate_fixed_pattern(readout_frame)
     readout_frame += fixed_pattern
 
-    # Cosmic hits on image area
+    # Simulate cosmic hits on image area
     readout_frame = cosmic_hits(readout_frame, cr_rate, exptime, pixel_pitch,
                                 full_well)
 
-    # Electrons capped at full well capacity of imaging area
+    # Cap electrons at full well capacity of imaging area
     readout_frame[readout_frame > full_well] = full_well
 
     return readout_frame

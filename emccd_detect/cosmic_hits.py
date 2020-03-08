@@ -45,25 +45,26 @@ def cosmic_hits(frame, cr_rate, exptime, pixel_pitch, full_well):
     # Create hits
     for i in range(hits_per_frame):
         # Get pixels where cosmic lands
-        min_row = max(np.round(hit_row[i] - hit_rad[i]).astype(int), 0)
-        max_row = min(np.round(hit_row[i] + hit_rad[i]).astype(int), frame_r-1)
-        min_col = max(np.round(hit_col[i] - hit_rad[i]).astype(int), 0)
-        max_col = min(np.round(hit_col[i] + hit_rad[i]).astype(int), frame_c-1)
+        min_row = max(np.ceil(hit_row[i] - hit_rad[i]).astype(int), 0)
+        max_row = min(np.ceil(hit_row[i] + hit_rad[i]).astype(int), frame_r-1)
+        min_col = max(np.ceil(hit_col[i] - hit_rad[i]).astype(int), 0)
+        max_col = min(np.ceil(hit_col[i] + hit_rad[i]).astype(int), frame_c-1)
         cols, rows = np.meshgrid(np.arange(min_col, max_col+1),
                                  np.arange(min_row, max_row+1))
 
         # Create gaussian
-        sigma = hit_rad[i] / 3.75
+        sigma = hit_rad[i] / 8.0
         a = 1 / (np.sqrt(2*np.pi) * sigma)
         b = 2.0 * sigma**2
         cosm_section = a * np.exp(-((rows-hit_row[i])**2 + (cols-hit_col[i])**2) / b)
 
-        # Cut the small values of the gaussian out
-        cutoff = 0.03 * a
-        cosm_section[cosm_section <= cutoff] = 0
-
         # Scale and add cosmic
         cosm_section = cosm_section / np.max(cosm_section) * full_well
+
+        # Cut the very small values of the gaussian out
+        cutoff = 1.0
+        cosm_section[cosm_section <= cutoff] = 0
+
         frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
 
     return frame
