@@ -16,7 +16,6 @@ fits_name = 'ref_frame.fits'
 current_path = os.path.dirname(os.path.abspath(__file__))
 fits_path = os.path.join(current_path, 'fits', fits_name)
 fluxmap = fits.getdata(fits_path)  # photons/pix/s
-fluxmap = np.zeros(fluxmap.shape)
 
 # Simulation inputs
 exptime = 100.0  # Frame time (seconds)

@@ -62,7 +62,7 @@ def cosmic_hits(frame, cr_rate, exptime, pixel_pitch, full_well):
         cosm_section = cosm_section / np.max(cosm_section) * full_well
 
         # Cut the very small values of the gaussian out
-        cutoff = 1.0
+        cutoff = 0.1
         cosm_section[cosm_section <= cutoff] = 0
 
         frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
