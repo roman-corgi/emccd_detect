@@ -88,6 +88,6 @@ def rand_em_gain(n_in, em_gain):
         chi = cdf[ihi]
         randout = xlo + (cdf_lookup - clo) * ((xhi - xlo)/(chi-clo))
 
-    n_out = round(randout)
+    n_out = np.round(randout)
 
     return n_out

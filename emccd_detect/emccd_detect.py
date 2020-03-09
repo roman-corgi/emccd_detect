@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-from cosmic_hits import cosmic_hits
-from cosmic_tails import cosmic_tails
-from rand_em_gain import rand_em_gain
+from .cosmic_hits import cosmic_hits
+from .cosmic_tails import cosmic_tails
+from .rand_em_gain import rand_em_gain
 
 
 def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
