@@ -1,5 +1,7 @@
-function sim_im = emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe,...
-                               fwc_im, fwc_gr, dark_current, cic, read_noise) 
+function sim_im = emccd_detect(fluxmap, exptime, gain, full_well_serial,...
+                               full_well, dark_rate, cic_noise, read_noise,...
+                               bias, quantum_efficiency, cr_rate, pixel_pitch,...
+                               apply_smear) 
 %EMCCD_DETECT Create an EMCCD-detected image for a given flux map.
 %
 % NOTES
@@ -13,32 +15,27 @@ function sim_im = emccd_detect(fluxmap, cr_rate, frametime, em_gain, bias, qe,..
 
 % detector parameters
 pars.CRrate      = cr_rate;
-pars.pixelPitch  = 13 * 10^(-6); % distance between pixel centers (m)
+pars.pixelPitch  = pixel_pitch; % distance between pixel centers (m)
 pars.pixelRadius = 3; % radius of pixels affected by a single cosmic hit (pixels)
-pars.FWCim       = fwc_im; % full well capacity (image plane) 
-pars.FWCgr       = fwc_gr; % full well capacity (gain register)
+pars.FWCim       = full_well; % full well capacity (image plane) 
+pars.FWCgr       = full_well_serial; % full well capacity (gain register)
 pars.matrixh     = frame_h;
 pars.matrixw     = frame_w;
 
 fixed_pattern = zeros(frame_h, frame_w);  % This will be modeled later
-if ~exist('QE','var') || isempty(qe)
-    qe = 1.0;
-end
-if ~exist('bias','var') || isempty(bias)
-    bias = 0.;
-end
+
 % Dark current is specified in e-/pix/s
-meanExpectedDark = dark_current * frametime;
+meanExpectedDark = dark_rate * exptime;
 
 % Mean expected electrons after inegrating in frameTime
-meanExpectedElectrons = fluxmap * frametime * qe + meanExpectedDark + cic;
+meanExpectedElectrons = fluxmap * exptime * quantum_efficiency + meanExpectedDark + cic_noise;
 
 % Electrons actualized at the pixels
 expectedElectrons = poissrnd(meanExpectedElectrons);
 
 if cr_rate ~= 0
     % Cosmic hits on image area
-    [expectedElectrons, props] = cosmic_hits(expectedElectrons, pars, frametime);
+    [expectedElectrons, props] = cosmic_hits(expectedElectrons, pars, exptime);
 end
 
 % Electrons capped at full well capacity of imaging area
@@ -50,13 +47,13 @@ indnz = find(expectedElectrons);
 
 for ii = 1:length(indnz)
     ie = indnz(ii);
-    em_frame(ie) = rand_em_gain(expectedElectrons(ie), em_gain);
+    em_frame(ie) = rand_em_gain(expectedElectrons(ie), gain);
 end
 
-if cr_rate ~= 0
-    % Tails from cosmic hits
-    em_frame = cosmic_tails(em_frame, pars, props);
-end
+% if cr_rate ~= 0
+%     % Tails from cosmic hits
+%     em_frame = cosmic_tails(em_frame, pars, props);
+% end
 
 % Cap at full well capacity of gain register
 em_frame(em_frame > pars.FWCgr) = pars.FWCgr;

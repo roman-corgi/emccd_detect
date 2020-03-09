@@ -29,3 +29,4 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints
 *.m~
+*.asv

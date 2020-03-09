@@ -7,23 +7,26 @@
 fits_name = 'ref_frame.fits';
 current_path = pwd;
 fits_path = fullfile(fileparts(current_path), 'fits', fits_name);
-fluxmap = fitsread(fits_path);
+fluxmap = fitsread(fits_path);  % photons/pix/s
 
 % Simulation inputs
-frametime = 100.0;  % seconds
-gain = 1000.0;
-cr_rate = 0;  % hits/cm^2/s (set to 0 for no cosmics; 5 for L2 expected)
-bias = 0.0;
-qe = 0.9;  % quantum efficiency
-fwc_im = 50000.0;  % full well capacity (image plane)
-fwc_gr = 90000.0;  % full well capacity (gain register)
-dark_current = 0.005;  % e-/pix/s
-cic = 0.02;  % e-/pix/frame
-read_noise = 100;  % e-/pix/frame -- amplifier noise (EMCCD CCD201 Type C)
-
+exptime = 100.0;  % Frame time (seconds)
+gain = 1000.0;  % CCD gain (e-/photon)
+full_well_serial = 10000.0;  % Serial register capacity (e-)
+full_well = 60000.0;  % Readout register capacity (e-)
+dark_rate = 0.0056;  % Dark rate (e-/pix/s)
+cic_noise = 0.01;  % Charge injection noise (e-/pix/frame)
+read_noise = 100;  % Read noise (e-/pix/frame)
+bias = 0.0;  % Bias offset (e-)
+quantum_efficiency = 0.9;
+cr_rate = 5;  % Cosmic ray rate (5 for L2) (hits/cm^2/s)
+pixel_pitch = 13 * 10^-6;  % Distance between pixel centers (m)
+apply_smear = true;  % Apply LOWFS readout smear
+% 
 % Simulate single image
-sim_im = emccd_detect(fluxmap, cr_rate, frametime, gain, bias, qe, fwc_im,...
-                      fwc_gr, dark_current, cic, read_noise);
+sim_im = emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,...
+                      dark_rate, cic_noise, read_noise, bias,...
+                      quantum_efficiency, cr_rate, pixel_pitch, apply_smear);
 
 % Plot images
 plot_images = true;
@@ -36,5 +39,5 @@ if plot_images
     imagesc(sim_im); colorbar;
     title({'Output Fluxmap',...
           sprintf('Gain: %.0f    RN: %.0fe-    t_{fr}: %.0fs',...
-                  gain, read_noise, frametime)})
+                  gain, read_noise, exptime)})
 end
