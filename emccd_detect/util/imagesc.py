@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Plot a scaled colormap."""
 import matplotlib.pyplot as plt
 
 
