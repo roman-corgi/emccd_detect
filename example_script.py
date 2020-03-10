@@ -5,7 +5,7 @@ S Miller and B Nemati - UAH - 21-Feb-2020
 """
 from __future__ import division, absolute_import, print_function
 
-import os
+from os import path
 
 from astropy.io import fits
 
@@ -15,8 +15,8 @@ from emccd_detect.util.imagesc import imagesc
 
 # Input fluxmap
 fits_name = 'ref_frame.fits'
-current_path = os.path.dirname(os.path.abspath(__file__))
-fits_path = os.path.join(current_path, 'fits', fits_name)
+current_path = path.abspath(path.dirname(__file__))
+fits_path = path.join(current_path, 'fits', fits_name)
 fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
 
 # Simulation inputs
@@ -39,7 +39,7 @@ sim_im = emccd_detect(fluxmap, exptime, em_gain, full_well_image,
                       qe, cr_rate, pixel_pitch, shot_noise_on)
 
 # Plot images
-plot_images = True
+plot_images = False
 if plot_images:
     imagesc(fluxmap, 'Input Fluxmap')
 
