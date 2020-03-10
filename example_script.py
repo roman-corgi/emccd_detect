@@ -3,6 +3,8 @@
 
 S Miller and B Nemati - UAH - 21-Feb-2020
 """
+from __future__ import division, absolute_import, print_function
+
 import os
 
 from astropy.io import fits

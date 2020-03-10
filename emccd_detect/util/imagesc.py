@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Plot a scaled colormap."""
+from __future__ import division, absolute_import, print_function
+
 import matplotlib.pyplot as plt
 
 

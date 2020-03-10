@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import division, absolute_import, print_function
+
 import numpy as np
 
 from emccd_detect.cosmic_hits import cosmic_hits
