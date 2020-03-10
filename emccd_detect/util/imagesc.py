@@ -2,13 +2,18 @@
 import matplotlib.pyplot as plt
 
 
+class ImagescException(Exception):
+    """Exception class for imagesc module."""
+    pass
+
+
 def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
-            aspect='equal', colorbar=True, grid=False, extent=None):
+            aspect='equal', colorbar=True, grid=False):
     """Plot a scaled colormap.
 
     Parameters
     ----------
-    data : array_like, shape (n, m)
+    data : array_like
         Input array.
     title : str, optional
         Plot title. Defaults to None.
@@ -24,8 +29,6 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
         Option to display colorbar. Defaults to True.
     grid : bool, optional
         Option to display grid. Defaults to False.
-    extent : scalars (left, right, bottom, top), optional
-        
 
     Returns
     -------
@@ -41,13 +44,10 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
     S Miller - UAH - 13-Feb-2019
     """
     fig, ax = plt.subplots()
-    if extent is None:
-        im = ax.imshow(data, vmin=vmin, vmax=vmax, aspect=aspect, cmap=cmap)
-    else:
-        im = ax.imshow(data, vmin=vmin, vmax=vmax, aspect=aspect, cmap=cmap,
-                       interpolation='none', extent=extent)
+    im = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=cmap, aspect=aspect)
     ax.grid(grid)
-    if title is not None:
+
+    if title:
         ax.set_title(title)
     if colorbar:
         fig.colorbar(im, ax=ax)

@@ -32,7 +32,7 @@ def rand_em_gain(n_in, em_gain):
     B Nemati and S Miller - UAH - 22-Sep-2018
     """
     if em_gain < 1:
-        raise ValueError('EM gain cannot be set to less than 1')
+        raise ValueError('EM gain cannot be set below 1')
 
     if n_in < 16:
         kmax = 4
