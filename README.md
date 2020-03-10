@@ -7,7 +7,7 @@ This is a preliminary version; future updates will have fast EMCCD capability (f
 ## Getting Started
 ### Installing
 
-This package requires Python 2.7. To install emccd_detect, use 
+This package requires Python 2.7. To install emccd_detect, use
 
 	python setup.py install
 
