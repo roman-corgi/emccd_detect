@@ -8,9 +8,9 @@ from emccd_detect.cosmic_tails import cosmic_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 
 
-def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
-                 dark_rate, cic_noise, read_noise, bias, quantum_efficiency,
-                 cr_rate, pixel_pitch, apply_smear=True):
+def emccd_detect(fluxmap, exptime, em_gain, full_well_image, full_well_serial,
+                 dark_current, cic, read_noise, bias, qe,
+                 cr_rate, pixel_pitch, shot_noise_on=True):
     """Create an EMCCD-detected image for a given fluxmap.
 
     Parameters
@@ -19,98 +19,94 @@ def emccd_detect(fluxmap, exptime, gain, full_well_serial, full_well,
         Input fluxmap (photons/pix/s).
     exptime : float
         Frame time (s).
-    gain : float
-        CCD gain (e-/photon).
+    em_gain : float
+        CCD em_gain (e-/photon).
+    full_well_image : float
+        Image area full well capacity (e-).
     full_well_serial : float
-        Serial register capacity (e-).
-    full_well : float
-        Readout register capacity (e-).
-    dark_rate: float
-        Dark rate (e-/pix/s).
-    cic_noise : float
-        Charge injection noise (e-/pix/frame).
+        Serial (gain) register full well capacity (e-).
+    dark_current: float
+        Dark current rate (e-/pix/s).
+    cic : float
+        Clock induced charge (e-/pix/frame).
     read_noise : float
         Read noise (e-/pix/frame).
     bias : float
         Bias offset (e-).
-    quantum_efficiency : float
+    qe : float
         Quantum efficiency.
     cr_rate : float
         Cosmic ray rate (hits/cm^2/s).
     pixel_pitch : float
         Distance between pixel centers (m).
-    apply_smear : bool, optional
-        Apply LOWFS readout smear. Defaults to True.
+    shot_noise_on : bool, optional
+        Apply shot noise. Defaults to True.
 
     Returns
     -------
-    sim_im : array_like, float
-        Output simulated fluxmap.
+    serial_frame : array_like, float
+        Detector output (e-).
 
     Notes
     -----
     The flux map must be in units of photons/pix/s. Read noise is in electrons
     and is the amplifier read noise and not the effective read noise after the
     application of EM gain. Dark current must be supplied in units of e-/pix/s,
-    and cic_noise is the clock induced charge in units of e-/pix/frame.
+    and cic is the clock induced charge in units of e-/pix/frame.
 
     B Nemati and S Miller - UAH - 18-Jan-2019
     """
-    readout_frame = readout_register(fluxmap, exptime, full_well, dark_rate,
-                                     cic_noise, quantum_efficiency, cr_rate,
-                                     pixel_pitch, apply_smear)
+    image_frame = image_area(fluxmap, exptime, full_well_image, dark_current,
+                             cic, qe, cr_rate, pixel_pitch, shot_noise_on)
 
-    serial_frame = serial_register(readout_frame, gain, full_well_serial,
+    serial_frame = serial_register(image_frame, em_gain, full_well_serial,
                                    read_noise, bias)
 
-    sim_im = serial_frame
-
-    return sim_im
+    return serial_frame
 
 
-def readout_register(fluxmap, exptime, full_well, dark_rate, cic_noise,
-                     quantum_efficiency, cr_rate, pixel_pitch,
-                     apply_smear):
+def image_area(fluxmap, exptime, full_well_image, dark_current, cic, qe,
+               cr_rate, pixel_pitch, shot_noise_on):
     """Simulate detector readout register."""
     # Mean electrons after inegrating over exptime
-    mean_e = fluxmap * exptime * quantum_efficiency
+    mean_e = fluxmap * exptime * qe
 
     # Mean shot noise after integrating over exptime
-    mean_dark = dark_rate * exptime
-    shot_noise = mean_dark + cic_noise
+    mean_dark = dark_current * exptime
+    shot_noise = mean_dark + cic
 
     # Electrons actualized at the pixels
-    if apply_smear:
-        readout_frame = np.random.poisson(mean_e + shot_noise).astype(float)
+    if shot_noise_on:
+        image_frame = np.random.poisson(mean_e + shot_noise).astype(float)
     else:
-        readout_frame = np.random.poisson(shot_noise,
-                                          size=mean_e.shape).astype(float)
-        readout_frame += mean_e
+        image_frame = np.random.poisson(shot_noise,
+                                        size=mean_e.shape).astype(float)
+        image_frame += mean_e
 
     # Apply fixed pattern
-    fixed_pattern = _generate_fixed_pattern(readout_frame)
-    readout_frame += fixed_pattern
+    fixed_pattern = _generate_fixed_pattern(image_frame)
+    image_frame += fixed_pattern
 
     # Simulate cosmic hits on image area
-    readout_frame = cosmic_hits(readout_frame, cr_rate, exptime, pixel_pitch,
-                                full_well)
+    image_frame = cosmic_hits(image_frame, cr_rate, exptime, pixel_pitch,
+                              full_well_image)
 
     # Cap electrons at full well capacity of imaging area
-    readout_frame[readout_frame > full_well] = full_well
+    image_frame[image_frame > full_well_image] = full_well_image
 
-    return readout_frame
+    return image_frame
 
 
-def serial_register(readout_frame, gain, full_well_serial, read_noise, bias):
+def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     """Simulate detector serial register."""
     # Readout frame is flattened on a row by row basis
-    readout_frame_flat = readout_frame.ravel()
-    serial_frame_flat = np.zeros(readout_frame.size)
+    image_frame_flat = image_frame.ravel()
+    serial_frame_flat = np.zeros(image_frame.size)
 
-    for i in range(len(readout_frame_flat)):
-        serial_frame_flat[i] = rand_em_gain(readout_frame_flat[i], gain)
+    for i in range(len(image_frame_flat)):
+        serial_frame_flat[i] = rand_em_gain(image_frame_flat[i], em_gain)
 
-    serial_frame = serial_frame_flat.reshape(readout_frame.shape)
+    serial_frame = serial_frame_flat.reshape(image_frame.shape)
 
 #    if cr_rate:
 #        # Tails from cosmic hits
@@ -120,15 +116,15 @@ def serial_register(readout_frame, gain, full_well_serial, read_noise, bias):
     serial_frame[serial_frame > full_well_serial] = full_well_serial
 
     # Read_noise
-    read_noise_map = read_noise * np.random.normal(size=readout_frame.shape)
+    read_noise_map = read_noise * np.random.normal(size=image_frame.shape)
 
     serial_frame += read_noise_map + bias
 
     return serial_frame
 
 
-def _generate_fixed_pattern(readout_frame):
+def _generate_fixed_pattern(image_frame):
     """Simulate EMCCD fixed pattern."""
-    fixed_pattern = np.zeros(readout_frame.shape)  # This will be modeled later
+    fixed_pattern = np.zeros(image_frame.shape)  # This will be modeled later
 
     return fixed_pattern
