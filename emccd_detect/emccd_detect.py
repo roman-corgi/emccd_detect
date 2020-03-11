@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Simulation for EMCCD detector."""
 from __future__ import division, absolute_import, print_function
 
 import numpy as np
@@ -49,10 +50,8 @@ def emccd_detect(fluxmap, exptime, em_gain, full_well_image, full_well_serial,
 
     Notes
     -----
-    The flux map must be in units of photons/pix/s. Read noise is in electrons
-    and is the amplifier read noise and not the effective read noise after the
-    application of EM gain. Dark current must be supplied in units of e-/pix/s,
-    and cic is the clock induced charge in units of e-/pix/frame.
+    Read noise is the amplifier read noise and not the effective read noise
+    after the application of EM gain.
 
     B Nemati and S Miller - UAH - 18-Jan-2019
     """
@@ -67,7 +66,7 @@ def emccd_detect(fluxmap, exptime, em_gain, full_well_image, full_well_serial,
 
 def image_area(fluxmap, exptime, full_well_image, dark_current, cic, qe,
                cr_rate, pixel_pitch, shot_noise_on):
-    """Simulate detector readout register."""
+    """Simulate detector image area."""
     # Mean electrons after inegrating over exptime
     mean_e = fluxmap * exptime * qe
 
@@ -83,10 +82,6 @@ def image_area(fluxmap, exptime, full_well_image, dark_current, cic, qe,
                                         size=mean_e.shape).astype(float)
         image_frame += mean_e
 
-    # Apply fixed pattern
-    fixed_pattern = _generate_fixed_pattern(image_frame)
-    image_frame += fixed_pattern
-
     # Simulate cosmic hits on image area
     image_frame = cosmic_hits(image_frame, cr_rate, exptime, pixel_pitch,
                               full_well_image)
@@ -98,7 +93,7 @@ def image_area(fluxmap, exptime, full_well_image, dark_current, cic, qe,
 
 
 def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
-    """Simulate detector serial register."""
+    """Simulate detector serial (gain) register."""
     # Readout frame is flattened on a row by row basis
     image_frame_flat = image_frame.ravel()
     serial_frame_flat = np.zeros(image_frame.size)
@@ -115,6 +110,10 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     # Cap at full well capacity of gain register
     serial_frame[serial_frame > full_well_serial] = full_well_serial
 
+    # Apply fixed pattern
+    fixed_pattern = _generate_fixed_pattern(serial_frame)
+    image_frame += fixed_pattern
+
     # Read_noise
     read_noise_map = read_noise * np.random.normal(size=image_frame.shape)
 
@@ -123,8 +122,8 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     return serial_frame
 
 
-def _generate_fixed_pattern(image_frame):
+def _generate_fixed_pattern(serial_frame):
     """Simulate EMCCD fixed pattern."""
-    fixed_pattern = np.zeros(image_frame.shape)  # This will be modeled later
+    fixed_pattern = np.zeros(serial_frame.shape)  # This mat be modeled later
 
     return fixed_pattern
