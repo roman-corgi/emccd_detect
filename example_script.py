@@ -20,17 +20,17 @@ fits_path = path.join(current_path, 'fits', fits_name)
 fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
 
 # Simulation inputs
-exptime = 100  # Frame time (s)
-em_gain = 1000  # CCD em_gain (e-/photon)
-full_well_image = 60000  # Image area full well capacity (e-)
-full_well_serial = 10000  # Serial (gain) register full well capacity (e-)
+exptime = 100.  # Frame time (s)
+em_gain = 1000.  # CCD em_gain (e-/photon)
+full_well_image = 60000.  # Image area full well capacity (e-)
+full_well_serial = 10000.  # Serial (gain) register full well capacity (e-)
 dark_current = 0.0056  # Dark current rate (e-/pix/s)
 cic = 0.01  # Charge induced charge (e-/pix/frame)
-read_noise = 100  # Read noise (e-/pix/frame)
-bias = 0  # Bias offset (e-)
+read_noise = 100.  # Read noise (e-/pix/frame)
+bias = 0.  # Bias offset (e-)
 qe = 0.9  # Quantum efficiency
-cr_rate = 5  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
-pixel_pitch = 13 * 10**-6  # Distance between pixel centers (m)
+cr_rate = 5.  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
+pixel_pitch = 13e-6  # Distance between pixel centers (m)
 shot_noise_on = True  # Apply shot noise
 
 # Simulate single image
