@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-from __future__ import division, absolute_import, print_function
+"""Generate cosmic tails."""
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
 
 def cosmic_tails(frame, fwc_gr, h, k, r):
-    """Generate cosmic tails from cosmic hits.
+    """Generate cosmic tails.
 
     Parameters
     ----------
