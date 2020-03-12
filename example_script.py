@@ -3,7 +3,7 @@
 
 S Miller and B Nemati - UAH - 21-Feb-2020
 """
-from __future__ import division, absolute_import, print_function
+from __future__ import absolute_import, division, print_function
 
 from os import path
 
@@ -11,7 +11,6 @@ from astropy.io import fits
 
 from emccd_detect.emccd_detect import emccd_detect
 from emccd_detect.util.imagesc import imagesc
-
 
 # Input fluxmap
 fits_name = 'ref_frame.fits'
