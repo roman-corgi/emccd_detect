@@ -27,22 +27,21 @@ def cosmic_hits(frame, cr_rate, exptime, pixel_pitch, full_well):
 
     S Miller - UAH - 16-Jan-2019
     """
-    # Number of frame rows and columns
-    frame_r, frame_c = frame.shape
-
     # Find number of hits/frame
+    frame_r, frame_c = frame.shape
     framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10.0**-4  # cm^2
     hits_per_second = cr_rate * framesize
     hits_per_frame = int(round(hits_per_second * exptime))  # XXX zero case
 
-    # Generate hits
-    # Describe each hit as a gaussian centered at (hit_col, hit_row) and having
-    # an energy of hit_rad (since radius is assumed to be proportional to
-    # energy)
-    cr_max_radius = 3  # Maximum radius of pixels affected by cosmic hit (pix)
+    # Generate hit locations
+    # Describe each hit as a gaussian centered at (hit_row, hit_col) and having
+    # an radius of hit_rad chosen between cr_min_radius and cr_max_radius
+    cr_min_radius = 1
+    cr_max_radius = 3
     hit_row = np.random.uniform(low=0, high=frame_r-1, size=hits_per_frame)
     hit_col = np.random.uniform(low=0, high=frame_c-1, size=hits_per_frame)
-    hit_rad = np.random.uniform(low=1, high=cr_max_radius, size=hits_per_frame)
+    hit_rad = np.random.uniform(low=cr_min_radius, high=cr_max_radius,
+                                size=hits_per_frame)
 
     # Create hits
     for i in range(hits_per_frame):

@@ -17,7 +17,7 @@ def rand_em_gain(n_in, em_gain):
 
     Returns
     -------
-    n_out : float
+    out : float
         Number of electrons exiting EM register.
 
     Notes
@@ -80,7 +80,7 @@ def rand_em_gain(n_in, em_gain):
     cdf_lookup = np.random.random(1)
 
     if cdf_lookup < cdf[0]:
-        randout = 0
+        n_out = 0
     else:
         ihi = (cdf > cdf_lookup).nonzero()[0][0]
         ilo = ihi - 1
@@ -88,8 +88,5 @@ def rand_em_gain(n_in, em_gain):
         xhi = x[ihi]
         clo = cdf[ilo]
         chi = cdf[ihi]
-        randout = xlo + (cdf_lookup - clo) * ((xhi - xlo)/(chi-clo))
-
-    n_out = np.round(randout)
-
-    return n_out
+        n_out = xlo + (cdf_lookup - clo) * ((xhi - xlo)/(chi-clo))
+    return np.round(n_out)
