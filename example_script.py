@@ -20,11 +20,11 @@ fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
 
 # Simulation inputs
 exptime = 100.  # Frame time (s)
-em_gain = 1000.  # CCD em_gain (e-/photon)
+em_gain = 1000.  # CCD EM gain (e-/photon)
 full_well_image = 60000.  # Image area full well capacity (e-)
 full_well_serial = 10000.  # Serial (gain) register full well capacity (e-)
 dark_current = 0.0056  # Dark current rate (e-/pix/s)
-cic = 0.01  # Charge induced charge (e-/pix/frame)
+cic = 0.01  # Clock induced charge (e-/pix/frame)
 read_noise = 100.  # Read noise (e-/pix/frame)
 bias = 0.  # Bias offset (e-)
 qe = 0.9  # Quantum efficiency

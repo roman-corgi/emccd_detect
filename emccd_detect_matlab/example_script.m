@@ -11,11 +11,11 @@ fluxmap = fitsread(fits_path);  % Input fluxmap (photons/pix/s)
 
 % Simulation inputs
 exptime = 100.;  % Frame time (seconds)
-em_gain = 1000.;  % CCD gain (e-/photon)
-full_well_image = 60000.;  % Readout register capacity (e-)
-full_well_serial = 10000.;  % Serial register capacity (e-)
-dark_current = 0.0056;  % Dark rate (e-/pix/s)
-cic = 0.01;  % Charge injection noise (e-/pix/frame)
+em_gain = 1000.;  % CCD EM gain (e-/photon)
+full_well_image = 60000.;  % Image area full well capacity (e-)
+full_well_serial = 10000.;  % Serial (gain) register full well capacity (e-)
+dark_current = 0.0056;  % Dark  current rate (e-/pix/s)
+cic = 0.01;  % Clock induced charge (e-/pix/frame)
 read_noise = 100.;  % Read noise (e-/pix/frame)
 bias = 0.;  % Bias offset (e-)
 qe = 0.9;  % Quantum effiency
