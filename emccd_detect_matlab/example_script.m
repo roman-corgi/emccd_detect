@@ -55,7 +55,7 @@ for Nin = NinValues
         x(it) = rand_em_gain(Nin, em_gain);
     end
     tn = toc; tper = tn / Ntries;
-    figure, histbn(x, 'all', 80); grid;
+    figure, histbn(x, 80, 'all'); grid;
     title(['Nin = ', num2str(Nin),' EMgain = ',num2str(em_gain), ' mean = ',...
         num2str(mean(x),'%5.0f'),' (',num2str(tper*1000,'%6.3f'),' ms per call)'])
 end
