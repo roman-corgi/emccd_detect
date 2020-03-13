@@ -7,7 +7,7 @@ scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, n
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
 % Input fluxmap
-npix_across = 600;
+npix_across = 300;
 flux = 0.008;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 

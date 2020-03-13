@@ -19,7 +19,7 @@ if (EMgain<1)
 end
 
 if Nin < 16
-    kmax = 10;
+    kmax = 5;
     xmin = eps;
     xmax = kmax * Nin * EMgain;
     xcorr = 0.5;
@@ -36,8 +36,10 @@ else
     EMgamma = gammaln(Nin);
 end
 
-x = xmin:(xmax-xmin)/99:xmax;
-
+% x = xmin:(xmax-xmin)/99:xmax;
+Nx = 800;  % Sam: it looks like setting this to a high number fixes the threshold efficiency issue. 
+% it seems to be an issue of speed vs. accuracy. I wonder if we can set a flag to choose cases
+x = linspace(xmin, xmax, Nx);
 if Nin == 1
     xNin = 0;
 else
@@ -51,9 +53,7 @@ end
 logpdf = xNin - x/EMgain - Nin*log(EMgain) - EMgamma;
 pdf = exp(logpdf);
 
-% a very ad-hoc correction: compensate for chopped off high tail by skewing the pdf
-corrSkew = 1 + xcorr * (0:1/(length(x)-1):1);
-pdf = pdf .* corrSkew;
+
 
 % generate random numbers according to pdf 
 pdf = pdf / sum(pdf);
