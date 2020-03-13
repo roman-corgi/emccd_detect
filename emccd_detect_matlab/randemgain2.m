@@ -1,4 +1,4 @@
-function out = rand_em_gain( Nin, EMgain )
+function out = randemgain2( Nin, EMgain )
 % Generate random number according to the EM gain prob density function
 % See Basden 2003 paper
 
@@ -19,7 +19,7 @@ if (EMgain<1)
 end
 
 if Nin < 16
-    kmax = 10;
+    kmax = 4;
     xmin = eps;
     xmax = kmax * Nin * EMgain;
     xcorr = 0.5;
@@ -52,8 +52,8 @@ logpdf = xNin - x/EMgain - Nin*log(EMgain) - EMgamma;
 pdf = exp(logpdf);
 
 % a very ad-hoc correction: compensate for chopped off high tail by skewing the pdf
-% corrSkew = 1 + xcorr * (0:1/(length(x)-1):1);
-% pdf = pdf .* corrSkew;
+corrSkew = 1 + xcorr * (0:1/(length(x)-1):1);
+pdf = pdf .* corrSkew;
 
 % generate random numbers according to pdf 
 pdf = pdf / sum(pdf);
