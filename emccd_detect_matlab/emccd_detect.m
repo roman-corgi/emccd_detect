@@ -10,7 +10,6 @@ function sim_im = emccd_detect(fluxmap, exptime, em_gain, full_well_image,...
 % and CIC is the clock induced charge in units of e-/pix/frame.
 %
 % B Nemati and S Miller - UAH - 18-Jan-2019
-fixed_pattern = zeros(size(fluxmap));  % This will be modeled later
 
 % Mean electrons after inegrating over exptime
 mean_e = fluxmap * exptime * qe;
@@ -53,6 +52,7 @@ end
 serial_frame(serial_frame > full_well_serial) = full_well_serial;
 
 % Apply fixed pattern
+fixed_pattern = zeros(size(fluxmap));  % This will be modeled later
 image_frame = image_frame + fixed_pattern;
 
 % Read noise
