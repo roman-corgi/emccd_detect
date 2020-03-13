@@ -52,8 +52,8 @@ logpdf = xNin - x/EMgain - Nin*log(EMgain) - EMgamma;
 pdf = exp(logpdf);
 
 % a very ad-hoc correction: compensate for chopped off high tail by skewing the pdf
-% corrSkew = 1 + xcorr * (0:1/(length(x)-1):1);
-% pdf = pdf .* corrSkew;
+corrSkew = 1 + xcorr * (0:1/(length(x)-1):1);
+pdf = pdf .* corrSkew;
 
 % generate random numbers according to pdf 
 pdf = pdf / sum(pdf);
@@ -70,7 +70,8 @@ else
     xlo = x(ilo); xhi = x(ihi); clo = cdf(ilo); chi = cdf(ihi);
     randout = xlo + (CDFlookup - clo) * ((xhi - xlo)/(chi-clo));
 end
-out = round(randout);
+
+out = round(randout) ;
 
 % inverse interpolation to achieve P(x) -> x projection of the random values
 if debug

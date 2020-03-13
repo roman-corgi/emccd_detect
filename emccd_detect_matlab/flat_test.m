@@ -1,13 +1,13 @@
 % EMCCD Detector Simulation.
 %
 % S Miller and B Nemati - UAH - 21-Feb-2020
-clear; close all; clc; format compact;
+clear;  clc; format compact;  close all;
 jMon = 2; fsz = 400*[1,1.4];
 scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
 % Input fluxmap
-npix_across = 100;
+npix_across = 600;
 flux = 0.008;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 
@@ -26,8 +26,8 @@ pixel_pitch = 13e-6;  % Distance between pixel centers (m)
 
 
 zeroFrame = zeros(size(fluxmap)); %#ok<*NOPTS>
-npts = 14;
-pc_thresh = linspace(200, 800, npts);
+npts = 15;
+pc_thresh = linspace(200, 900, npts);
 for ithr = 1:npts
     
     % Threshold and photon count
@@ -49,7 +49,7 @@ for ithr = 1:npts
     bright_an_mn(ithr) = mean(brightFrame(:));
     bright_PC = zeroFrame;
     bright_PC(brightFrame > pc_thresh(ithr)) = 1;
-    %     figure, imagesc(bright_PC); colorbar; colormap gray;
+    
     
     % analysis of photon counted frames
     
@@ -69,10 +69,12 @@ for ithr = 1:npts
     % photo-electron rate
     r_phe(ithr) = rtrue(ithr) - r_df(ithr);
     
+    if ithr ==1
+        figure, imagesc(bright_PC); colorbar; colormap gray;
         figure;
         imagesc(brightFrame); %, [0, 2*em_gain*flux*qe*frameTime]
         colorbar;
-    %
+    end
     
 end
 
@@ -83,7 +85,7 @@ grid
 legend('Observed', 'Corrected', 'Actual')
 xlabel('threshold factor')
 ylabel('rates, e/pix/s')
-
+title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_well_serial/1000),'k']);
 figure
 plot(nthr, eps_thr)
 grid
