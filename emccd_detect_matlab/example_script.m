@@ -1,6 +1,7 @@
 % EMCCD Detector Simulation.
 %
 % S Miller and B Nemati - UAH - 21-Feb-2020
+close all; clear; clc;
 
 
 % Input fluxmap
@@ -41,3 +42,22 @@ if plot_images
           sprintf('Gain: %.0f   Read Noise: %.0fe-   Frame Time: %.0fs',...
                   em_gain, read_noise, exptime)})
 end
+
+%% evaluate simulation
+% the point of this is to see how well the distributions look, coming out
+% of radnEMGain1
+Ntries = 2500;
+x = zeros(1, Ntries);
+NinValues = [1:3:16,50, 60, 70];
+for Nin = NinValues
+    tic
+    for it = 1:Ntries
+        x(it) = rand_em_gain(Nin, em_gain);
+    end
+    tn = toc; tper = tn / Ntries;
+    figure, histbn(x, 'all', 80); grid;
+    title(['Nin = ', num2str(Nin),' EMgain = ',num2str(em_gain), ' mean = ',...
+        num2str(mean(x),'%5.0f'),' (',num2str(tper*1000,'%6.3f'),' ms per call)'])
+end
+
+autoArrangeFigures
