@@ -1,7 +1,6 @@
-function sim_im = emccd_detect(fluxmap, exptime, gain, full_well_serial,...
-                               full_well, dark_rate, cic_noise, read_noise,...
-                               bias, quantum_efficiency, cr_rate, pixel_pitch,...
-                               apply_smear) 
+function sim_im = emccd_detect(fluxmap, exptime, em_gain, full_well_image,...
+                               full_well_serial, dark_current, cic, read_noise,...
+                               bias, qe, cr_rate, pixel_pitch, shot_noise_on) 
 %EMCCD_DETECT Create an EMCCD-detected image for a given flux map.
 %
 % NOTES
@@ -10,44 +9,39 @@ function sim_im = emccd_detect(fluxmap, exptime, gain, full_well_serial,...
 % application of EM gain. Dark current must be supplied in units of e-/pix/s,
 % and CIC is the clock induced charge in units of e-/pix/frame.
 %
-% B. Nemati and S. Miller - UAH - 18-Jan-2019
-[frame_h, frame_w] = size(fluxmap);
+% B Nemati and S Miller - UAH - 18-Jan-2019
+fixed_pattern = zeros(size(fluxmap));  % This will be modeled later
 
-% detector parameters
-pars.CRrate      = cr_rate;
-pars.pixelPitch  = pixel_pitch; % distance between pixel centers (m)
-pars.pixelRadius = 3; % radius of pixels affected by a single cosmic hit (pixels)
-pars.FWCim       = full_well; % full well capacity (image plane) 
-pars.FWCgr       = full_well_serial; % full well capacity (gain register)
-pars.matrixh     = frame_h;
-pars.matrixw     = frame_w;
+% Mean electrons after inegrating over exptime
+mean_e = fluxmap * exptime * qe;
 
-fixed_pattern = zeros(frame_h, frame_w);  % This will be modeled later
-
-% Dark current is specified in e-/pix/s
-meanExpectedDark = dark_rate * exptime;
-
-% Mean expected electrons after inegrating in frameTime
-meanExpectedElectrons = fluxmap * exptime * quantum_efficiency + meanExpectedDark + cic_noise;
+% Mean shot noise after integrating over exptime
+mean_dark = dark_current * exptime;
+shot_noise = mean_dark + cic;
 
 % Electrons actualized at the pixels
-expectedElectrons = poissrnd(meanExpectedElectrons);
-
-if cr_rate ~= 0
-    % Cosmic hits on image area
-    [expectedElectrons, props] = cosmic_hits(expectedElectrons, pars, exptime);
+if shot_noise_on
+    image_frame = poissrnd(mean_e + shot_noise);
+else
+    image_frame = poissrnd(shot_noise, size(mean_e));
+    image_frame = image_frame + mean_e;
 end
 
-% Electrons capped at full well capacity of imaging area
-expectedElectrons(expectedElectrons > pars.FWCim) = pars.FWCim;
+% if cr_rate ~= 0
+%     % Cosmic hits on image area
+%     [image_frame, props] = cosmic_hits(image_frame, pars, exptime);
+% end
+
+% Cap electrons at full well capacity of imaging area
+image_frame(image_frame > full_well_image) = full_well_image;
 
 % Go through EM register
-em_frame = zeros(frame_h, frame_w);
-indnz = find(expectedElectrons);
+serial_frame = zeros(size(image_frame));
+indnz = find(image_frame);
 
-for ii = 1:length(indnz)
-    ie = indnz(ii);
-    em_frame(ie) = rand_em_gain(expectedElectrons(ie), gain);
+for i = 1:length(indnz)
+    ie = indnz(i);
+    serial_frame(ie) = rand_em_gain(image_frame(ie), em_gain);
 end
 
 % if cr_rate ~= 0
@@ -56,12 +50,14 @@ end
 % end
 
 % Cap at full well capacity of gain register
-em_frame(em_frame > pars.FWCgr) = pars.FWCgr;
+serial_frame(serial_frame > full_well_serial) = full_well_serial;
 
-readNoiseMap = read_noise * randn(frame_h, frame_w);
+% Apply fixed pattern
+image_frame = image_frame + fixed_pattern;
 
-outMatrix = em_frame + readNoiseMap + fixed_pattern + bias;
+% Read noise
+read_noise_map = read_noise * randn(size(image_frame));
 
-sim_im = outMatrix;
-
+serial_frame = serial_frame + read_noise_map + bias;
+sim_im = serial_frame;
 return

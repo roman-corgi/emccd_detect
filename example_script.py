@@ -44,4 +44,4 @@ if plot_images:
 
     subtitle = ('Gain: {:.0f}   Read Noise: {:.0f}e-   Frame Time: {:.0f}s'
                 .format(em_gain, read_noise, exptime))
-    imagesc(sim_im, 'Output Fluxmap\n' + subtitle)
+    imagesc(sim_im, 'Output Image\n' + subtitle)

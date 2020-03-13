@@ -114,7 +114,7 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     fixed_pattern = _generate_fixed_pattern(serial_frame)
     image_frame += fixed_pattern
 
-    # Read_noise
+    # Read noise
     read_noise_map = read_noise * np.random.normal(size=image_frame.shape)
 
     serial_frame += read_noise_map + bias
