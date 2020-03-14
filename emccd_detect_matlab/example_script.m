@@ -39,25 +39,26 @@ if plot_images
     figure;
     imagesc(sim_im); colorbar;
     title({'Output Image',...
-          sprintf('Gain: %.0f   Read Noise: %.0fe-   Frame Time: %.0fs',...
+          sprintf('EM Gain: %.f   Read Noise: %.fe-   Frame Time: %.fs',...
                   em_gain, read_noise, frametime)})
 end
 
-%% evaluate simulation
-% the point of this is to see how well the distributions look, coming out
-% of radnEMGain1
-Ntries = 2500;
-x = zeros(1, Ntries);
-NinValues = [1:3:16,50, 60, 70];
-for Nin = NinValues
+%% Evaluate rand_em_gain simulation
+n_tries = 2500;
+x = zeros(1, n_tries);
+n_in_values = [1:3:16, 50, 60, 70];
+for n_in = n_in_values
     tic
-    for it = 1:Ntries
-        x(it) = rand_em_gain(Nin, em_gain);
+    for i = 1:n_tries
+        x(i) = rand_em_gain(n_in, em_gain);
     end
-    tn = toc; tper = tn / Ntries;
-    figure, histbn(x, 80, 'all'); grid;
-    title(['Nin = ', num2str(Nin),' EMgain = ',num2str(em_gain), ' mean = ',...
-        num2str(mean(x),'%5.0f'),' (',num2str(tper*1000,'%6.3f'),' ms per call)'])
+
+    tn = toc;
+    tper = tn / n_tries;
+    figure;
+    histbn(x, 80, 'all'); grid;
+    title(sprintf('Nin: %.f  EM Gain: %.f  Mean: %.f\n%.3f ms per call',...
+          n_in, em_gain, mean(x), tper*1000));
 end
 
 autoArrangeFigures
