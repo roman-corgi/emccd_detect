@@ -1,7 +1,7 @@
 function out = rand_em_gain( Nin, EMgain )
 % Generate random number according to the EM gain prob density function
 % See Basden 2003 paper
-
+%
 % Nin = (integer) no. of electrons entering EM register
 % EMgain = mean electron multiplication gain of the gain register
 % see http://matlabtricks.com/post-44/generate-random-numbers-with-a-given-distribution
@@ -60,7 +60,7 @@ pdf = pdf / sum(pdf);
 cdf = cumsum(pdf);
 
 % create a uniformly distributed random number for lookup in CDF
-CDFlookup = rand(1);
+CDFlookup = rand;
 
 if CDFlookup < cdf(1)
     randout = 0;

@@ -11,7 +11,7 @@ fits_path = fullfile(fileparts(current_path), 'fits', fits_name);
 fluxmap = fitsread(fits_path);  % Input fluxmap (photons/pix/s)
 
 % Simulation inputs
-exptime = 100.;  % Frame time (seconds)
+frametime = 100.;  % Frame time (seconds)
 em_gain = 1000.;  % CCD EM gain (e-/photon)
 full_well_image = 60000.;  % Image area full well capacity (e-)
 full_well_serial = 10000.;  % Serial (gain) register full well capacity (e-)
@@ -25,7 +25,7 @@ pixel_pitch = 13e-6;  % Distance between pixel centers (m)
 shot_noise_on = true;  % Apply shot noise
 
 % Simulate single image
-sim_im = emccd_detect(fluxmap, exptime, em_gain, full_well_image,...
+sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
                       full_well_serial, dark_current, cic, read_noise, bias,...
                       qe, cr_rate, pixel_pitch, shot_noise_on);
 
@@ -40,7 +40,7 @@ if plot_images
     imagesc(sim_im); colorbar;
     title({'Output Image',...
           sprintf('Gain: %.0f   Read Noise: %.0fe-   Frame Time: %.0fs',...
-                  em_gain, read_noise, exptime)})
+                  em_gain, read_noise, frametime)})
 end
 
 %% evaluate simulation

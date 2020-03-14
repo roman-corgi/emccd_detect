@@ -1,4 +1,4 @@
-function sim_im = emccd_detect(fluxmap, exptime, em_gain, full_well_image,...
+function sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
                                full_well_serial, dark_current, cic, read_noise,...
                                bias, qe, cr_rate, pixel_pitch, shot_noise_on) 
 %EMCCD_DETECT Create an EMCCD-detected image for a given flux map.
@@ -12,10 +12,10 @@ function sim_im = emccd_detect(fluxmap, exptime, em_gain, full_well_image,...
 % B Nemati and S Miller - UAH - 18-Jan-2019
 
 % Mean electrons after inegrating over exptime
-mean_e = fluxmap * exptime * qe;
+mean_e = fluxmap * frametime * qe;
 
 % Mean shot noise after integrating over exptime
-mean_dark = dark_current * exptime;
+mean_dark = dark_current * frametime;
 shot_noise = mean_dark + cic;
 
 % Electrons actualized at the pixels
