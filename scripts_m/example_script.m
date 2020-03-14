@@ -2,8 +2,8 @@
 %
 % S Miller and B Nemati - UAH - 21-Feb-2020
 clear; close all; clc; format compact;
-addpath('../emccd_detect_matlab');
-addpath('../emccd_detect_matlab/util');
+addpath('../emccd_detect_m');
+addpath('../emccd_detect_m/util');
 
 % Input fluxmap
 fits_name = 'ref_frame.fits';
