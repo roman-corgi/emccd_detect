@@ -1,8 +1,8 @@
 % EMCCD Detector Simulation.
 %
 % S Miller and B Nemati - UAH - 21-Feb-2020
-close all; clear; clc;
-
+clear; close all; clc; format compact;
+addpath('./util');
 
 % Input fluxmap
 fits_name = 'ref_frame.fits';
@@ -43,7 +43,7 @@ if plot_images
                   em_gain, read_noise, frametime)})
 end
 
-%% Evaluate rand_em_gain simulation
+% Evaluate rand_em_gain simulation
 n_tries = 2500;
 x = zeros(1, n_tries);
 n_in_values = [1:3:16, 50, 60, 70];

@@ -2,6 +2,7 @@
 %
 % S Miller and B Nemati - UAH - 21-Feb-2020
 clear; close all; clc; format compact;
+addpath('./util');
 jMon = 2; fsz = 400*[1,1.4];
 scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
