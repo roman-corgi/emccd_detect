@@ -15,7 +15,7 @@ from emccd_detect.util.imagesc import imagesc
 # Input fluxmap
 fits_name = 'ref_frame.fits'
 current_path = path.abspath(path.dirname(__file__))
-fits_path = path.join(current_path, 'fits', fits_name)
+fits_path = path.join(current_path, 'data', fits_name)
 fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
 
 # Simulation inputs

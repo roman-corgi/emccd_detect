@@ -8,7 +8,7 @@ addpath('../emccd_detect_m/util');
 % Input fluxmap
 fits_name = 'ref_frame.fits';
 current_path = pwd;
-fits_path = fullfile(fileparts(current_path), 'fits', fits_name);
+fits_path = fullfile(fileparts(current_path), 'data', fits_name);
 fluxmap = fitsread(fits_path);  % Input fluxmap (photons/pix/s)
 
 % Simulation inputs
