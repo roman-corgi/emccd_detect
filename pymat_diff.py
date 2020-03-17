@@ -1,6 +1,7 @@
 """Check diff status between python and matlab codebase."""
 import os
 
+import difflib
 from pathlib import Path
 
 
@@ -33,29 +34,40 @@ def get_filenames(path, ext, exclude=None):
     if not exclude:
         exclude = []
 
-    return sorted([f.stem for f in path.rglob('*.' + ext)
-                   if f.stem not in exclude])
+    return sorted([f for f in path.rglob('*.' + ext) if f.stem not in exclude])
 
 
 if __name__ == '__main__':
     current_path = Path(os.path.dirname(__file__))
-    py_dir = Path(current_path, 'emccd_detect')
-    mat_dir = Path(current_path, 'emccd_detect_m')
+    dir_py = Path(current_path, 'emccd_detect')
+    dir_mat = Path(current_path, 'emccd_detect_m')
 
-    py_exclude = ['__init__', 'config', 'imagesc']
-    mat_exclude = ['autoArrangeFigures', 'histbn']
-    py_list = get_filenames(py_dir, 'py', py_exclude)
-    mat_list = get_filenames(mat_dir, 'm', mat_exclude)
+    exclude_py = ['__init__', 'config', 'imagesc']
+    exclude_mat = ['autoArrangeFigures', 'histbn']
+    list_py = get_filenames(dir_py, 'py', exclude_py)
+    list_mat = get_filenames(dir_mat, 'm', exclude_mat)
 
-    py_diff = [f for f in set(py_list) if f not in set(mat_list)]
-    mat_diff = [f for f in set(mat_list) if f not in set(py_list)]
+    stems_py = [f.stem for f in list_py]
+    stems_mat = [f.stem for f in list_mat]
+    diff_py = [f for f in set(stems_py) if f not in set(stems_mat)]
+    diff_mat = [f for f in set(stems_mat) if f not in set(stems_py)]
 
-    if py_diff:
+    if diff_py:
         print('Python directory contains extra files not in Matlab:\n')
-        for name in py_diff:
+        for name in diff_py:
             print('   + ' + name)
     print('\n')
-    if mat_diff:
+    if diff_mat:
         print('Matlab directory contains extra files not in Python:\n')
-        for name in mat_diff:
+        for name in diff_mat:
             print('   + ' + name)
+
+    common = sorted(set(stems_py).intersection(stems_mat))
+    common_py = sorted([f for f in set(list_py) if f.stem in common])
+    common_mat = sorted([f for f in set(list_mat) if f.stem in common])
+
+    for i in range(len(common)):
+        with open(common_py[i], 'r') as file_py:
+            text_py = file_py.read()
+        with open(common_mat[i], 'r') as file_mat:
+            text_mat = file_mat.read
