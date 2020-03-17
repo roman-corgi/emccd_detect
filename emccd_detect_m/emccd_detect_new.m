@@ -1,4 +1,4 @@
-function sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+function sim_im = emccd_detect_new(fluxmap, frametime, em_gain, full_well_image,...
                                full_well_serial, dark_current, cic, read_noise,...
                                bias, qe, cr_rate, pixel_pitch, shot_noise_on) 
 %EMCCD_DETECT Create an EMCCD-detected image for a given flux map.
@@ -35,14 +35,14 @@ end
 image_frame(image_frame > full_well_image) = full_well_image;
 
 % Go through EM register
-postGain_frame = zeros(size(image_frame));
-indnz = find(image_frame);
-
-for i = 1:length(indnz)
-    ie = indnz(i);
-    postGain_frame(ie) = rand_em_gain(image_frame(ie), em_gain);
-end
- 
+postGain_frame = rand_em_gain_new(image_frame, em_gain);
+% postGain_frame = zeros(size(image_frame));
+% indnz = find(image_frame);
+% 
+% for i = 1:length(indnz)
+%     ie = indnz(i);
+%     postGain_frame(ie) = rand_em_gain_new(image_frame(ie), em_gain);
+% end
 % if cr_rate ~= 0
 %     % Tails from cosmic hits
 %     em_frame = cosmic_tails(em_frame, pars, props);

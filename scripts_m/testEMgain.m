@@ -5,36 +5,26 @@ jMon = 2; fsz = 500*[1,1.4];
 scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
-% 
-% EMgain = 1000
-% Nin = 1
-% for irnd = 1, 10000
-%     out(irnd) = randemgain2( Nin, EMgain );
-% end
-% 
-% 
-% 
-% return
-
-nem = 30;
+ 
+nem = 20;
 emgains = logspace(1,4,nem);
-
+fprintf('EM gain random generator tests\n\n1) Analog Mode Test:\n');
 figure
 for nin = 1:3
     for iem = 1: nem
         emgain = emgains(iem);
         
-        Ntry = 100;
-        rem = zeros(1, Ntry);
+        Ntry = 10000;
+        randEMno = zeros(1, Ntry);
         for irand=1:Ntry
-            rem(irand) =  rand_em_gain(nin, emgain);
+            randEMno(irand) =  rand_em_gain(nin, emgain);
         end
         
-        out(nin,iem) = mean(rem)/emgain/nin;
+        analogOut(nin,iem) = mean(randEMno)/emgain/nin;
     end
-    meanout(nin) = mean(out(nin, :));
+    meanout(nin) = mean(analogOut(nin, :));
     fprintf('For  n = %u,  <x> = %4.3f\n',nin,  meanout(nin));
-    ph = semilogx(emgains, out(nin,:)','.-'); hold on;
+    ph = semilogx(emgains, analogOut(nin,:)','.-'); hold on;
     set(ph(1), 'displayname',['Nin=',num2str(nin),'  ',num2str(meanout(nin),'%4.3f')])
 end
 grid;
@@ -42,24 +32,26 @@ legend;
 xlabel('EM Gain')
 ylabel('Mean analog counts / EM gain')
 
+
+fprintf('\n\n2) Photon Counting Mode Test:\n');
 % check photon counting
 read_noise = 100;
 nin = 1;
-nthrpts = 5;
-pc_thresh = linspace(200, 900, nthrpts);
+nthr_pts = 5;
+pc_thresh = linspace(200, 900, nthr_pts);
 nrnd = 1000;
 emgain = 6000;
 Npix  = 100;
 zeroFrame = zeros(Npix);
-for ithr = 1:nthrpts
+for ithr = 1:nthr_pts
     
     % Threshold and photon count
     nthr(ithr) = pc_thresh(ithr) / read_noise ;    %#ok<*SAGROW>
-    rem = zeroFrame;
+    randEMno = zeroFrame;
     for irnd = 1: Npix^2
-        rem(irnd) =  rand_em_gain(nin, emgain);
+        randEMno(irnd) =  rand_em_gain(nin, emgain);
     end
-    analogfr = reshape(rem, Npix, Npix);
+    analogfr = reshape(randEMno, Npix, Npix);
     bright_PC = zeroFrame;
     bright_PC(analogfr > pc_thresh(ithr)) = 1;
  
@@ -68,7 +60,7 @@ for ithr = 1:nthrpts
     eps_thr(ithr) = exp(-pc_thresh(ithr)/emgain);
     
     fprintf('For n_thr = %3.2f n_obs = %3.2f, eps_thr = %3.2f, n / eps = %3.3f\n',nthr(ithr), n_obs(ithr), eps_thr(ithr), n_obs(ithr)/eps_thr(ithr))
-    figure, imagesc(analogfr);
+    figure, imagesc(analogfr); axis square; colorbar; 
     
  
         

@@ -1,4 +1,4 @@
-function out = rand_em_gain( Nin, EMgain )
+function out = rand_em_gain_new( NinMtx, EMgain )
 % Generate random number according to the EM gain prob density function
 % See Basden 2003 paper
 %
@@ -18,11 +18,78 @@ if (EMgain<1)
     error('EM gain cannot be set to less than 1');
 end
 
+[nr, nc] = size(NinMtx);
+
+avgrate = sum(NinMtx(:))/(nr*nc);
+if avgrate > 1
+    accurateMode = false;
+else
+    accurateMode = true;
+end
+
+x = zeros(nr*nc,1);
+outMtx = zeros(nr, nc);
+if accurateMode
+    ind0 = find(~NinMtx);
+    ind1 = find(NinMtx==1);
+    ind2 = find(NinMtx==2);
+    ind3 = find(NinMtx>2);
+    
+    n0 = length(ind0);
+    n1 = length(ind1);
+    n2 = length(ind2);
+    n3 = length(ind3);
+    x(ind0) = randEM_exact(0, n0, EMgain);
+    x(ind1) = randEM_exact(1, n1, EMgain);
+    x(ind2) = randEM_exact(2, n2, EMgain);
+    
+    for i3 = 1 : n3
+        Nin = NinMtx(ind3(i3));
+        x(ind3(i3)) = randEM_approx(Nin, EMgain);
+    end
+    outMtx = reshape(x, nr, nc);
+else
+    % approximate mode
+%     ind0 = find(~NinMtx);
+%     ind1 = find(NinMtx==1);
+%     ind2 = find(NinMtx==2);
+%     ind3 = find(NinMtx>2);
+%     
+    
+    for ir = 1:nr
+        for ic = 1:nc
+            Nin = NinMtx(ir, ic);
+            outMtx(ir, ic) = randEM_approx(Nin, EMgain);
+        end
+    end
+end
+
+out = outMtx;
+return
+%%
+function x = randEM_exact(n, Nel, g)
+    cvect = rand(Nel, 1);
+    switch n
+        case 0
+            x = zeros(Nel,1);
+        case 1
+            x = -g * log(1- cvect);
+        case 2
+            x =  -g * lambertw(-1, (cvect-1)/exp(1)) - g;
+ 
+        otherwise
+            error('this function only handles casees of n = 1 or 2!')
+    end
+    x = round(x);
+return
+%%
+function out = randEM_approx(Nin, EMgain)
+
 if Nin < 16
     kmax = 5;
     xmin = eps;
     xmax = kmax * Nin * EMgain;
-    xcorr = 0.5;
+%     xcorr = 0.5;
     if Nin < 3
         EMgamma = 0;
     else
@@ -32,7 +99,7 @@ else
     kmax = 4;
     xmin = (Nin - kmax * sqrt(Nin)) * EMgain;
     xmax = (Nin + kmax * sqrt(Nin)) * EMgain;
-    xcorr = 0.3;
+%     xcorr = 0.3;
     EMgamma = gammaln(Nin);
 end
 
@@ -71,23 +138,23 @@ end
 
 out = round(randout) ;
 
-% inverse interpolation to achieve P(x) -> x projection of the random values
-if debug
-    figure, plot(x, pdf,'.-', x, cdf, '.:'), title(['Nin = ', num2str(Nin),'     maxNout = ',num2str(xmax)]); %#ok<*UNRCH>
-    legend('pdf', 'cdf');
-end
-end
+% % inverse interpolation to achieve P(x) -> x projection of the random values
+% if debug
+%     figure, plot(x, pdf,'.-', x, cdf, '.:'), title(['Nin = ', num2str(Nin),'     maxNout = ',num2str(xmax)]); %#ok<*UNRCH>
+%     legend('pdf', 'cdf');
+% end
+return
 
 % else
 %     % the very large numbers are handled in an approimate way as ~ a gaussian distribution
 %     randout = EMgain * max(0, Nin + sqrt(Nin)*randn(1,1));
-%
-% end
-% if isempty(randout)
-%     keyboard
-% end
-% % map randomValues below (cdf(1) to 0)
-% ind0 = find(randLookup < cdf(1));
-%
-% randout = round(interp1(cdf, x, randLookup,'linear'));
-% randout(ind0) = 0; %#ok<FNDSB>
+% %
+% % end
+% % if isempty(randout)
+% %     keyboard
+% % end
+% % % map randomValues below (cdf(1) to 0)
+% % ind0 = find(randLookup < cdf(1));
+% %
+% % randout = round(interp1(cdf, x, randLookup,'linear'));
+% % randout(ind0) = 0; %#ok<FNDSB>

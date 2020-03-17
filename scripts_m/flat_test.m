@@ -4,18 +4,20 @@
 clear; close all; clc; format compact;
 addpath('../emccd_detect_m');
 addpath('../emccd_detect_m/util');
-jMon = 2; fsz = 400*[1,1.4];
+jMon = 2; fsz = 450*[1,1.3];
 scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
 % Input fluxmap
-npix_across = 300;
+npix_across = 600;
 flux = 0.008;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 
+studyCase = 'old'
+
 % Simulation inputs
 frameTime = 10.;  % Frame time (seconds)
-em_gain = 4000.;  % CCD EM gain (e-/photon)
+em_gain = 6000.;  % CCD EM gain (e-/photon)
 full_well_image  = 60000.;  % Image area full well capacity (e-)
 full_well_serial = 90000.;  % Serial (gain) register full well capacity (e-)
 dark_current = 0.00028;  % Dark  current rate (e-/pix/s)
@@ -28,26 +30,38 @@ pixel_pitch = 13e-6;  % Distance between pixel centers (m)
 
 
 zeroFrame = zeros(size(fluxmap)); %#ok<*NOPTS>
-npts = 15;
-pc_thresh = linspace(200, 900, npts);
+npts = 25;
+pc_thresh = linspace(200, 1000, npts);
 for ithr = 1:npts
     
     % Threshold and photon count
     
     nthr(ithr) = pc_thresh(ithr) / read_noise;
     %  dark frame
-    darkFrame = emccd_detect(zeroFrame, frameTime, em_gain, full_well_image,...
-        full_well_serial, dark_current, cic, read_noise, bias,...
-        qe, cr_rate, pixel_pitch, true);
+    if strcmp( studyCase, 'new' )
+        darkFrame = emccd_detect_new(zeroFrame, frameTime, em_gain, full_well_image,...
+            full_well_serial, dark_current, cic, read_noise, bias,...
+            qe, cr_rate, pixel_pitch, true);
+    else
+        darkFrame = emccd_detect(zeroFrame, frameTime, em_gain, full_well_image,...
+            full_well_serial, dark_current, cic, read_noise, bias,...
+            qe, cr_rate, pixel_pitch, true);
+    end
     dark_an_mn(ithr) = mean(darkFrame(:));
     % photon-count the dark frame
     dark_PC = zeroFrame;
     dark_PC(darkFrame > pc_thresh(ithr)) = 1;
     
     % bright frame
-    brightFrame = emccd_detect(fluxmap, frameTime, em_gain, full_well_image,...
-        full_well_serial, dark_current, cic, read_noise, bias,...
-        qe, cr_rate, pixel_pitch, true);
+    if strcmp( studyCase, 'new' )
+        brightFrame = emccd_detect_new(fluxmap, frameTime, em_gain, full_well_image,...
+            full_well_serial, dark_current, cic, read_noise, bias,...
+            qe, cr_rate, pixel_pitch, true);
+    else
+        brightFrame = emccd_detect(fluxmap, frameTime, em_gain, full_well_image,...
+            full_well_serial, dark_current, cic, read_noise, bias,...
+            qe, cr_rate, pixel_pitch, true);
+    end
     bright_an_mn(ithr) = mean(brightFrame(:));
     bright_PC = zeroFrame;
     bright_PC(brightFrame > pc_thresh(ithr)) = 1;
@@ -95,6 +109,8 @@ xlabel('threshold factor')
 ylabel('threshold effeciency')
 title('Assuming all pixels are 1 or 0 real ph-e''s')
 
+autoArrangeFigures(nr, nc, iMon); return;
+return
 acf = 1/em_gain/frameTime;
 figure
 darksub_an = (bright_an_mn-dark_an_mn);
