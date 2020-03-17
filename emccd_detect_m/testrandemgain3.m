@@ -13,5 +13,10 @@ NinMtx = poissrnd( avgCount * ones(Npix), Npix, Npix)
 
 EMgain = 100
 
+this is a test
+
+
+
+
 
 out = randemgain3( NinMtx, EMgain )

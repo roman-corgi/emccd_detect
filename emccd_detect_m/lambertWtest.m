@@ -14,8 +14,8 @@ p2(x, g)
 
 c2(x, g)
 
-xset = 0:10:1000
-test = []
+xset = 0:10:1000;
+test = [];
 for x = xset
     test = [test, g2(c2(x, g), g)];
 end
