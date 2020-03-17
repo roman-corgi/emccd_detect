@@ -54,19 +54,49 @@ def emccd_detect(fluxmap, frametime, em_gain, full_well_image, full_well_serial,
     after the application of EM gain.
 
     B Nemati and S Miller - UAH - 18-Jan-2019
+
     """
+
     image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,
                              cic, qe, cr_rate, pixel_pitch, shot_noise_on)
 
     serial_frame = serial_register(image_frame, em_gain, full_well_serial,
                                    read_noise, bias)
-
     return serial_frame
 
 
 def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
                cr_rate, pixel_pitch, shot_noise_on):
-    """Simulate detector image area."""
+    """Simulate detector image area.
+
+    Parameters
+    ----------
+    fluxmap : array_like, float
+        Input fluxmap (photons/pix/s).
+    frametime : float
+        Frame time (s).
+    full_well_image : float
+        Image area full well capacity (e-).
+    dark_current: float
+        Dark current rate (e-/pix/s).
+    cic : float
+        Clock induced charge (e-/pix/frame).
+    qe : float
+        Quantum efficiency.
+    cr_rate : float
+        Cosmic ray rate (hits/cm^2/s).
+    pixel_pitch : float
+        Distance between pixel centers (m).
+    shot_noise_on : bool, optional
+        Apply shot noise. Defaults to True.
+
+    Returns
+    -------
+    image_frame : array_like
+        Image area frame (e-).
+
+    """
+
     # Mean electrons after inegrating over frametime
     mean_e = fluxmap * frametime * qe
 
@@ -78,9 +108,9 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
     if shot_noise_on:
         image_frame = np.random.poisson(mean_e + shot_noise).astype(float)
     else:
-        image_frame = np.random.poisson(shot_noise,
-                                        size=mean_e.shape).astype(float)
-        image_frame += mean_e
+        shot_noise_map = np.random.poisson(shot_noise,
+                                           size=mean_e.shape).astype(float)
+        image_frame = shot_noise_map + mean_e
 
     # Simulate cosmic hits on image area
     image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,
@@ -88,13 +118,28 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
 
     # Cap electrons at full well capacity of imaging area
     image_frame[image_frame > full_well_image] = full_well_image
-
     return image_frame
 
 
 def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
-    """Simulate detector serial (gain) register."""
-    # Readout frame is flattened on a row by row basis
+    """Simulate detector serial (gain) register.
+
+    Parameters
+    ----------
+    image_frame : array_like
+        Image area frame (e-).
+    em_gain : float
+        CCD em_gain (e-/photon).
+    full_well_serial : float
+        Serial (gain) register full well capacity (e-).
+    read_noise : float
+        Read noise (e-/pix/frame).
+    bias : float
+        Bias offset (e-).
+
+    """
+
+    # Image area frame is flattened on a row by row basis
     image_frame_flat = image_frame.ravel()
     serial_frame_flat = np.zeros(image_frame.size)
 
@@ -114,11 +159,10 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     fixed_pattern = _generate_fixed_pattern(serial_frame)
     image_frame += fixed_pattern
 
-    # Read noise
+    # Apply read noise
     read_noise_map = read_noise * np.random.normal(size=image_frame.shape)
 
     serial_frame += read_noise_map + bias
-
     return serial_frame
 
 
