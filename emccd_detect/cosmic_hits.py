@@ -5,31 +5,33 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 
-def cosmic_hits(frame, cr_rate, frametime, pixel_pitch, full_well):
+def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, full_well_image):
     """Generate cosmic hits.
 
     Parameters
     ----------
-    frame : array_like
-        Input frame.
+    image_frame : array_like
+        Image area frame (e-).
     cr_rate : float
-        Cosmic ray impact rate on image plane (hits/cm^2/s).
+        Cosmic ray rate (hits/cm^2/s).
     frametime : float
         Frame time (s).
     pixel_pitch : float
         Distance between pixel centers (m).
-    full_well : float
-        Readout register capacity (e-).
+    full_well_image : float
+        Image area full well capacity (e-).
 
     Returns
     -------
-    frame : array_like
-        Frame with cosmics added.
+    image_frame : array_like
+        Image area frame with cosmics added (e-).
 
     S Miller - UAH - 16-Jan-2019
+
     """
+
     # Find number of hits/frame
-    frame_r, frame_c = frame.shape
+    frame_r, frame_c = image_frame.shape
     framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10.0**-4  # cm^2
     hits_per_second = cr_rate * framesize
     hits_per_frame = int(round(hits_per_second * frametime))  # XXX zero case
@@ -61,12 +63,12 @@ def cosmic_hits(frame, cr_rate, frametime, pixel_pitch, full_well):
         cosm_section = a * np.exp(-((rows-hit_row[i])**2 + (cols-hit_col[i])**2) / b)
 
         # Scale and add cosmic
-        cosm_section = cosm_section / np.max(cosm_section) * full_well
+        cosm_section = cosm_section / np.max(cosm_section) * full_well_image
 
         # Cut the very small values of the gaussian out
         cutoff = 0.1
         cosm_section[cosm_section <= cutoff] = 0
 
-        frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
+        image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
 
-    return frame
+    return image_frame
