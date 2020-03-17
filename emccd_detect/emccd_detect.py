@@ -9,7 +9,7 @@ from emccd_detect.cosmic_tails import cosmic_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 
 
-def emccd_detect(fluxmap, exptime, em_gain, full_well_image, full_well_serial,
+def emccd_detect(fluxmap, frametime, em_gain, full_well_image, full_well_serial,
                  dark_current, cic, read_noise, bias, qe,
                  cr_rate, pixel_pitch, shot_noise_on=True):
     """Create an EMCCD-detected image for a given fluxmap.
@@ -18,7 +18,7 @@ def emccd_detect(fluxmap, exptime, em_gain, full_well_image, full_well_serial,
     ----------
     fluxmap : array_like, float
         Input fluxmap (photons/pix/s).
-    exptime : float
+    frametime : float
         Frame time (s).
     em_gain : float
         CCD em_gain (e-/photon).
@@ -55,7 +55,7 @@ def emccd_detect(fluxmap, exptime, em_gain, full_well_image, full_well_serial,
 
     B Nemati and S Miller - UAH - 18-Jan-2019
     """
-    image_frame = image_area(fluxmap, exptime, full_well_image, dark_current,
+    image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,
                              cic, qe, cr_rate, pixel_pitch, shot_noise_on)
 
     serial_frame = serial_register(image_frame, em_gain, full_well_serial,
@@ -64,14 +64,14 @@ def emccd_detect(fluxmap, exptime, em_gain, full_well_image, full_well_serial,
     return serial_frame
 
 
-def image_area(fluxmap, exptime, full_well_image, dark_current, cic, qe,
+def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
                cr_rate, pixel_pitch, shot_noise_on):
     """Simulate detector image area."""
-    # Mean electrons after inegrating over exptime
-    mean_e = fluxmap * exptime * qe
+    # Mean electrons after inegrating over frametime
+    mean_e = fluxmap * frametime * qe
 
-    # Mean shot noise after integrating over exptime
-    mean_dark = dark_current * exptime
+    # Mean shot noise after integrating over frametime
+    mean_dark = dark_current * frametime
     shot_noise = mean_dark + cic
 
     # Electrons actualized at the pixels
@@ -83,7 +83,7 @@ def image_area(fluxmap, exptime, full_well_image, dark_current, cic, qe,
         image_frame += mean_e
 
     # Simulate cosmic hits on image area
-    image_frame = cosmic_hits(image_frame, cr_rate, exptime, pixel_pitch,
+    image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,
                               full_well_image)
 
     # Cap electrons at full well capacity of imaging area

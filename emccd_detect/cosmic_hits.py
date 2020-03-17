@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 
-def cosmic_hits(frame, cr_rate, exptime, pixel_pitch, full_well):
+def cosmic_hits(frame, cr_rate, frametime, pixel_pitch, full_well):
     """Generate cosmic hits.
 
     Parameters
@@ -14,7 +14,7 @@ def cosmic_hits(frame, cr_rate, exptime, pixel_pitch, full_well):
         Input frame.
     cr_rate : float
         Cosmic ray impact rate on image plane (hits/cm^2/s).
-    exptime : float
+    frametime : float
         Frame time (s).
     pixel_pitch : float
         Distance between pixel centers (m).
@@ -32,7 +32,7 @@ def cosmic_hits(frame, cr_rate, exptime, pixel_pitch, full_well):
     frame_r, frame_c = frame.shape
     framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10.0**-4  # cm^2
     hits_per_second = cr_rate * framesize
-    hits_per_frame = int(round(hits_per_second * exptime))  # XXX zero case
+    hits_per_frame = int(round(hits_per_second * frametime))  # XXX zero case
 
     # Generate hit locations
     # Describe each hit as a gaussian centered at (hit_row, hit_col) and having
