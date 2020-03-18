@@ -2,7 +2,10 @@
 """Generate cosmic hits."""
 from __future__ import absolute_import, division, print_function
 
+import matplotlib.pyplot as plt
 import numpy as np
+
+from emccd_detect.util.imagesc import imagesc
 
 
 def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, full_well_image):
@@ -57,17 +60,17 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, full_well_image):
                                  np.arange(min_row, max_row+1))
 
         # Create gaussian
-        sigma = hit_rad[i] / 8.0
+        sigma = .5
         a = 1 / (np.sqrt(2*np.pi) * sigma)
-        b = 2.0 * sigma**2
+        b = 2. * sigma**2
         cosm_section = a * np.exp(-((rows-hit_row[i])**2 + (cols-hit_col[i])**2) / b)
 
-        # Scale and add cosmic
-        cosm_section = cosm_section / np.max(cosm_section) * full_well_image
-
         # Cut the very small values of the gaussian out
-        cutoff = 0.1
+        cutoff = np.median(cosm_section)
         cosm_section[cosm_section <= cutoff] = 0
+
+        # Scale
+        cosm_section = cosm_section / np.max(cosm_section) * full_well_image
 
         image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
 
