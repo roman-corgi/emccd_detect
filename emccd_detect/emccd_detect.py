@@ -156,18 +156,17 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     serial_frame[serial_frame > full_well_serial] = full_well_serial
 
     # Apply fixed pattern
-    fixed_pattern = _generate_fixed_pattern(serial_frame)
+    fixed_pattern = generate_fixed_pattern(serial_frame)
     image_frame += fixed_pattern
 
-    # Apply read noise
+    # Apply read noise and bias
     read_noise_map = read_noise * np.random.normal(size=image_frame.shape)
-
     serial_frame += read_noise_map + bias
+
     return serial_frame
 
 
-def _generate_fixed_pattern(serial_frame):
+def generate_fixed_pattern(serial_frame):
     """Simulate EMCCD fixed pattern."""
-    fixed_pattern = np.zeros(serial_frame.shape)  # This mat be modeled later
-
+    fixed_pattern = np.zeros(serial_frame.shape)  # This may be modeled later
     return fixed_pattern
