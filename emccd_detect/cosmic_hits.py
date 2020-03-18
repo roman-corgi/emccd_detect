@@ -65,10 +65,6 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, full_well_image):
         b = 2. * sigma**2
         cosm_section = a * np.exp(-((rows-hit_row[i])**2 + (cols-hit_col[i])**2) / b)
 
-        # Cut the very small values of the gaussian out
-        cutoff = np.median(cosm_section)
-        cosm_section[cosm_section <= cutoff] = 0
-
         # Scale
         cosm_section = cosm_section / np.max(cosm_section) * full_well_image
 
