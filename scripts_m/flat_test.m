@@ -13,7 +13,7 @@ npix_across = 600;
 flux = 0.008;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 
-studyCase = 'old'
+studyCase = 'new'
 
 % Simulation inputs
 frameTime = 10.;  % Frame time (seconds)
