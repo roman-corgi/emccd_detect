@@ -7,8 +7,8 @@ OnesMtx = ones(100);
 EMgain = 1000;
 
 % Check for different Nin values
-n_array = 1:4;
 NinFigs = true;
+n_array = 1:4;
 for N = n_array
     NinMtx = OnesMtx * N;
     Nout = rand_em_gain_new(NinMtx, EMgain);
@@ -33,7 +33,7 @@ for thresh = thresh_array
 
     figure;
     histbn(out);
-    xline(thresh);
+    xline(thresh, 'r');
 end
 
 autoArrangeFigures(3,4)
