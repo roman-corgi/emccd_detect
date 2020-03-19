@@ -49,25 +49,29 @@ if __name__ == '__main__':
 
     stems_py = [f.stem for f in list_py]
     stems_mat = [f.stem for f in list_mat]
-    diff_py = [f for f in set(stems_py) if f not in set(stems_mat)]
-    diff_mat = [f for f in set(stems_mat) if f not in set(stems_py)]
+    common_stems = sorted(set(stems_py).intersection(stems_mat))
+
+    common_py = sorted([f for f in set(list_py) if f.stem in common_stems])
+    common_mat = sorted([f for f in set(list_mat) if f.stem in common_stems])
+    diff_py = [f for f in set(list_py) if f.stem not in set(stems_mat)]
+    diff_mat = [f for f in set(list_mat) if f.stem not in set(stems_py)]
 
     if diff_py:
         print('Python directory contains extra files not in Matlab:\n')
         for name in diff_py:
-            print('   + ' + name)
-    print('\n')
+            print('   + ' + str(name))
+    print('')
     if diff_mat:
         print('Matlab directory contains extra files not in Python:\n')
         for name in diff_mat:
-            print('   + ' + name)
+            print('   + ' + str(name))
+    print('')
 
-    common = sorted(set(stems_py).intersection(stems_mat))
-    common_py = sorted([f for f in set(list_py) if f.stem in common])
-    common_mat = sorted([f for f in set(list_mat) if f.stem in common])
+    for py, mat in zip(common_py, common_mat):
+        with open(py, 'r') as file_py:
+            text_py = file_py.read().splitlines()
+        with open(mat, 'r') as file_mat:
+            text_mat = file_mat.read().splitlines()
 
-    for i in range(len(common)):
-        with open(common_py[i], 'r') as file_py:
-            text_py = file_py.read()
-        with open(common_mat[i], 'r') as file_mat:
-            text_mat = file_mat.read
+        for line in difflib.unified_diff(text_py, text_mat):
+            print(line)
