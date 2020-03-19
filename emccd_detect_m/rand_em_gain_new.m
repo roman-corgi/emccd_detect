@@ -12,8 +12,6 @@ function out = rand_em_gain_new( NinMtx, EMgain )
 %
 % Bijan Nemati - 22-Sep-2018
 
-debug = false;
-
 if (EMgain<1)
     error('EM gain cannot be set to less than 1');
 end
@@ -49,13 +47,6 @@ if accurateMode
     end
     outMtx = reshape(x, nr, nc);
 else
-    % approximate mode
-%     ind0 = find(~NinMtx);
-%     ind1 = find(NinMtx==1);
-%     ind2 = find(NinMtx==2);
-%     ind3 = find(NinMtx>2);
-%     
-    
     for ir = 1:nr
         for ic = 1:nc
             Nin = NinMtx(ir, ic);
@@ -150,17 +141,3 @@ end
 %     legend('pdf', 'cdf');
 % end
 return
-
-% else
-%     % the very large numbers are handled in an approimate way as ~ a gaussian distribution
-%     randout = EMgain * max(0, Nin + sqrt(Nin)*randn(1,1));
-% %
-% % end
-% % if isempty(randout)
-% %     keyboard
-% % end
-% % % map randomValues below (cdf(1) to 0)
-% % ind0 = find(randLookup < cdf(1));
-% %
-% % randout = round(interp1(cdf, x, randLookup,'linear'));
-% % randout(ind0) = 0; %#ok<FNDSB>
