@@ -22,7 +22,7 @@ end
 
 % Check photon counting
 out = rand_em_gain_new(OnesMtx, EMgain);
-thresh_array = 200:200:1000;
+thresh_array = 500:500:2000;
 for thresh = thresh_array
     pc_out = zeros(size(out));
     pc_out(out > thresh) = 1;
@@ -36,4 +36,4 @@ for thresh = thresh_array
     xline(thresh);
 end
 
-autoArrangeFigures(4,4)
+autoArrangeFigures(3,4)
