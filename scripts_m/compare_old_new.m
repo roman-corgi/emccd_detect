@@ -6,7 +6,7 @@ scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, n
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
 % Input fluxmap
-npix_across = 500;
+npix_across = 1000;
 flux = 0.008;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 
@@ -29,7 +29,7 @@ tic
 oldFrame = emccd_detect(fluxmap, frameTime, em_gain, full_well_image,...
     full_well_serial, dark_current, cic, read_noise, bias,...
     qe, cr_rate, pixel_pitch, true);
-toc
+t_old = toc %#ok<*NOPTS>
 
 figure
 imagesc(oldFrame); colorbar;
@@ -40,7 +40,8 @@ tic
 newFrame = emccd_detect_new(fluxmap, frameTime, em_gain, full_well_image,...
     full_well_serial, dark_current, cic, read_noise, bias,...
     qe, cr_rate, pixel_pitch, true);
-toc
+t_new = toc
+fprintf('Reduction factor = %3.2f\n',t_old/t_new)
 figure
 imagesc(newFrame); colorbar;
 title('New');

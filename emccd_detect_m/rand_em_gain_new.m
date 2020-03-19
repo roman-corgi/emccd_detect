@@ -85,7 +85,10 @@ return
 %%
 function out = randEM_approx(Nin, EMgain)
 
-if Nin < 16
+if  Nin == 0
+    out = 0;
+    return;
+elseif    Nin < 16
     kmax = 5;
     xmin = eps;
     xmax = kmax * Nin * EMgain;
@@ -137,6 +140,9 @@ else
 end
 
 out = round(randout) ;
+if isempty(out)
+    keyboard
+end
 
 % % inverse interpolation to achieve P(x) -> x projection of the random values
 % if debug
