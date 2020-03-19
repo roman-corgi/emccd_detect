@@ -9,12 +9,12 @@ scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, n
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
 % Input fluxmap
-npix_across = 400;
+npix_across = 2000;
 flux = 0.07;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 
-studyCase = 'new'
-
+studyCase = 'old'
+tic
 % Simulation inputs
 frameTime = 1.;  % Frame time (seconds)
 em_gain = 6000.;  % CCD EM gain (e-/photon)
@@ -28,10 +28,9 @@ qe = 1.;  % Quantum effiency
 cr_rate = 0.;  % Cosmic ray rate (5 for L2) (hits/cm^2/s)
 pixel_pitch = 13e-6;  % Distance between pixel centers (m)
 
-
 zeroFrame = zeros(size(fluxmap)); %#ok<*NOPTS>
 npts = 55;
-pc_thresh = linspace(200, 800, npts);
+pc_thresh = linspace(200, 1200, npts);
 for ithr = 1:npts
     
     % Threshold and photon count
@@ -54,7 +53,9 @@ for ithr = 1:npts
     % photon-count the dark frame
     dark_PC = zeroFrame;
     dark_PC(darkFrame > pc_thresh(ithr)) = 1;
-    % observed mean rate after photon counting
+    % the raw photon-counted frame needs to be corrected for inefficiencies 
+    % from thresholding and coincidence losses
+    % observed mean rate after photon counting 
     nobs_dk(ithr) = nnz(dark_PC) / npix_across^2;
     lambda_dk = -log(1-(nobs_dk(ithr)/eps_thr(ithr)));
     rtrue_dk(ithr) = lambda_dk / frameTime;
@@ -72,12 +73,13 @@ for ithr = 1:npts
     bright_an_mn(ithr) = mean(brightFrame(:));
     bright_PC = zeroFrame;
     bright_PC(brightFrame > pc_thresh(ithr)) = 1;
-    % observed mean rate after photon counting
+    % the raw photon-counted frame needs to be corrected for inefficiencies 
+    % from thresholding and coincidence losses
+    % observed mean rate after photon counting 
     nobs_br(ithr) = nnz(bright_PC) / npix_across^2;     %#ok<*SAGROW>
     lambda_br = -log(1-(nobs_br(ithr)/eps_thr(ithr)));
     rtrue_br(ithr) = lambda_br / frameTime;
-      
- 
+
     % photo-electron rate
     r_phe(ithr) = rtrue_br(ithr) - rtrue_dk(ithr);
     
@@ -104,6 +106,6 @@ grid
 xlabel('threshold factor')
 ylabel('threshold effeciency')
 title('Assuming all pixels are 1 or 0 real ph-e''s')
-
+toc
 autoArrangeFigures(nr, nc, iMon); return;
 return
