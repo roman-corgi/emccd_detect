@@ -28,7 +28,7 @@ for thresh = thresh_array
     pc_out(out > thresh) = 1;
 
     figure;
-    imagesc(pc_out);
+    imagesc(pc_out); colormap('gray');
     title(sprintf('Thresh : %d', thresh));
 
     figure;
