@@ -1,4 +1,4 @@
-function out = rand_em_gain_new( NinMtx, EMgain )
+function out = rand_em_gain_new(NinMtx, EMgain)
 % Generate random number according to the EM gain prob density function
 % See Basden 2003 paper
 %
