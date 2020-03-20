@@ -54,22 +54,32 @@ for N = Narray
     fprintf('N: %d\n', N);
     fprintf('%6s %10s %10s %10s\n', 'Thresh', 'e', 'old e', 'new e');
     NinMtx = RefMtx * N;
+    i = 1;
     for percent = thresh_array
         thresh = percent/100 * EMgain;
-        e_pc = exp(-thresh/EMgain);
+        e_pc(i) = exp(-thresh/EMgain);
 
         [old, new] = both_em_gain(NinMtx, EMgain);
 
         pc_old = zeros(size(old));
         pc_old(old > thresh) = 1;
-        e_pc_old = calc_efficiency(NinMtx, pc_old);
+        e_pc_old(i) = calc_efficiency(NinMtx, pc_old);
 
         pc_new = zeros(size(new));
         pc_new(new > thresh) = 1;
-        e_pc_new = calc_efficiency(NinMtx, pc_new);
+        e_pc_new(i) = calc_efficiency(NinMtx, pc_new);
         
-        fprintf('%6d %10.3f %10.3f %10.3f\n', thresh, e_pc, e_pc_old, e_pc_new);
+        fprintf('%6d %10.3f %10.3f %10.3f\n', thresh, e_pc(i), e_pc_old(i), e_pc_new(i));
+        i = i + 1;
     end
+    figure;
+    plot(thresh_array, e_pc); hold on;
+    plot(thresh_array, e_pc_old);
+    plot(thresh_array, e_pc_new);
+    title(sprintf('N: %d', N));
+    xlabel('PC Thresh (%)');
+    ylabel('Efficiency');
+    legend('e', 'old e', 'new e');
 end
 
 autoArrangeFigures(3, 4, 2);
