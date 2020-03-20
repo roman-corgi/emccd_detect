@@ -18,7 +18,10 @@ if (EMgain<1)
     error('EM gain cannot be set to less than 1');
 end
 
-if Nin < 16
+if  Nin == 0
+    out = 0;
+    return;
+elseif Nin < 16
     kmax = 5;
     xmin = eps;
     xmax = kmax * Nin * EMgain;
