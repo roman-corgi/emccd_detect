@@ -18,18 +18,11 @@ for N = Narray
 end
 fprintf('\n');
 
-
-% Make most values zero to keep average rate below 1. Still give 10,000
-% data points to maintain good statistics
-RefMtx = zeros(500);
-RefMtx(1:20, :) = 1;
-
 % Check means
-Narray = 1:5;
+Narray = 1:4;
 fprintf('%s %10s %10s\n', 'N', 'old_mean', 'new_mean');
 for N = Narray
-    NinMtx = RefMtx * N;
-    avg_rate = sum(NinMtx(:)) / numel(NinMtx);
+    NinMtx = OnesMtx * N;
     
     [old, new] = both_em_gain(NinMtx, EMgain);
     old_vals = old(old > 0);
@@ -42,7 +35,7 @@ for N = Narray
     figure;
     h = histogram(old_vals, 'DisplayStyle', 'stairs', 'FaceColor', 'none'); hold on;
     histogram(new_vals, 'binWidth', h.BinWidth, 'DisplayStyle', 'stairs', 'FaceColor', 'none');
-    title([sprintf('N: %d\n', N), sprintf('Old Mean: %.f   New Mean: %.f', old_mean, new_mean)]);
+    title([sprintf('N = %d\n', N), sprintf('Old Mean: %.f   New Mean: %.f', old_mean, new_mean)]);
     legend('old', 'new');
 end
 fprintf('\n')
@@ -53,7 +46,7 @@ thresh_array = 5:10:55;  % Percentage of EMgain
 for N = Narray
     fprintf('N: %d\n', N);
     fprintf('%6s %10s %10s %10s\n', 'Thresh', 'e', 'old e', 'new e');
-    NinMtx = RefMtx * N;
+    NinMtx = OnesMtx * N;
     i = 1;
     for percent = thresh_array
         thresh = percent/100 * EMgain;
@@ -69,27 +62,29 @@ for N = Narray
         pc_new(new > thresh) = 1;
         e_pc_new(i) = calc_efficiency(NinMtx, pc_new);
         
-        fprintf('%6d %10.3f %10.3f %10.3f\n', thresh, e_pc(i), e_pc_old(i), e_pc_new(i));
+        fprintf('%6d %10.3f %10.3f %10.3f\n', percent, e_pc(i), e_pc_old(i), e_pc_new(i));
         i = i + 1;
     end
     figure;
     plot(thresh_array, e_pc); hold on;
     plot(thresh_array, e_pc_old);
     plot(thresh_array, e_pc_new);
-    title(sprintf('N: %d', N));
+    title([sprintf('N = %d\n', N), sprintf('PC Efficiencey')]);
     xlabel('PC Thresh (%)');
     ylabel('Efficiency');
     legend('e', 'old e', 'new e');
 end
 
-autoArrangeFigures(3, 4, 2);
+autoArrangeFigures(2, 3, 1);
 
 
 function [old, new] = both_em_gain(NinMtx, EMgain)
 % Call old and new versions of rand_em_gain with same random number seed
-rng(1);
+seed = 1;
+
+rng(seed);
 old = rand_em_gain_w(NinMtx, EMgain);
-rng(1);
+rng(seed);
 new = rand_em_gain_new(NinMtx, EMgain);
 end
 
