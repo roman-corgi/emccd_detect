@@ -6,12 +6,19 @@ addpath('../emccd_detect_m/util');
 OnesMtx = ones(100);
 EMgain = 1000;
 
-% Check photon counting
-N = 1;
-NinMtx = OnesMtx * N;
-
-out_old = rand_em_gain_w(NinMtx, EMgain);
-out_new = rand_em_gain_new(NinMtx, EMgain);
+% Check means
+Narray = 1:5;
+for N = Narray
+    NinMtx = OnesMtx * N;
+    rng(1);
+    out_old = rand_em_gain_w(NinMtx, EMgain);
+    mean_old = mean(out_old(:))
+    
+    
+    rng(1);
+    out_new = rand_em_gain_new(NinMtx, EMgain);
+    mean_new = mean(out_new(:))
+end
 
 thresh_array = 500:500:2000;
 for thresh = thresh_array
