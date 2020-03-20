@@ -3,35 +3,89 @@ clear; close all; clc; format compact;
 addpath('../emccd_detect_m');
 addpath('../emccd_detect_m/util');
 
-OnesMtx = ones(100);
 EMgain = 1000;
+
+% Verify that rand_em_gain_new creates exactly the same array as
+% rand_em_gain_w for average rates greater than 1
+OnesMtx = ones(100);
+Narray = 1:2;
+for N = Narray
+    NinMtx = OnesMtx * N;
+    avg_rate = sum(NinMtx(:)) / numel(NinMtx);
+    
+    [old, new] = both_em_gain(NinMtx, EMgain);
+    fprintf('N: %d   Avg Rate: %.3f   Arrays Equal: %d\n', N, avg_rate, isequal(old, new));
+end
+fprintf('\n');
+
+
+% Make most values zero to keep average rate below 1. Still give 10,000
+% data points to maintain good statistics
+RefMtx = zeros(500);
+RefMtx(1:20, :) = 1;
 
 % Check means
 Narray = 1:5;
+fprintf('%s %10s %10s\n', 'N', 'old_mean', 'new_mean');
 for N = Narray
-    NinMtx = OnesMtx * N;
-    rng(1);
-    out_old = rand_em_gain_w(NinMtx, EMgain);
-    mean_old = mean(out_old(:))
+    NinMtx = RefMtx * N;
+    avg_rate = sum(NinMtx(:)) / numel(NinMtx);
     
+    [old, new] = both_em_gain(NinMtx, EMgain);
+    old_vals = old(old > 0);
+    new_vals = new(new > 0);
     
-    rng(1);
-    out_new = rand_em_gain_new(NinMtx, EMgain);
-    mean_new = mean(out_new(:))
+    old_mean = mean(old_vals(:));
+    new_mean = mean(new_vals(:));
+    fprintf('%d %10.3f %10.3f\n', N, old_mean, new_mean);
+    
+    figure;
+    h = histogram(old_vals, 'DisplayStyle', 'stairs', 'FaceColor', 'none'); hold on;
+    histogram(new_vals, 'binWidth', h.BinWidth, 'DisplayStyle', 'stairs', 'FaceColor', 'none');
+    title([sprintf('N: %d\n', N), sprintf('Old Mean: %.f   New Mean: %.f', old_mean, new_mean)]);
+    legend('old', 'new');
+end
+fprintf('\n')
+
+% Check threshold efficiency
+Narray = 1:2;
+thresh_array = 5:10:55;  % Percentage of EMgain
+for N = Narray
+    fprintf('N: %d\n', N);
+    fprintf('%6s %10s %10s %10s\n', 'Thresh', 'e', 'old e', 'new e');
+    NinMtx = RefMtx * N;
+    for percent = thresh_array
+        thresh = percent/100 * EMgain;
+        e_pc = exp(-thresh/EMgain);
+
+        [old, new] = both_em_gain(NinMtx, EMgain);
+
+        pc_old = zeros(size(old));
+        pc_old(old > thresh) = 1;
+        e_pc_old = calc_efficiency(NinMtx, pc_old);
+
+        pc_new = zeros(size(new));
+        pc_new(new > thresh) = 1;
+        e_pc_new = calc_efficiency(NinMtx, pc_new);
+        
+        fprintf('%6d %10.3f %10.3f %10.3f\n', thresh, e_pc, e_pc_old, e_pc_new);
+    end
 end
 
-thresh_array = 500:500:2000;
-for thresh = thresh_array
-    pc_out = zeros(size(out_new));
-    pc_out(out_new > thresh) = 1;
+autoArrangeFigures(3, 4, 2);
 
-    figure;
-    imagesc(pc_out); colormap('gray');
-    title(sprintf('Thresh : %d   Npix : %d', thresh, sum(pc_out(:))));
 
-    figure;
-    histbn(out_new);
-    xline(thresh, 'r');
+function [old, new] = both_em_gain(NinMtx, EMgain)
+% Call old and new versions of rand_em_gain with same random number seed
+rng(1);
+old = rand_em_gain_w(NinMtx, EMgain);
+rng(1);
+new = rand_em_gain_new(NinMtx, EMgain);
 end
 
-autoArrangeFigures(3, 4, 2)
+
+function e_pc = calc_efficiency(NinMtx, pcMtx)
+% Calculate the actual photon counting efficiency of an array
+n_ones = length(find(NinMtx>=1));  % improve later
+e_pc = sum(pcMtx(:)) / n_ones;
+end
