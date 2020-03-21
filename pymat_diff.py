@@ -55,6 +55,8 @@ def matlabize(text_py):
 
     # Line by line modifications
     for line in text_py:
+        line = line.replace('np.', '')
+
         # Remove import statements
         if line[:6] == 'import':
             continue
@@ -66,6 +68,8 @@ def matlabize(text_py):
     # File modifications
     # Remove encoding declaration
     modified_py.remove('# -*- coding: utf-8 -*-')
+    if modified_py[0][:3] == '"""':
+        del modified_py[0]
 
     return modified_py
 
@@ -89,7 +93,8 @@ def pythonize(text_mat):
     # Line by line modifications
     for line in text_mat:
         line = line.rstrip(';')
-        line = line.replace('%', '#')
+        line = line.replace('% ', '# ')
+        line = line.replace('^', '**')
 
         # Modify function calls
         if line[:8] == 'function':
@@ -140,6 +145,10 @@ if __name__ == '__main__':
             text_py = file_py.read().splitlines()
         with open(mat, 'r') as file_mat:
             text_mat = file_mat.read().splitlines()
+
+        # Remove blank lines
+        text_py = list(filter(None, text_py))
+        text_mat = list(filter(None, text_mat))
 
         # Modify files to remove irrelevant language-specific syntax
         modified_py = matlabize(text_py)
