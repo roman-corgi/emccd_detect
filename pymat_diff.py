@@ -1,5 +1,4 @@
 """Check diff status between python and matlab codebase."""
-import copy
 import os
 
 import difflib
@@ -52,13 +51,21 @@ def matlabize(text_py):
         Text of edited python file.
 
     """
-    modified_py = copy.copy(text_py)
+    modified_py = []
 
-    # File-wide modifications
+    # Line by line modifications
+    for line in text_py:
+        # Remove import statements
+        if line[:6] == 'import':
+            continue
+        elif line[:4] == 'from':
+            continue
 
-    # File-wide modifications
-    for i, line in enumerate(text_py):
-        modified_py[i] = line
+        modified_py.append(line)
+
+    # File modifications
+    # Remove encoding declaration
+    modified_py.remove('# -*- coding: utf-8 -*-')
 
     return modified_py
 
@@ -77,15 +84,21 @@ def pythonize(text_mat):
         Text of modified matlab file.
 
     """
-    modified_mat = copy.copy(text_mat)
+    modified_mat = []
 
-    # File-wide modifications
-
-    # Line-wide modifications
-    for i, line in enumerate(text_mat):
+    # Line by line modifications
+    for line in text_mat:
         line = line.rstrip(';')
+        line = line.replace('%', '#')
 
-        modified_mat[i] = line
+        # Modify function calls
+        if line[:8] == 'function':
+            equals_i = line.index('=')
+            line = 'def' + line[equals_i+1:] + ':'
+
+        modified_mat.append(line)
+
+    # File modifications
 
     return modified_mat
 
