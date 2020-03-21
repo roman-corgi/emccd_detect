@@ -31,3 +31,6 @@ htmlcov/
 *.m~
 *.asv
 *.bak
+
+# diff
+diff/

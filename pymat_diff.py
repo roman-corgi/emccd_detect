@@ -75,5 +75,5 @@ if __name__ == '__main__':
 
         diff = difflib.HtmlDiff().make_file(text_py, text_mat, 'py', 'mat')
 
-        with open('diff_{:}.html'.format(py.stem), 'w') as file:
+        with open('diff/diff_{:}.html'.format(py.stem), 'w') as file:
             file.write(diff)
