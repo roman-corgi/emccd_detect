@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
 """Generate cosmic hits."""
 from __future__ import absolute_import, division, print_function
-
-import matplotlib.pyplot as plt
 import numpy as np
-
-from emccd_detect.util.imagesc import imagesc
 
 
 def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
@@ -35,7 +31,7 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
 
     # Find number of hits/frame
     frame_r, frame_c = image_frame.shape
-    framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10.0**-4  # cm^2
+    framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10**-4  # cm^2
     hits_per_second = cr_rate * framesize
     hits_per_frame = int(round(hits_per_second * frametime))  # XXX zero case
 
@@ -62,12 +58,13 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
         # Create gaussian
         sigma = 0.5
         a = 1 / (np.sqrt(2*np.pi) * sigma)
-        b = 2. * sigma**2
+        b = 2 * sigma**2
         cosm_section = a * np.exp(-((rows-hit_row[i])**2 + (cols-hit_col[i])**2) / b)
 
         # Scale by maximum value
         cosm_section = cosm_section / np.max(cosm_section) * max_val
 
+        # Add cosmic to frame
         image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
 
     return image_frame

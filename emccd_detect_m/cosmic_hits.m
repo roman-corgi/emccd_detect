@@ -1,4 +1,4 @@
-function [outMatrix, props] = cosmic_hits(frame, pars, frameTime)
+function out = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val)
 % Inputs:
 %           frame            : input frame
 %           pars             : detector parameters
@@ -7,55 +7,45 @@ function [outMatrix, props] = cosmic_hits(frame, pars, frameTime)
 % Output:
 %           outmatrix        : input frame + cosmic hits
 % 
-% S. Miller - 16-Jan-2019
+% S Miller - UAH - 16-Jan-2019
 
-CRrate      = pars.CRrate;
-pixelPitch  = pars.pixelPitch;
-pixelRadius = pars.pixelRadius;
-FWCim       = pars.FWCim;
-matrixh     = pars.matrixh;
-matrixw     = pars.matrixw;
+% Find number of hits/frame
+[frame_r, frame_c] = size(image_frame);
+framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10^-4;  % cm^2
+hits_per_second = cr_rate * framesize;
+hits_per_frame = round(hits_per_second * frametime);
 
-% find size of frame
-framesize = matrixh*pixelPitch * matrixw*pixelPitch; % m^2
+% Generate hit locations
+% Describe each hit as a gaussian centered at (hit_row, hit_col) and having
+% an radius of hit_rad chosen between cr_min_radius and cr_max_radius
+cr_min_radius = 0;
+cr_max_radius = 2;
+hit_row = rand(1, hits_per_frame) * frame_r;
+hit_col = rand(1, hits_per_frame) * frame_c;
+hit_rad = rand(1, hits_per_frame) * (cr_max_radius - cr_min_radius) + cr_min_radius
 
-% find number of hits/frame
-hitsPerSecond = CRrate * framesize/10^(-4);
-hitsPerFrame = round(hitsPerSecond * frameTime);
+% Create hits
+for i = 1:hits_per_frame
+    % Get pixels where cosmic lands
+    min_row = max(floor(hit_row(i) - hit_rad(i)), 1);
+    max_row = min(ceil(hit_row(i) + hit_rad(i)), frame_r);
+    min_col = max(floor(hit_col(i) - hit_rad(i)), 1);
+    max_col = min(ceil(hit_col(i) + hit_rad(i)), frame_c);
+    [cols, rows] = np.meshgrid(min_col:max_col, min_row:max_row);
 
-% generate hits
-hitsx = rand(1, hitsPerFrame) * matrixh;
-hitsy = rand(1, hitsPerFrame) * matrixw;
+    % Create gaussian
+    sigma = 0.5;
+    a = 1 / (sqrt(2*pi) * sigma);
+    b = 2 * sigma^2;
+    cosm_section = a .* exp(-((rows-hit_row(i)).^2 + (cols-hit_col(i)).^2) / b);
 
-% describe each hit as a gaussian centered at (hitsx,hitsy), landing on pixel (h,k),
-% and having energies described by r (since radius is proportional to energy)  
-xx = 1:matrixw;
-yy = (matrixh:-1:1)';
-h = max(round(hitsx),1);      % x (col)
-k = matrixh+1 - round(hitsy); % y (row)
-r = round(rand(1,length(hitsx))*2*(pixelRadius-1)+1);
+    % Scale by maximum value
+    cosm_section = cosm_section / max(cosm_section(:)) * max_val;
 
-% create hits
-for i=1:length(hitsx)
-    % set constants for gaussian
-    sigma = r(i)/3.75;
-    a = 1/(sqrt(2*pi)*sigma);
-    b = 2*sigma^2;
-    cutoff = 0.03*a;
-    
-    rows = max(k(i)-r(i),1):min(k(i)+r(i),matrixh);
-    cols = max(h(i)-r(i),1):min(h(i)+r(i),matrixw);
-    cosmSection = a .* exp(-((xx(cols)-hitsx(i)).^2 + (yy(rows)-hitsy(i)).^2) / b);
-    cosmSection(cosmSection<=cutoff) = 0;
-    % normalize and scale by FWCim
-    cosmSection = cosmSection/max(cosmSection(:)) * FWCim;
-    
-    frame(rows, cols) = frame(rows, cols) + cosmSection;
+    % Add cosmic to frame
+    image_frame(min_row:max_row, min_col:max_col) = image_frame(min_row:max_row, min_col:max_col) + cosm_section;
 end
 
-props.h = h;
-props.k = k;
-props.r = r;
+out = image_frame;
 
-outMatrix = frame;
 end
