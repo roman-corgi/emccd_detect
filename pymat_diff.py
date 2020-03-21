@@ -55,13 +55,17 @@ def matlabize(text_py):
 
     # Line by line modifications
     for line in text_py:
-        line = line.replace('np.', '')
-
         # Remove import statements
         if line[:6] == 'import':
             continue
         elif line[:4] == 'from':
             continue
+
+        # Remove leading whitespace
+        line = line.lstrip()
+
+        # Remove numpy and scipy
+        line = line.replace('np.', '')
 
         modified_py.append(line)
 
@@ -92,9 +96,27 @@ def pythonize(text_mat):
 
     # Line by line modifications
     for line in text_mat:
+        # Remove leading whitespace
+        line = line.lstrip()
+
+        # Remove end statements
+        if line == 'end':
+            continue
+
+        # Remove terminating semicolons even if followed by comments
         line = line.rstrip(';')
+        line = line.replace(';  %', '  %')
+
+        # Replace equivalent syntax
         line = line.replace('% ', '# ')
         line = line.replace('^', '**')
+
+        # Remove elementwise symbol
+        line = line.replace('.*', '*')
+        line = line.replace('./', '/')
+
+        # Replace indexing commas with brackets
+        line = line.replace('(i)', '[i]')
 
         # Modify function calls
         if line[:8] == 'function':
