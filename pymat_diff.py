@@ -73,5 +73,7 @@ if __name__ == '__main__':
         with open(mat, 'r') as file_mat:
             text_mat = file_mat.read().splitlines()
 
-        for line in difflib.unified_diff(text_py, text_mat):
-            print(line)
+        diff = difflib.HtmlDiff().make_file(text_py, text_mat, 'py', 'mat')
+
+        with open('diff_{:}.html'.format(py.stem), 'w') as file:
+            file.write(diff)
