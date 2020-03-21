@@ -1,4 +1,5 @@
 """Check diff status between python and matlab codebase."""
+import copy
 import os
 
 import difflib
@@ -37,6 +38,58 @@ def get_filenames(path, ext, exclude=None):
     return sorted([f for f in path.rglob('*.' + ext) if f.stem not in exclude])
 
 
+def matlabize(text_py):
+    """Make a python file text more matlab.
+
+    Parameters
+    ----------
+    text_py : list
+        Text of python file.
+
+    Returns
+    -------
+    modified_py : list
+        Text of edited python file.
+
+    """
+    modified_py = copy.copy(text_py)
+
+    # File-wide modifications
+
+    # File-wide modifications
+    for i, line in enumerate(text_py):
+        modified_py[i] = line
+
+    return modified_py
+
+
+def pythonize(text_mat):
+    """Make a matlab file text more python.
+
+    Parameters
+    ----------
+    text_mat : list
+        Text of matlab file.
+
+    Returns
+    -------
+    modified_mat : list
+        Text of modified matlab file.
+
+    """
+    modified_mat = copy.copy(text_mat)
+
+    # File-wide modifications
+
+    # Line-wide modifications
+    for i, line in enumerate(text_mat):
+        line = line.rstrip(';')
+
+        modified_mat[i] = line
+
+    return modified_mat
+
+
 if __name__ == '__main__':
     current_path = Path(os.path.dirname(__file__))
     dir_py = Path(current_path, 'emccd_detect')
@@ -56,6 +109,7 @@ if __name__ == '__main__':
     diff_py = [f for f in set(list_py) if f.stem not in set(stems_mat)]
     diff_mat = [f for f in set(list_mat) if f.stem not in set(stems_py)]
 
+    # Disply filenames that exist only in either the matlab or python directory
     if diff_py:
         print('Python directory contains extra files not in Matlab:\n')
         for name in diff_py:
@@ -67,13 +121,20 @@ if __name__ == '__main__':
             print('   + ' + str(name))
     print('')
 
+    # Open files side by side for comparison
     for py, mat in zip(common_py, common_mat):
         with open(py, 'r') as file_py:
             text_py = file_py.read().splitlines()
         with open(mat, 'r') as file_mat:
             text_mat = file_mat.read().splitlines()
 
-        diff = difflib.HtmlDiff().make_file(text_py, text_mat, 'py', 'mat')
+        # Modify files to remove irrelevant language-specific syntax
+        modified_py = matlabize(text_py)
+        modified_mat = pythonize(text_mat)
 
+        # Take diff and create html for each common file
+        diff = difflib.HtmlDiff().make_file(modified_py, modified_mat,
+                                            '{:}'.format(py.name),
+                                            '{:}'.format(mat.name))
         with open('diff/diff_{:}.html'.format(py.stem), 'w') as file:
             file.write(diff)
