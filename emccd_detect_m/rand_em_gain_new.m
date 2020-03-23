@@ -1,141 +1,103 @@
-function out = rand_em_gain_new(NinMtx, EMgain)
-% Generate random number according to the EM gain prob density function
-% See Basden 2003 paper
+function out = rand_em_gain_new(n_in_array, em_gain)
+%RAND_EM_GAIN Generate random numbers according to EM gain pdfs.
+%   OUT = RAND_EM_GAIN(N_IN_ARRAY, EM_GAIN) returns an array of the same size
+%   as n_in_array. Every element in n_in_array is multiplied by
+%   em_gain*rand_val, where rand_val is a random number drawn from a specific
+%   pdf selected based on the value of the n_in_array element.
 %
-% Nin = (integer) no. of electrons entering EM register
-% EMgain = mean electron multiplication gain of the gain register
-% see http://matlabtricks.com/post-44/generate-random-numbers-with-a-given-distribution
+%   References:
+%   [1] http://matlabtricks.com/post-44/generate-random-numbers-with-a-given-distribution
+%   [2] https://arxiv.org/pdf/astro-ph/0307305.pdf
 %
-% this is an approximate, fast algorithm. The mean of the random variates
-% created is about 1% low systematically, but for photon counting it should
-% be a next-order effect and small
-%
-% Bijan Nemati - 22-Sep-2018
-
-if (EMgain<1)
+%   B Nemati and S Miller - UAH - 20-March-2020
+if (em_gain<1)
     error('EM gain cannot be set to less than 1');
 end
 
-[nr, nc] = size(NinMtx);
+x = zeros(numel(n_in_array), 1);
+inds0 = find(~n_in_array);
+inds1 = find(n_in_array==1);
+inds2 = find(n_in_array==2);
+inds3 = find(n_in_array>2);
 
-x = zeros(nr*nc,1);
-ind0 = find(~NinMtx);
-ind1 = find(NinMtx==1);
-ind2 = find(NinMtx==2);
-ind3 = find(NinMtx>2);
+n0 = length(inds0);
+n1 = length(inds1);
+n2 = length(inds2);
+x(inds0) = rand_em_exact(0, n0, em_gain);
+x(inds1) = rand_em_exact(1, n1, em_gain);
+x(inds2) = rand_em_exact(2, n2, em_gain);
 
-n0 = length(ind0);
-n1 = length(ind1);
-n2 = length(ind2);
-n3 = length(ind3);
-x(ind0) = randEM_exact(0, n0, EMgain);
-x(ind1) = randEM_exact(1, n1, EMgain);
-x(ind2) = randEM_exact(2, n2, EMgain);
-
-for i3 = 1 : n3
-    Nin = NinMtx(ind3(i3));
-    x(ind3(i3)) = randEM_approx(Nin, EMgain);
+for i = inds3'
+    n_in = n_in_array(i);
+    x(i) = rand_em_approx(n_in, em_gain);
 end
-outMtx = reshape(x, nr, nc);
 
+out = reshape(x, size(n_in_array));
+end
 
-out = outMtx;
-return
-%%
-function x = randEM_exact(n, Nel, g)
-    cvect = rand(Nel, 1);
-    switch n
+function x = rand_em_exact(n_in, numel, g)
+% Select a gain distribution based on n_in and generate random numbers.
+    rand_array = rand(numel, 1);
+    switch n_in
         case 0
-            x = zeros(Nel,1);
+            x = zeros(numel, 1);
         case 1
-            x = -g * log(1- cvect);
+            x = -g * log(1 - rand_array);
         case 2
-            x =  -g * lambertw(-1, (cvect-1)/exp(1)) - g;
- 
-        otherwise
-            error('this function only handles casees of n = 1 or 2!')
+            x = -g * lambertw(-1, (rand_array-1)/exp(1)) - g;
     end
     x = round(x);
-return
-%%
-function out = randEM_approx(Nin, EMgain)
+end
 
-if  Nin == 0
-    out = 0;
-    return;
-elseif    Nin < 16
+function out = rand_em_approx(n_in, g)
+% Select a gain distribution based on n_in and generate a single random number.
+if n_in < 16
     kmax = 5;
-    xmin = eps;
-    xmax = kmax * Nin * EMgain;
-%     xcorr = 0.5;
-    if Nin < 3
-        EMgamma = 0;
-    else
-        EMgamma = gammaln(Nin);
-    end
+    xmin = 0;
+    xmax = kmax * n_in * g;
 else
     kmax = 4;
-    xmin = (Nin - kmax * sqrt(Nin)) * EMgain;
-    xmax = (Nin + kmax * sqrt(Nin)) * EMgain;
-%     xcorr = 0.3;
-    EMgamma = gammaln(Nin);
+    xmin = (n_in - kmax * sqrt(n_in)) * g;
+    xmax = (n_in + kmax * sqrt(n_in)) * g;
 end
+nx = 800;  % Sam: it looks like setting this to a high number fixes the threshold efficiency issue. 
+x = linspace(xmin, xmax, nx);
 
-% x = xmin:(xmax-xmin)/99:xmax;
-Nx = 800;  % Sam: it looks like setting this to a high number fixes the threshold efficiency issue. 
-% it seems to be an issue of speed vs. accuracy. I wonder if we can set a flag to choose cases
-x = linspace(xmin, xmax, Nx);
-if Nin == 1
-    xNin = 0;
-else
-    xNin = (Nin-1)*log(x);
-end
-
-% Basden 2003 probability distribution function
-% The prob. dis function is 
-%     pdf = x.^(Nin-1) .* exp(-x/EMgain) / (EMgain^Nin * factorial(Nin-1));
-% because of the cancellation of very large numbers, first work in log space
-logpdf = xNin - x/EMgain - Nin*log(EMgain) - EMgamma;
+% Basden 2003 probability distribution function is as follows:
+% pdf = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1))
+% Because of the cancellation of very large numbers, first work in log space
+pdf_test = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1));
+logpdf = (n_in-1) * log(x) - x/g - n_in*log(g) - log(factorial(n_in-1));
 pdf = exp(logpdf);
 
-% generate random numbers according to pdf 
+% Generate random numbers according to pdf 
 pdf = pdf / sum(pdf);
 cdf = cumsum(pdf);
 
-% create a uniformly distributed random number for lookup in CDF
-CDFlookup = rand;
+% Create a uniformly distributed random number for lookup in CDF
+cdf_lookup = rand;
 
-if CDFlookup < cdf(1)
+% Map random values below minimum cdf value to 0
+if cdf_lookup < cdf(1)
     randout = 0;
 else
-    ihi = find(cdf > CDFlookup, 1, 'first');
+    ihi = find(cdf > cdf_lookup, 1, 'first');
     ilo = ihi - 1;
-    xlo = x(ilo); xhi = x(ihi); clo = cdf(ilo); chi = cdf(ihi);
-    randout = xlo + (CDFlookup - clo) * ((xhi - xlo)/(chi-clo));
+    xlo = x(ilo);
+    xhi = x(ihi);
+    clo = cdf(ilo);
+    chi = cdf(ihi);
+    randout = xlo + (cdf_lookup - clo) * (xhi - xlo)/(chi-clo);
 end
 
-out = round(randout) ;
-if isempty(out)
-    keyboard
+out = round(randout);
 end
-
-% % inverse interpolation to achieve P(x) -> x projection of the random values
-% if debug
-%     figure, plot(x, pdf,'.-', x, cdf, '.:'), title(['Nin = ', num2str(Nin),'     maxNout = ',num2str(xmax)]); %#ok<*UNRCH>
-%     legend('pdf', 'cdf');
-% end
-return
 
 %else
 %     % the very large numbers are handled in an approimate way as ~ a gaussian distribution
 %     randout = EMgain * max(0, Nin + sqrt(Nin)*randn(1,1));
 % %
 % % end
-% % if isempty(randout)
-% %     keyboard
-% % end
-% % % map randomValues below (cdf(1) to 0)
-% % ind0 = find(randLookup < cdf(1));
 % %
 % % randout = round(interp1(cdf, x, randLookup,'linear'));
 % % randout(ind0) = 0; %#ok<FNDSB>
