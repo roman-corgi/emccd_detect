@@ -92,12 +92,3 @@ end
 
 out = round(randout);
 end
-
-%else
-%     % the very large numbers are handled in an approimate way as ~ a gaussian distribution
-%     randout = EMgain * max(0, Nin + sqrt(Nin)*randn(1,1));
-% %
-% % end
-% %
-% % randout = round(interp1(cdf, x, randLookup,'linear'));
-% % randout(ind0) = 0; %#ok<FNDSB>
