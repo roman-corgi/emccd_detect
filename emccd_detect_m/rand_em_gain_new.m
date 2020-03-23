@@ -60,18 +60,14 @@ x = linspace(xmin, xmax, nx);
 % Basden 2003 probability distribution function is as follows:
 % pdf = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1))
 % Because of the cancellation of very large numbers, first work in log space
-pdf_test = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1));
 logpdf = (n_in-1) * log(x) - x/g - n_in*log(g) - log(factorial(n_in-1));
 pdf = exp(logpdf);
-
-% Generate random numbers according to pdf 
-pdf = pdf / sum(pdf);
-cdf = cumsum(pdf);
 
 % Create a uniformly distributed random number for lookup in CDF
 cdf_lookup = rand;
 
-% Map random values below minimum cdf value to 0
+% Map random values to cdf
+cdf = cumsum(pdf / sum(pdf));
 if cdf_lookup < cdf(1)
     randout = 0;
 else
