@@ -51,16 +51,10 @@ end
 
 function out = rand_em_approx(n_in, g)
 % Select a gain distribution based on n_in and generate a single random number.
-if n_in < 16
-    kmax = 5;
-    xmin = 0;
-    xmax = kmax * n_in * g;
-else
-    kmax = 4;
-    xmin = (n_in - kmax * sqrt(n_in)) * g;
-    xmax = (n_in + kmax * sqrt(n_in)) * g;
-end
-nx = 800;  % Sam: it looks like setting this to a high number fixes the threshold efficiency issue. 
+kmax = 5;
+xmin = 0;
+xmax = kmax * n_in * g;
+nx = 800;
 x = linspace(xmin, xmax, nx);
 
 % Basden 2003 probability distribution function is as follows:
