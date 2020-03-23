@@ -52,7 +52,7 @@ end
 function out = rand_em_approx(n_in, g)
 % Select a gain distribution based on n_in and generate a single random number.
 kmax = 5;
-xmin = 0;
+xmin = eps;
 xmax = kmax * n_in * g;
 nx = 800;
 x = linspace(xmin, xmax, nx);
@@ -60,25 +60,21 @@ x = linspace(xmin, xmax, nx);
 % Basden 2003 probability distribution function is as follows:
 % pdf = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1))
 % Because of the cancellation of very large numbers, first work in log space
-logpdf = (n_in-1) * log(x) - x/g - n_in*log(g) - log(factorial(n_in-1));
+logpdf = (n_in-1)*log(x) - x/g - n_in*log(g) - gammaln(n_in);
 pdf = exp(logpdf);
+cdf = cumsum(pdf / sum(pdf));
 
 % Create a uniformly distributed random number for lookup in CDF
-cdf_lookup = rand;
+cdf_lookup = rand*max(cdf) + min(cdf);
 
-% Map random values to cdf
-cdf = cumsum(pdf / sum(pdf));
-if cdf_lookup < cdf(1)
-    randout = 0;
-else
-    ihi = find(cdf > cdf_lookup, 1, 'first');
-    ilo = ihi - 1;
-    xlo = x(ilo);
-    xhi = x(ihi);
-    clo = cdf(ilo);
-    chi = cdf(ihi);
-    randout = xlo + (cdf_lookup - clo) * (xhi - xlo)/(chi-clo);
-end
+% Map random value to cdf
+ihi = find(cdf > cdf_lookup, 1, 'first');
+ilo = ihi - 1;
+xlo = x(ilo);
+xhi = x(ihi);
+clo = cdf(ilo);
+chi = cdf(ihi);
+randout = xlo + (cdf_lookup - clo) * (xhi - xlo)/(chi-clo);
 
 out = round(randout);
 end
