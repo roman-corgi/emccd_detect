@@ -22,7 +22,7 @@ cr_min_radius = 0;
 cr_max_radius = 2;
 hit_row = rand(1, hits_per_frame) * frame_r;
 hit_col = rand(1, hits_per_frame) * frame_c;
-hit_rad = rand(1, hits_per_frame) * (cr_max_radius - cr_min_radius) + cr_min_radius
+hit_rad = rand(1, hits_per_frame) * (cr_max_radius - cr_min_radius) + cr_min_radius;
 
 % Create hits
 for i = 1:hits_per_frame
@@ -31,7 +31,7 @@ for i = 1:hits_per_frame
     max_row = min(ceil(hit_row(i) + hit_rad(i)), frame_r);
     min_col = max(floor(hit_col(i) - hit_rad(i)), 1);
     max_col = min(ceil(hit_col(i) + hit_rad(i)), frame_c);
-    [cols, rows] = np.meshgrid(min_col:max_col, min_row:max_row);
+    [cols, rows] = meshgrid(min_col:max_col, min_row:max_row);
 
     % Create gaussian
     sigma = 0.5;
