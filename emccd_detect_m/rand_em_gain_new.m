@@ -14,42 +14,46 @@ if (em_gain<1)
     error('EM gain cannot be set to less than 1');
 end
 
-x = zeros(numel(n_in_array), 1);
+y = zeros(numel(n_in_array), 1);
 inds0 = find(~n_in_array);
 inds1 = find(n_in_array==1);
 inds2 = find(n_in_array==2);
 inds3 = find(n_in_array>2);
 
-n0 = length(inds0);
-n1 = length(inds1);
-n2 = length(inds2);
-x(inds0) = rand_em_exact(0, n0, em_gain);
-x(inds1) = rand_em_exact(1, n1, em_gain);
-x(inds2) = rand_em_exact(2, n2, em_gain);
+% For n_in of 0, 1, or 2, generate arrays of random numbers according to gain
+% equations specific to each n_in
+numel0 = length(inds0);
+numel1 = length(inds1);
+numel2 = length(inds2);
+y(inds0) = rand_em_exact(0, numel0, em_gain);
+y(inds1) = rand_em_exact(1, numel1, em_gain);
+y(inds2) = rand_em_exact(2, numel2, em_gain);
 
+% For n_in of 3 or greater, generate random numbers one by one according to the
+% generalized gain equation
 for i = inds3'
     n_in = n_in_array(i);
-    x(i) = rand_em_approx(n_in, em_gain);
+    y(i) = rand_em_approx(n_in, em_gain);
 end
 
-out = reshape(x, size(n_in_array));
+out = reshape(y, size(n_in_array));
 end
 
-function x = rand_em_exact(n_in, numel, g)
+function y_array = rand_em_exact(n_in, numel, g)
 % Select a gain distribution based on n_in and generate random numbers.
-    rand_array = rand(numel, 1);
+    x = rand(numel, 1);
     switch n_in
         case 0
-            x = zeros(numel, 1);
+            y_array = zeros(numel, 1);
         case 1
-            x = -g * log(1 - rand_array);
+            y_array = -g * log(1 - x);
         case 2
-            x = -g * lambertw(-1, (rand_array-1)/exp(1)) - g;
+            y_array = -g * lambertw(-1, (x-1)/exp(1)) - g;
     end
-    x = round(x);
+    y_array = round(y_array);
 end
 
-function out = rand_em_approx(n_in, g)
+function y = rand_em_approx(n_in, g)
 % Select a gain distribution based on n_in and generate a single random number.
 kmax = 5;
 xmin = eps;
@@ -74,7 +78,7 @@ xlo = x(ilo);
 xhi = x(ihi);
 clo = cdf(ilo);
 chi = cdf(ihi);
-randout = xlo + (cdf_lookup - clo) * (xhi - xlo)/(chi-clo);
+y = xlo + (cdf_lookup - clo) * (xhi - xlo)/(chi-clo);
 
-out = round(randout);
+y = round(y);
 end
