@@ -14,8 +14,9 @@ if (em_gain<1)
     error('EM gain cannot be set to less than 1');
 end
 
+% Find how many values in a array are equal to 0, 1, 2, or >= 3
 y = zeros(numel(n_in_array), 1);
-inds0 = find(~n_in_array);
+inds0 = find(n_in_array==0);
 inds1 = find(n_in_array==1);
 inds2 = find(n_in_array==2);
 inds3 = find(n_in_array>2);
