@@ -2,12 +2,16 @@
 clear; close all; clc; format compact;
 addpath('../emccd_detect_m');
 addpath('../emccd_detect_m/util');
+jMon = 1; 
+scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
+fsz = 400*[1.2,1];
+nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
 EMgain = 1000;
 
 % Verify that rand_em_gain_new creates exactly the same array as
 % rand_em_gain_w for average rates greater than 1
-OnesMtx = ones(100);
+OnesMtx = ones(10);
 Narray = 1:2;
 for N = Narray
     NinMtx = OnesMtx * N;
@@ -33,19 +37,20 @@ for N = Narray
     fprintf('%d %10.3f %10.3f\n', N, old_mean, new_mean);
     
     figure;
-    h = histogram(old_vals, 'DisplayStyle', 'stairs', 'FaceColor', 'none'); hold on;
-    histogram(new_vals, 'binWidth', h.BinWidth, 'DisplayStyle', 'stairs', 'FaceColor', 'none');
+    bb = 20;
+    h = histogram(old_vals,'binWidth', bb, 'DisplayStyle', 'stairs', 'FaceColor', 'none'); hold on;
+    histogram(new_vals, 'binWidth', bb, 'DisplayStyle', 'stairs', 'FaceColor', 'none');
     title([sprintf('N = %d\n', N), sprintf('Old Mean: %.f   New Mean: %.f', old_mean, new_mean)]);
-    legend('old', 'new');
+    legend('old', 'new');grid;
 end
 fprintf('\n')
 
 % Check threshold efficiency
 Narray = 1:2;
-thresh_array = 5:10:55;  % Percentage of EMgain
+thresh_array = 5:5:25;  % Percentage of EMgain
 for N = Narray
     fprintf('N: %d\n', N);
-    fprintf('%6s %10s %10s %10s\n', 'Thresh', 'e', 'old e', 'new e');
+    fprintf(' %7s %7s %10s %10s\n', 'thr/g(%)', 'e', 'old e', 'new e'); 
     NinMtx = OnesMtx * N;
     i = 1;
     for percent = thresh_array
@@ -70,12 +75,13 @@ for N = Narray
     plot(thresh_array, e_pc_old);
     plot(thresh_array, e_pc_new);
     title([sprintf('N = %d\n', N), sprintf('PC Efficiencey')]);
-    xlabel('PC Thresh (%)');
+    xlabel('t/g (%)');
     ylabel('Efficiency');
-    legend('e', 'old e', 'new e');
+    legend('e', 'old e', 'new e');grid;
 end
 
-autoArrangeFigures(2, 3, 1);
+autoArrangeFigures(nr, nc, iMon); return;
+%-----------------STOP--------------------
 
 
 function [old, new] = both_em_gain(NinMtx, EMgain)
@@ -94,3 +100,4 @@ function e_pc = calc_efficiency(NinMtx, pcMtx)
 n_ones = length(find(NinMtx>=1));  % improve later
 e_pc = sum(pcMtx(:)) / n_ones;
 end
+
