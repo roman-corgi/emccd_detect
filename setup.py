@@ -19,12 +19,12 @@ setup(
     author_email='bn0021@uah.edu, sm0204@uah.edu',
     classifiers=[
         'Development Status :: 3 - Alpha',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.8',
     ],
     packages=find_packages(),
-    scripts=['example_script.py'],
-    python_requires='>=2.7',
+    python_requires='>=3.7',
     install_requires=[
+        'astropy',
         'matplotlib',
         'numpy',
         'scipy'
