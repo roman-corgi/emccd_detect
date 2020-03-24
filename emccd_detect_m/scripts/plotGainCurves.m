@@ -22,3 +22,7 @@ plot(xvec/gain, emgn)
 ylabel('probability density')
 xlabel('output counts / gain')
 legend('1','2','3','4','5','6','7','8','9','10','11')
+
+function p = EMgainpdf (x, n, g)
+p = x.^(n-1) .* exp(-x/g) / (g^n * factorial(n-1))  ;  
+end
