@@ -59,7 +59,7 @@ thresh_array = 5:5:35;  % Percentage of EMgain
 fprintf('\nCompare Threshold Efficiencies\n');
 fprintf('------------------------------');
 for N = Narray
-    fprintf('\nN: %d       threshold efficiencies, %% \n', N);
+    fprintf('\nN: %d       threshold efficiencies (%%) \n', N);
     fprintf(' %7s  %8s %9s  %9s\n', 'thr/g(%)', 'expected', 'old gen', 'new gen'); 
     NinMtx = OnesMtx * N;
     i = 1;
