@@ -16,7 +16,7 @@ EMgain = 1000;
 
 % Verify that rand_em_gain creates exactly the same array as
 % rand_em_gain_old_w for n_in greater than 2
-OnesMtx = ones(10);
+OnesMtx = ones(1000);
 Narray = 2:3;
 fprintf('Sanity Check\n');
 fprintf('------------\n');
@@ -30,8 +30,8 @@ fprintf('\n');
 
 % Check means
 Narray = 1:4;
-fprintf('\nCheck Means\n');
-fprintf('-----------\n');
+fprintf('\nCompare Means\n');
+fprintf('-------------\n');
 fprintf('%s   %s   %s\n', 'N', 'old_mean', 'new_mean');
 for N = Narray
     NinMtx = OnesMtx * N;
@@ -56,8 +56,8 @@ fprintf('\n')
 % Check threshold efficiency
 Narray = 1:2;
 thresh_array = 5:5:35;  % Percentage of EMgain
-fprintf('\nCheck Threshold Efficiencies\n');
-fprintf('----------------------------');
+fprintf('\nCompare Threshold Efficiencies\n');
+fprintf('------------------------------');
 for N = Narray
     fprintf('\nN: %d       threshold efficiencies, %% \n', N);
     fprintf(' %7s  %8s %9s  %9s\n', 'thr/g(%)', 'expected', 'old gen', 'new gen'); 
