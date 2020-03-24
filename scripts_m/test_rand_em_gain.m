@@ -54,7 +54,7 @@ end
 fprintf('\n')
 
 % Check threshold efficiency
-Narray = 1:2;
+Narray = 1:3;
 thresh_array = 5:5:35;  % Percentage of EMgain
 fprintf('\nCompare Threshold Efficiencies\n');
 fprintf('------------------------------');
