@@ -153,12 +153,12 @@ if __name__ == '__main__':
     if diff_py:
         print('Python directory contains extra files not in Matlab:\n')
         for name in diff_py:
-            print('   + ' + str(name))
+            print('   + {:} [{: >26}]'.format(str(name.stem), str(name)))
     print('')
     if diff_mat:
         print('Matlab directory contains extra files not in Python:\n')
         for name in diff_mat:
-            print('   + ' + str(name))
+            print('   + {:} [{: >26}]'.format(str(name.stem), str(name)))
     print('')
 
     # Open files side by side for comparison
