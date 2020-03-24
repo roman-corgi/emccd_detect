@@ -10,9 +10,9 @@ nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('j
 EMgain = 1000;
 
 % Verify that rand_em_gain_new creates exactly the same array as
-% rand_em_gain_w for average rates greater than 1
+% rand_em_gain_w for n_in greater than 2
 OnesMtx = ones(10);
-Narray = 1:2;
+Narray = 2:3;
 for N = Narray
     NinMtx = OnesMtx * N;
     avg_rate = sum(NinMtx(:)) / numel(NinMtx);
