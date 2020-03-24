@@ -1,4 +1,4 @@
-% Test rand_em_gain_new
+% Test rand_em_gain
 clear; close all; clc; format compact;
 addpath('../emccd_detect_m');
 addpath('../emccd_detect_m/util');
@@ -9,8 +9,8 @@ nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('j
 
 EMgain = 1000;
 
-% Verify that rand_em_gain_new creates exactly the same array as
-% rand_em_gain_w for n_in greater than 2
+% Verify that rand_em_gaincreates exactly the same array as
+% rand_em_gain_old_w for n_in greater than 2
 OnesMtx = ones(10);
 Narray = 2:3;
 for N = Narray
@@ -89,9 +89,9 @@ function [old, new] = both_em_gain(NinMtx, EMgain)
 seed = 1;
 
 rng(seed);
-old = rand_em_gain_w(NinMtx, EMgain);
+old = rand_em_gain_old_w(NinMtx, EMgain);
 rng(seed);
-new = rand_em_gain_new(NinMtx, EMgain);
+new = rand_em_gain(NinMtx, EMgain);
 end
 
 
