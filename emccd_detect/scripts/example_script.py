@@ -5,20 +5,19 @@ S Miller and B Nemati - UAH - 21-Feb-2020
 """
 from __future__ import absolute_import, division, print_function
 
-import sys
-sys.path.append('.')
 from os import path
 
-from astropy.io import fits
 import matplotlib.pyplot as plt
+from astropy.io import fits
+from pathlib import Path
 
 from emccd_detect.emccd_detect import emccd_detect
 from emccd_detect.util.imagesc import imagesc
 
 # Input fluxmap
 fits_name = 'ref_frame.fits'
-current_path = path.abspath(path.dirname(__file__))
-fits_path = path.join(current_path, 'data', fits_name)
+current_path = Path(path.dirname(__file__))
+fits_path = Path(current_path.parent.parent, 'data', fits_name)
 fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
 
 # Simulation inputs
