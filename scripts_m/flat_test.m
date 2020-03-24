@@ -98,7 +98,7 @@ end
 % Threshold efficincy for n=1 and n=2 EM probablity distributions
 eps_th1 = @(x,g) exp(-x/g);
 eps_th2 = @(x,g) (1+x/g).*exp(-x/g);
-eps_th3 = @(x,g) (2+x/g+x.^2/(2*g^2)).*exp(-x/g);
+eps_th3 = @(x,g) (1+(x/g)+0.5*(x/g).^2).*exp(-x/g);
 pdfEM   = @(x,g,n) x.^(n-1).*exp(-x/g)./(g^n*factorial(n-1));
 pp1 = poisspdf(1,r_phe);
 pp2 = poisspdf(2,r_phe);
@@ -106,10 +106,9 @@ pp3 = poisspdf(3,r_phe);
 eth1 = eps_th1(nthr*read_noise, em_gain);
 eth2 = eps_th2(nthr*read_noise, em_gain);
 eth3 = eps_th3(nthr*read_noise, em_gain);
-overcountEst2 = (pp1.*eth1+pp2.*eth2)./(pp1.*eth1+pp2.*eth1);
-overcountEst3 = (pp1.*eth1+pp2.*eth2+pp3.*eth3)./((pp1+pp2+pp3).*eth1);
+overcountEst2 = (pp1.*eth1 + pp2.*eth2)             ./ ( (pp1+pp2)    .*eth1 );
+overcountEst3 = (pp1.*eth1 + pp2.*eth2 + pp3.*eth3) ./ ( (pp1+pp2+pp3).*eth1 );
 
-figure, plot(nthr, overcountEst);
 
 figure
 plot(nthr, nobs_br/frameTime, nthr, r_phe,  nthr, flux*ones(1, npts))
@@ -124,12 +123,13 @@ xlabel('threshold factor'); ylabel('threshold effeciency');
 title('Assuming all pixels are 1 or 0 real ph-e''s')
 
 
-figure, plot(nthr, overcountEst); grid;
+figure, plot(nthr, overcountEst2); grid;
 xlabel('threshold factor'); ylabel('PC over-count factor');
 
 
 figure
-plot(nthr, nobs_br/frameTime,'.-', nthr, r_phe,'.-', nthr, flux*ones(1, npts),  nthr, r_phe./overcountEst2,'.-',  nthr, r_phe./overcountEst3,'.-')
+plot(nthr, nobs_br/frameTime,'.-', nthr, r_phe,'.-', nthr, flux*ones(1, npts),  ...
+    nthr, r_phe./overcountEst2,'.-',  nthr, r_phe./overcountEst3,'.-')
 grid
 legend('Raw Phot Cnt', 'thr, CL corr', 'Actual', '+ovrcnt corr', '+n3 corr' )
 xlabel('threshold factor'); ylabel('rates, e/pix/s');
@@ -138,7 +138,8 @@ title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_
 actualc = flux*ones(1, npts);
 
 figure
-plot(nthr,  r_phe./actualc,'.-',   nthr, r_phe./overcountEst2./actualc,'.-',  nthr, r_phe./overcountEst3./actualc,'.-')
+plot(nthr,  r_phe./actualc,'.-',   nthr, r_phe./overcountEst2./actualc,'.-', ...
+     nthr, r_phe./overcountEst3./actualc,'.-', nthr, ones(1, npts))
 grid
 legend('thr, CL corr', '+ovrcnt corr', '+n3 corr')
 xlabel('threshold factor'); ylabel('rate/actual');
@@ -148,5 +149,5 @@ title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_
 
 
 toc
-autoArrangeFigures(nr, nc, iMon); return;
+autoArrangeFigures(nr, nc, iMon); 
 return
