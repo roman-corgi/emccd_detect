@@ -8,7 +8,7 @@ nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('j
 
 gain = 100
 
-nvec = 1:12;
+nvec = 1:6;
 xvec = 0:10:2000;
 for in = 1:length(nvec)
     n = nvec(in);
@@ -20,5 +20,5 @@ end
 figure
 plot(xvec/gain, emgn)
 ylabel('probability density')
-xlabel('output counts/gain')
+xlabel('output counts / gain')
 legend('1','2','3','4','5','6','7','8','9','10','11')

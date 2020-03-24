@@ -8,12 +8,14 @@ jMon = 2; fsz = 450*[1,1.3];
 scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
+
+
 % Input fluxmap
 npix_across = 2000;
 flux = 0.07;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 
-studyCase = 'old'
+studyCase = 'new'
 tic
 % Simulation inputs
 frameTime = 1.;  % Frame time (seconds)
@@ -30,7 +32,7 @@ pixel_pitch = 13e-6;  % Distance between pixel centers (m)
 
 zeroFrame = zeros(size(fluxmap)); %#ok<*NOPTS>
 npts = 55;
-pc_thresh = linspace(200, 1200, npts);
+pc_thresh = linspace(200, 1600, npts);
 for ithr = 1:npts
     
     % Threshold and photon count
@@ -93,19 +95,58 @@ for ithr = 1:npts
 end
 
 %%
+% Threshold efficincy for n=1 and n=2 EM probablity distributions
+eps_th1 = @(x,g) exp(-x/g);
+eps_th2 = @(x,g) (1+x/g).*exp(-x/g);
+eps_th3 = @(x,g) (2+x/g+x.^2/(2*g^2)).*exp(-x/g);
+pdfEM   = @(x,g,n) x.^(n-1).*exp(-x/g)./(g^n*factorial(n-1));
+pp1 = poisspdf(1,r_phe);
+pp2 = poisspdf(2,r_phe);
+pp3 = poisspdf(3,r_phe);
+eth1 = eps_th1(nthr*read_noise, em_gain);
+eth2 = eps_th2(nthr*read_noise, em_gain);
+eth3 = eps_th3(nthr*read_noise, em_gain);
+overcountEst2 = (pp1.*eth1+pp2.*eth2)./(pp1.*eth1+pp2.*eth1);
+overcountEst3 = (pp1.*eth1+pp2.*eth2+pp3.*eth3)./((pp1+pp2+pp3).*eth1);
+
+figure, plot(nthr, overcountEst);
+
 figure
 plot(nthr, nobs_br/frameTime, nthr, r_phe,  nthr, flux*ones(1, npts))
 grid
 legend('Observed', 'Corrected', 'Actual')
-xlabel('threshold factor')
-ylabel('rates, e/pix/s')
+xlabel('threshold factor'); ylabel('rates, e/pix/s');
 title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_well_serial/1000),'k']);
+
 figure
-plot(nthr, eps_thr)
-grid
-xlabel('threshold factor')
-ylabel('threshold effeciency')
+plot(nthr, eps_thr); grid;
+xlabel('threshold factor'); ylabel('threshold effeciency');
 title('Assuming all pixels are 1 or 0 real ph-e''s')
+
+
+figure, plot(nthr, overcountEst); grid;
+xlabel('threshold factor'); ylabel('PC over-count factor');
+
+
+figure
+plot(nthr, nobs_br/frameTime,'.-', nthr, r_phe,'.-', nthr, flux*ones(1, npts),  nthr, r_phe./overcountEst2,'.-',  nthr, r_phe./overcountEst3,'.-')
+grid
+legend('Raw Phot Cnt', 'thr, CL corr', 'Actual', '+ovrcnt corr', '+n3 corr' )
+xlabel('threshold factor'); ylabel('rates, e/pix/s');
+title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_well_serial/1000),'k']);
+
+actualc = flux*ones(1, npts);
+
+figure
+plot(nthr,  r_phe./actualc,'.-',   nthr, r_phe./overcountEst2./actualc,'.-',  nthr, r_phe./overcountEst3./actualc,'.-')
+grid
+legend('thr, CL corr', '+ovrcnt corr', '+n3 corr')
+xlabel('threshold factor'); ylabel('rate/actual');
+title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_well_serial/1000),'k']);
+
+
+
+
 toc
 autoArrangeFigures(nr, nc, iMon); return;
 return
