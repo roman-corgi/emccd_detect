@@ -2,37 +2,40 @@
 
 Given an input fluxmap, emccd_detect will return a simulated EMCCD detector image. 
 
+This project is managed simultaneously in both python and Matlab. The python version is located in emccd\_detect, while the Matlab version is located in emccd\_detect\_m.
+
 This is a preliminary version; future updates will have fast EMCCD capability (for quick approximation accross a large set of frames), as well more finely tuned error simulations (ie. fixed pattern, cosmics, etc.).
 
-## Getting Started
+## Getting Started - Python
 ### Installing
 
-This package requires Python 2.7. To install emccd_detect, use
+This package requires Python 3.7. To install emccd\_detect, navigate to the root emccd\_detect directory where setup.py is located. (If you are using conda, activate the environment where you would like it installed). Then use
 
-	python setup.py install
+	pip install .
 
 This will install the dependencies, which are as follows:
 
+* astropy
 * matplotlib
 * numpy
 * scipy
 
-**Note for Linux users:** Upon runtime you may get the error
-
-	ImportError: No module named _tkinter, please install the python-tk package
-
-If so, use
-
-	sudo apt-get install python-tk
-
-to install Tkinter on your machine.
 
 ### Usage
 
-For an example of how to use emccd\_detect, run example\_script.
+For an example of how to use emccd\_detect, see scripts/main.py.
+
+## Getting Started - Matlab
+### Installing
+
+To use emccd\_detect in one of your matlab projects, either add emccd\_detect\_m to your path or copy the emccd\_detect\_m directory to your project.
+
+### Usage
+
+For an example of how to use emccd\_detect, see scripts/main.m.
 
 ## Authors
 
-* Bijan Nemati
-* Sam Miller
+* Bijan Nemati (<bijan.nemati@uah.edu>)
+* Sam Miller (<sm0204@uah.edu>)
 
