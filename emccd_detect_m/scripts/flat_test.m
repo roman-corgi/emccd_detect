@@ -11,7 +11,7 @@ nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('j
 
 
 % Input fluxmap
-npix_across = 2000;
+npix_across = 20;
 flux = 0.07;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 
