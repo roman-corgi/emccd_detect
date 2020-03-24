@@ -30,8 +30,8 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
     """
 
     # Find number of hits/frame
-    frame_r, frame_c = image_frame.shape
-    framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10**-4  # cm^2
+    nr, nc = image_frame.shape
+    framesize = (nr*pixel_pitch * nc*pixel_pitch) / 10**-4  # cm^2
     hits_per_second = cr_rate * framesize
     hits_per_frame = int(round(hits_per_second * frametime))  # XXX zero case
 
@@ -40,8 +40,8 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
     # an radius of hit_rad chosen between cr_min_radius and cr_max_radius
     cr_min_radius = 0
     cr_max_radius = 2
-    hit_row = np.random.uniform(low=0, high=frame_r-1, size=hits_per_frame)
-    hit_col = np.random.uniform(low=0, high=frame_c-1, size=hits_per_frame)
+    hit_row = np.random.uniform(low=0, high=nr-1, size=hits_per_frame)
+    hit_col = np.random.uniform(low=0, high=nc-1, size=hits_per_frame)
     hit_rad = np.random.uniform(low=cr_min_radius, high=cr_max_radius,
                                 size=hits_per_frame)
 
@@ -49,9 +49,9 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
     for i in range(hits_per_frame):
         # Get pixels where cosmic lands
         min_row = max(np.floor(hit_row[i] - hit_rad[i]).astype(int), 0)
-        max_row = min(np.ceil(hit_row[i] + hit_rad[i]).astype(int), frame_r-1)
+        max_row = min(np.ceil(hit_row[i] + hit_rad[i]).astype(int), nr-1)
         min_col = max(np.floor(hit_col[i] - hit_rad[i]).astype(int), 0)
-        max_col = min(np.ceil(hit_col[i] + hit_rad[i]).astype(int), frame_c-1)
+        max_col = min(np.ceil(hit_col[i] + hit_rad[i]).astype(int), nc-1)
         cols, rows = np.meshgrid(np.arange(min_col, max_col+1),
                                  np.arange(min_row, max_row+1))
 

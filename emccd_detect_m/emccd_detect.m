@@ -26,10 +26,9 @@ else
     image_frame = image_frame + mean_e;
 end
 
-% if cr_rate ~= 0
-%     % Cosmic hits on image area
-%     [image_frame, props] = cosmic_hits(image_frame, pars, exptime);
-% end
+image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,...
+                          full_well_image);
+
 
 % Cap electrons at full well capacity of imaging area
 image_frame(image_frame > full_well_image) = full_well_image;

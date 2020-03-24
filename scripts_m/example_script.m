@@ -44,22 +44,22 @@ if plot_images
                   em_gain, read_noise, frametime)})
 end
 
-% Evaluate rand_em_gain simulation
-n_tries = 2500;
-x = zeros(1, n_tries);
-n_in_values = [1:3:16, 50, 60, 70];
-for n_in = n_in_values
-    tic
-    for i = 1:n_tries
-        x(i) = rand_em_gain(n_in, em_gain);
-    end
-
-    tn = toc;
-    tper = tn / n_tries;
-    figure;
-    histbn(x, 80, 'all'); grid;
-    title(sprintf('Nin: %.f  EM Gain: %.f  Mean: %.f\n%.3f ms per call',...
-          n_in, em_gain, mean(x), tper*1000));
-end
+% % Evaluate rand_em_gain simulation
+% n_tries = 2500;
+% x = zeros(1, n_tries);
+% n_in_values = [1:3:16, 50, 60, 70];
+% for n_in = n_in_values
+%     tic
+%     for i = 1:n_tries
+%         x(i) = rand_em_gain(n_in, em_gain);
+%     end
+% 
+%     tn = toc;
+%     tper = tn / n_tries;
+%     figure;
+%     histbn(x, 80, 'all'); grid;
+%     title(sprintf('Nin: %.f  EM Gain: %.f  Mean: %.f\n%.3f ms per call',...
+%           n_in, em_gain, mean(x), tper*1000));
+% end
 
 autoArrangeFigures

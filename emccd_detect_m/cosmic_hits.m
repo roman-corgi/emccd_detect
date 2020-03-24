@@ -1,17 +1,11 @@
 function out = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val)
-% Inputs:
-%           frame            : input frame
-%           pars             : detector parameters
-%           frameTime        : time of a single frame (seconds)
-%
-% Output:
-%           outmatrix        : input frame + cosmic hits
+%COSMIC_HITS Generate cosmic hits.
 % 
 % S Miller - UAH - 16-Jan-2019
 
 % Find number of hits/frame
-[frame_r, frame_c] = size(image_frame);
-framesize = (frame_r*pixel_pitch * frame_c*pixel_pitch) / 10^-4;  % cm^2
+[nr, nc] = size(image_frame);
+framesize = (nr*pixel_pitch * nc*pixel_pitch) / 10^-4;  % cm^2
 hits_per_second = cr_rate * framesize;
 hits_per_frame = round(hits_per_second * frametime);
 
@@ -20,17 +14,17 @@ hits_per_frame = round(hits_per_second * frametime);
 % an radius of hit_rad chosen between cr_min_radius and cr_max_radius
 cr_min_radius = 0;
 cr_max_radius = 2;
-hit_row = rand(1, hits_per_frame) * frame_r;
-hit_col = rand(1, hits_per_frame) * frame_c;
+hit_row = rand(1, hits_per_frame) * nr;
+hit_col = rand(1, hits_per_frame) * nc;
 hit_rad = rand(1, hits_per_frame) * (cr_max_radius - cr_min_radius) + cr_min_radius;
 
 % Create hits
 for i = 1:hits_per_frame
     % Get pixels where cosmic lands
     min_row = max(floor(hit_row(i) - hit_rad(i)), 1);
-    max_row = min(ceil(hit_row(i) + hit_rad(i)), frame_r);
+    max_row = min(ceil(hit_row(i) + hit_rad(i)), nr);
     min_col = max(floor(hit_col(i) - hit_rad(i)), 1);
-    max_col = min(ceil(hit_col(i) + hit_rad(i)), frame_c);
+    max_col = min(ceil(hit_col(i) + hit_rad(i)), nc);
     [cols, rows] = meshgrid(min_col:max_col, min_row:max_row);
 
     % Create gaussian
@@ -47,5 +41,4 @@ for i = 1:hits_per_frame
 end
 
 out = image_frame;
-
 end
