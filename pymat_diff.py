@@ -146,19 +146,19 @@ if __name__ == '__main__':
 
     common_py = sorted([f for f in set(list_py) if f.stem in common_stems])
     common_mat = sorted([f for f in set(list_mat) if f.stem in common_stems])
-    diff_py = [f for f in set(list_py) if f.stem not in set(stems_mat)]
-    diff_mat = [f for f in set(list_mat) if f.stem not in set(stems_py)]
+    diff_py = sorted([f for f in set(list_py) if f.stem not in set(stems_mat)])
+    diff_mat = sorted([f for f in set(list_mat) if f.stem not in set(stems_py)])
 
     # Disply filenames that exist only in either the matlab or python directory
     if diff_py:
         print('Python directory contains extra files not in Matlab:\n')
         for name in diff_py:
-            print('   + {:} [{: >26}]'.format(str(name.stem), str(name)))
+            print('   + {: <20} [{:}]'.format(str(name.stem), str(name)))
     print('')
     if diff_mat:
         print('Matlab directory contains extra files not in Python:\n')
         for name in diff_mat:
-            print('   + {:} [{: >26}]'.format(str(name.stem), str(name)))
+            print('   + {: <20} [{:}]'.format(str(name.stem), str(name)))
     print('')
 
     # Open files side by side for comparison
