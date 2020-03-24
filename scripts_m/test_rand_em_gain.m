@@ -1,4 +1,4 @@
-% Test rand_em_gain_new
+% Test rand_em_gain
 clear; close all; clc; format compact;
 addpath('../emccd_detect_m');
 addpath('../emccd_detect_m/util');
@@ -14,10 +14,10 @@ eps_th3 = @(x,g) (1+(x/g)+0.5*(x/g)^2).*exp(-x/g);
 
 EMgain = 1000;
 
-% Verify that rand_em_gain_new creates exactly the same array as
-% rand_em_gain_w for average rates greater than 1
+% Verify that rand_em_gain creates exactly the same array as
+% rand_em_gain_old_w for n_in greater than 2
 OnesMtx = ones(1000);
-Narray = 1:2;
+Narray = 2:3;
 for N = Narray
     NinMtx = OnesMtx * N;
     avg_rate = sum(NinMtx(:)) / numel(NinMtx);
@@ -103,9 +103,9 @@ function [old, new] = both_em_gain(NinMtx, EMgain)
 seed = 1;
 
 rng(seed);
-old = rand_em_gain_w(NinMtx, EMgain);
+old = rand_em_gain_old_w(NinMtx, EMgain);
 rng(seed);
-new = rand_em_gain_new(NinMtx, EMgain);
+new = rand_em_gain(NinMtx, EMgain);
 end
 
 
