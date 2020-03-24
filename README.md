@@ -2,7 +2,7 @@
 
 Given an input fluxmap, emccd_detect will return a simulated EMCCD detector image. 
 
-This project is managed simultaneously in both python and Matlab. The python version is located in emccd\_detect, while the Matlab version is located in emccd\_detect\_m.
+This project is managed simultaneously in both Python and Matlab. The Python version is located in emccd\_detect, while the Matlab version is located in emccd\_detect\_m.
 
 This is a preliminary version; future updates will have fast EMCCD capability (for quick approximation accross a large set of frames), as well more finely tuned error simulations (ie. fixed pattern, cosmics, etc.).
 
