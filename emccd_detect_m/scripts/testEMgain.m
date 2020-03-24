@@ -1,6 +1,6 @@
 clear; close all; clc; format compact;
-addpath('../emccd_detect_m');
-addpath('../emccd_detect_m/util');
+addpath('../');
+addpath('../util');
 jMon = 2; fsz = 500*[1,1.4];
 scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
@@ -61,18 +61,9 @@ for ithr = 1:nthr_pts
     
     fprintf('For n_thr = %3.2f n_obs = %3.2f, eps_thr = %3.2f, n / eps = %3.3f\n',nthr(ithr), n_obs(ithr), eps_thr(ithr), n_obs(ithr)/eps_thr(ithr))
     figure, imagesc(analogfr); axis square; colorbar; 
-    
- 
-        
-
 end
 
-
-
-autoArrangeFigures(nr, nc, iMon); return;
-
-
-return
+autoArrangeFigures(nr, nc, iMon);
 
 % For  n = 1,  <x> = 0.905
 % For  n = 2,  <x> = 0.954

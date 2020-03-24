@@ -1,7 +1,7 @@
 % Test rand_em_gain
 clear; close all; clc; format compact;
-addpath('../emccd_detect_m');
-addpath('../emccd_detect_m/util');
+addpath('../');
+addpath('../util');
 jMon = 1; 
 scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
 fsz = 400*[1.2,1];
@@ -16,7 +16,7 @@ EMgain = 1000;
 
 % Verify that rand_em_gain creates exactly the same array as
 % rand_em_gain_old_w for n_in greater than 2
-OnesMtx = ones(1000);
+OnesMtx = ones(10);
 Narray = 2:3;
 fprintf('Sanity Check\n');
 fprintf('------------\n');

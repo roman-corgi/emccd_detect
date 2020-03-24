@@ -2,13 +2,13 @@
 %
 % S Miller and B Nemati - UAH - 21-Feb-2020
 clear; close all; clc; format compact;
-addpath('../emccd_detect_m');
-addpath('../emccd_detect_m/util');
+addpath('../');
+addpath('../util');
 
 % Input fluxmap
 fits_name = 'ref_frame.fits';
 current_path = pwd;
-fits_path = fullfile(fileparts(current_path), 'data', fits_name);
+fits_path = fullfile(fileparts(fileparts(current_path)), 'data', fits_name);
 fluxmap = fitsread(fits_path);  % Input fluxmap (photons/pix/s)
 
 % Simulation inputs
