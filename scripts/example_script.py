@@ -5,6 +5,8 @@ S Miller and B Nemati - UAH - 21-Feb-2020
 """
 from __future__ import absolute_import, division, print_function
 
+import sys
+sys.path.append('.')
 from os import path
 
 from astropy.io import fits
