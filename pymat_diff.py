@@ -71,7 +71,8 @@ def matlabize(text_py):
 
     # File modifications
     # Remove encoding declaration
-    modified_py.remove('# -*- coding: utf-8 -*-')
+    if '# -*- coding: utf-8 -*-' in modified_py:
+        modified_py.remove('# -*- coding: utf-8 -*-')
     if modified_py[0][:3] == '"""':
         del modified_py[0]
 
@@ -117,6 +118,10 @@ def pythonize(text_mat):
 
         # Replace indexing commas with brackets
         line = line.replace('(i)', '[i]')
+
+        # Replace booleans
+        line = line.replace('true', 'True')
+        line = line.replace('false', 'False')
 
         # Modify function calls
         if line[:8] == 'function':
@@ -180,5 +185,6 @@ if __name__ == '__main__':
         diff = difflib.HtmlDiff().make_file(modified_py, modified_mat,
                                             '{:}'.format(py.name),
                                             '{:}'.format(mat.name))
-        with open('diff/diff_{:}.html'.format(py.stem), 'w') as file:
+        diff_name = 'diff_{:}.html'.format(py.stem)
+        with open(Path(current_path, 'diff', diff_name), 'w') as file:
             file.write(diff)
