@@ -143,8 +143,7 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     image_frame_flat = image_frame.ravel()
     serial_frame_flat = np.zeros(image_frame.size)
 
-    for i in range(len(image_frame_flat)):
-        serial_frame_flat[i] = rand_em_gain(image_frame_flat[i], em_gain)
+    serial_frame_flat = rand_em_gain(image_frame_flat, em_gain)
 
     serial_frame = serial_frame_flat.reshape(image_frame.shape)
 
