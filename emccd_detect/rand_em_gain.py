@@ -65,7 +65,7 @@ def rand_em_approx(n_in, g):
     xmin = np.finfo(float).eps
     xmax = kmax * n_in * g
     nx = 800
-    x = np.linspace(xmin, xmax, nx)
+    x = np.linspace(xmin, xmax, nx)  # XXX Check against old version
 
     # Basden 2003 probability distribution function is as follows:
     # pdf = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1))

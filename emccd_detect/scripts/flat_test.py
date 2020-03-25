@@ -12,9 +12,9 @@ from emccd_detect.emccd_detect import emccd_detect
 from emccd_detect.util.imagesc import imagesc
 
 # Input fluxmap
-npix_across = 2000
+npix_across = 20
 flux = 0.07  # photns/pix/s
-fluxmap = flux * np.ones(npix_across)
+fluxmap = flux * np.ones([npix_across, npix_across])
 
 studyCase = 'new'
 # Simulation inputs
