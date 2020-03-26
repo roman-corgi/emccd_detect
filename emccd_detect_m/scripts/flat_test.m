@@ -65,17 +65,6 @@ for i = 1:length(pc_thresh)
 
     % Photo-electron rate
     r_phe(i) = rtrue_br - rtrue_dk;
-    
-    if i == 1
-        figure;
-        imagesc(bright_pc);
-        colorbar;
-        colormap gray;
-
-        figure;
-        imagesc(bright_frame);
-        colorbar;
-    end
 end
 
 %%
