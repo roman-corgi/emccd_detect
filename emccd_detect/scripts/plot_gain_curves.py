@@ -16,8 +16,10 @@ plt.figure()
 for i, n in enumerate(n_array):
     pdf = em_gain_pdf(x_array, n, gain)
     legend_str.append('n = ' + str(n))
-    plt.plot(x_array/gain, pdf)
+    plt.plot(x_array/gain, pdf, linewidth=1)
 
+plt.xlim(xmin=0)
+plt.ylim(ymin=0)
 plt.ylabel('probability density')
 plt.xlabel('output counts / gain')
 plt.legend(legend_str)
