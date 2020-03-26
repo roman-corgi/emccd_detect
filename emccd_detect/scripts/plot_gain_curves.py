@@ -16,7 +16,7 @@ plt.figure()
 for i, n in enumerate(n_array):
     pdf = em_gain_pdf(x_array, n, gain)
     legend_str.append('n = ' + str(n))
-    plt.plot(x_array/gain, pdf, linewidth=1)
+    plt.plot(x_array/gain, pdf, linewidth=.5)
 
 plt.xlim(xmin=0)
 plt.ylim(ymin=0)
