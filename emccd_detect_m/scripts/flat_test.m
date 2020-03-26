@@ -27,50 +27,52 @@ qe = 1.;  % Quantum effiency
 cr_rate = 0.;  % Cosmic ray rate (5 for L2) (hits/cm^2/s)
 pixel_pitch = 13e-6;  % Distance between pixel centers (m)
 
-zeroFrame = zeros(size(fluxmap)); %#ok<*NOPTS>
+zero_frame = zeros(size(fluxmap));
 npts = 55;
 pc_thresh = linspace(200, 1600, npts);
-for ithr = 1:npts
+for i = 1:npts
     % Threshold and photon count
-    nthr(ithr) = pc_thresh(ithr) / read_noise;
-    eps_thr(ithr) = exp(- pc_thresh(ithr) / em_gain);
+    nthr(i) = pc_thresh(i) / read_noise;
+    eps_thr(i) = exp(-pc_thresh(i) / em_gain);
     
     % Dark frame
-    darkFrame = emccd_detect(zeroFrame, frameTime, em_gain, full_well_image,...
-                             full_well_serial, dark_current, cic, read_noise,...
-                             bias, qe, cr_rate, pixel_pitch, true);
-    dark_an_mn(ithr) = mean(darkFrame(:));
-    % photon-count the dark frame
-    dark_PC = zeroFrame;
-    dark_PC(darkFrame > pc_thresh(ithr)) = 1;
+    dark_frame = emccd_detect(zero_frame, frameTime, em_gain, full_well_image,...
+                              full_well_serial, dark_current, cic, read_noise,...
+                              bias, qe, cr_rate, pixel_pitch, true);
+    dark_an_mn(i) = mean(dark_frame(:));
+    % Photon-count the dark frame
+    dark_pc = zero_frame;
+    dark_pc(dark_frame > pc_thresh(i)) = 1;
     % the raw photon-counted frame needs to be corrected for inefficiencies 
     % from thresholding and coincidence losses
     % observed mean rate after photon counting 
-    nobs_dk(ithr) = nnz(dark_PC) / npix_across^2;
-    lambda_dk = -log(1-(nobs_dk(ithr)/eps_thr(ithr)));
-    rtrue_dk(ithr) = lambda_dk / frameTime;
-    
+    nobs_dk(i) = nnz(dark_pc) / npix_across^2;
+    lambda_dk = -log(1-(nobs_dk(i)/eps_thr(i)));
+    rtrue_dk(i) = lambda_dk / frameTime;
+
+
     % Bright frame
-    brightFrame = emccd_detect(fluxmap, frameTime, em_gain, full_well_image,...
-                               full_well_serial, dark_current, cic, read_noise,...
-                               bias, qe, cr_rate, pixel_pitch, true);
-    bright_an_mn(ithr) = mean(brightFrame(:));
-    bright_PC = zeroFrame;
-    bright_PC(brightFrame > pc_thresh(ithr)) = 1;
+    bright_frame = emccd_detect(fluxmap, frameTime, em_gain, full_well_image,...
+                                full_well_serial, dark_current, cic, read_noise,...
+                                bias, qe, cr_rate, pixel_pitch, true);
+    bright_an_mn(i) = mean(bright_frame(:));
+    % Photon-count the dark frame
+    bright_pc = zero_frame;
+    bright_pc(bright_frame > pc_thresh(i)) = 1;
     % the raw photon-counted frame needs to be corrected for inefficiencies 
     % from thresholding and coincidence losses
     % observed mean rate after photon counting 
-    nobs_br(ithr) = nnz(bright_PC) / npix_across^2;     %#ok<*SAGROW>
-    lambda_br = -log(1-(nobs_br(ithr)/eps_thr(ithr)));
-    rtrue_br(ithr) = lambda_br / frameTime;
+    nobs_br(i) = nnz(bright_pc) / npix_across^2;
+    lambda_br = -log(1-(nobs_br(i)/eps_thr(i)));
+    rtrue_br(i) = lambda_br / frameTime;
 
     % Photo-electron rate
-    r_phe(ithr) = rtrue_br(ithr) - rtrue_dk(ithr);
+    r_phe(i) = rtrue_br(i) - rtrue_dk(i);
     
-    if ithr == 1
-        figure, imagesc(bright_PC); colorbar; colormap gray;
+    if i == 1
+        figure, imagesc(bright_pc); colorbar; colormap gray;
         figure;
-        imagesc(brightFrame);
+        imagesc(bright_frame);
         colorbar;
     end
 end
@@ -91,39 +93,47 @@ overcountEst2 = (pp1.*eth1 + pp2.*eth2)             ./ ( (pp1+pp2)    .*eth1 );
 overcountEst3 = (pp1.*eth1 + pp2.*eth2 + pp3.*eth3) ./ ( (pp1+pp2+pp3).*eth1 );
 
 
-figure
-plot(nthr, nobs_br/frameTime, nthr, r_phe,  nthr, flux*ones(1, npts))
-grid
-legend('Observed', 'Corrected', 'Actual')
-xlabel('threshold factor'); ylabel('rates, e/pix/s');
+figure;
+plot(nthr, nobs_br/frameTime, nthr, r_phe,  nthr, flux*ones(1, npts));
+grid;
+legend('Observed', 'Corrected', 'Actual');
+xlabel('threshold factor');
+ylabel('rates, e/pix/s');
 title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_well_serial/1000),'k']);
 
-figure
-plot(nthr, eps_thr); grid;
-xlabel('threshold factor'); ylabel('threshold effeciency');
-title('Assuming all pixels are 1 or 0 real ph-e''s')
+figure;
+plot(nthr, eps_thr);
+grid;
+xlabel('threshold factor');
+ylabel('threshold effeciency');
+title('Assuming all pixels are 1 or 0 real ph-e''s');
 
 
-figure, plot(nthr, overcountEst2); grid;
-xlabel('threshold factor'); ylabel('PC over-count factor');
+figure;
+plot(nthr, overcountEst2);
+grid;
+xlabel('threshold factor');
+ylabel('PC over-count factor');
 
 
-figure
-plot(nthr, nobs_br/frameTime,'.-', nthr, r_phe,'.-', nthr, flux*ones(1, npts),  ...
-    nthr, r_phe./overcountEst2,'.-',  nthr, r_phe./overcountEst3,'.-')
-grid
-legend('Raw Phot Cnt', 'thr, CL corr', 'Actual', '+ovrcnt corr', '+n3 corr' )
-xlabel('threshold factor'); ylabel('rates, e/pix/s');
+figure;
+plot(nthr, nobs_br/frameTime,'.-', nthr, r_phe,'.-', nthr, flux*ones(1, npts),...
+     nthr, r_phe./overcountEst2,'.-',  nthr, r_phe./overcountEst3,'.-');
+grid;
+legend('Raw Phot Cnt', 'thr, CL corr', 'Actual', '+ovrcnt corr', '+n3 corr');
+xlabel('threshold factor');
+ylabel('rates, e/pix/s');
 title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_well_serial/1000),'k']);
 
 actualc = flux*ones(1, npts);
 
-figure
-plot(nthr,  r_phe./actualc,'.-',   nthr, r_phe./overcountEst2./actualc,'.-', ...
-     nthr, r_phe./overcountEst3./actualc,'.-', nthr, ones(1, npts))
-grid
-legend('thr, CL corr', '+ovrcnt corr', '+n3 corr')
-xlabel('threshold factor'); ylabel('rate/actual');
+figure;
+plot(nthr, r_phe./actualc,'.-', nthr, r_phe./overcountEst2./actualc,'.-',...
+     nthr, r_phe./overcountEst3./actualc,'.-', nthr, ones(1, npts));
+grid;
+legend('thr, CL corr', '+ovrcnt corr', '+n3 corr');
+xlabel('threshold factor');
+ylabel('rate/actual');
 title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_well_serial/1000),'k']);
 
 autoArrangeFigures(nr, nc, iMon); 
