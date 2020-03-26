@@ -14,8 +14,6 @@ npix_across = 2000;
 flux = 0.07;  % photns/pix/s
 fluxmap = flux * ones(npix_across);
 
-studyCase = 'new'
-tic
 % Simulation inputs
 frameTime = 1.;  % Frame time (seconds)
 em_gain = 6000.;  % CCD EM gain (e-/photon)
@@ -33,23 +31,14 @@ zeroFrame = zeros(size(fluxmap)); %#ok<*NOPTS>
 npts = 55;
 pc_thresh = linspace(200, 1600, npts);
 for ithr = 1:npts
-    
     % Threshold and photon count
-    
     nthr(ithr) = pc_thresh(ithr) / read_noise;
-    
     eps_thr(ithr) = exp(- pc_thresh(ithr) / em_gain);
     
-    %  dark frame
-    if strcmp( studyCase, 'new' )
-        darkFrame = emccd_detect(zeroFrame, frameTime, em_gain, full_well_image,...
-            full_well_serial, dark_current, cic, read_noise, bias,...
-            qe, cr_rate, pixel_pitch, true);
-    else
-        darkFrame = emccd_detect_old(zeroFrame, frameTime, em_gain, full_well_image,...
-            full_well_serial, dark_current, cic, read_noise, bias,...
-            qe, cr_rate, pixel_pitch, true);
-    end
+    % Dark frame
+    darkFrame = emccd_detect(zeroFrame, frameTime, em_gain, full_well_image,...
+                             full_well_serial, dark_current, cic, read_noise,...
+                             bias, qe, cr_rate, pixel_pitch, true);
     dark_an_mn(ithr) = mean(darkFrame(:));
     % photon-count the dark frame
     dark_PC = zeroFrame;
@@ -61,16 +50,10 @@ for ithr = 1:npts
     lambda_dk = -log(1-(nobs_dk(ithr)/eps_thr(ithr)));
     rtrue_dk(ithr) = lambda_dk / frameTime;
     
-    % bright frame
-    if strcmp( studyCase, 'new' )
-        brightFrame = emccd_detect(fluxmap, frameTime, em_gain, full_well_image,...
-            full_well_serial, dark_current, cic, read_noise, bias,...
-            qe, cr_rate, pixel_pitch, true);
-    else
-        brightFrame = emccd_detect_old(fluxmap, frameTime, em_gain, full_well_image,...
-            full_well_serial, dark_current, cic, read_noise, bias,...
-            qe, cr_rate, pixel_pitch, true);
-    end
+    % Bright frame
+    brightFrame = emccd_detect(fluxmap, frameTime, em_gain, full_well_image,...
+                               full_well_serial, dark_current, cic, read_noise,...
+                               bias, qe, cr_rate, pixel_pitch, true);
     bright_an_mn(ithr) = mean(brightFrame(:));
     bright_PC = zeroFrame;
     bright_PC(brightFrame > pc_thresh(ithr)) = 1;
@@ -81,16 +64,15 @@ for ithr = 1:npts
     lambda_br = -log(1-(nobs_br(ithr)/eps_thr(ithr)));
     rtrue_br(ithr) = lambda_br / frameTime;
 
-    % photo-electron rate
+    % Photo-electron rate
     r_phe(ithr) = rtrue_br(ithr) - rtrue_dk(ithr);
     
-    if ithr ==1
+    if ithr == 1
         figure, imagesc(bright_PC); colorbar; colormap gray;
         figure;
-        imagesc(brightFrame); %, [0, 2*em_gain*flux*qe*frameTime]
+        imagesc(brightFrame);
         colorbar;
     end
-    
 end
 
 %%
@@ -144,9 +126,4 @@ legend('thr, CL corr', '+ovrcnt corr', '+n3 corr')
 xlabel('threshold factor'); ylabel('rate/actual');
 title(['RN=',num2str(read_noise),' emG=',num2str(em_gain),' FWCs=',num2str(full_well_serial/1000),'k']);
 
-
-
-
-toc
 autoArrangeFigures(nr, nc, iMon); 
-return

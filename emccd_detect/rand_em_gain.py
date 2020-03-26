@@ -16,7 +16,6 @@ def rand_em_gain(n_in_array, em_gain):
     B Nemati and S Miller - UAH - 20-March-2020
 
     """
-
     if em_gain < 1:
         raise Exception('EM gain cannot be set to less than 1')
 
