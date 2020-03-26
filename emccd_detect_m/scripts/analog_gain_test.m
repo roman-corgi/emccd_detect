@@ -6,26 +6,25 @@ scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, n
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
  
-nem = 20;
-emgains = logspace(1,4,nem);
+npts = 20;
+emgains = logspace(1, 4, npts);
 fprintf('EM gain random generator tests\n\n1) Analog Mode Test:\n');
-figure
-for nin = 1:3
-    for iem = 1: nem
+figure;
+for n_in = 1:3
+    for iem = 1:npts
         emgain = emgains(iem);
         
-        Ntry = 10000;
-        randEMno = zeros(1, Ntry);
-        for irand=1:Ntry
-            randEMno(irand) =  rand_em_gain(nin, emgain);
+        ntry = 10000;
+        rand_em_no = zeros(1, ntry);
+        for irand = 1:ntry
+            rand_em_no(irand) = rand_em_gain(n_in, emgain);
         end
-        
-        analogOut(nin,iem) = mean(randEMno)/emgain/nin;
+        analog_out(n_in, iem) = mean(rand_em_no)/emgain/n_in;
     end
-    meanout(nin) = mean(analogOut(nin, :));
-    fprintf('For  n = %u,  <x> = %4.3f\n',nin,  meanout(nin));
-    ph = semilogx(emgains, analogOut(nin,:)','.-'); hold on;
-    set(ph(1), 'displayname',['Nin=',num2str(nin),'  ',num2str(meanout(nin),'%4.3f')])
+    meanout(n_in) = mean(analog_out(n_in, :));
+    fprintf('For  n = %u,  <x> = %4.3f\n',n_in,  meanout(n_in));
+    ph = semilogx(emgains, analog_out(n_in,:)','.-'); hold on;
+    set(ph(1), 'displayname',['Nin=',num2str(n_in),'  ',num2str(meanout(n_in),'%4.3f')])
 end
 grid;
 legend;
@@ -34,44 +33,33 @@ ylabel('Mean analog counts / EM gain')
 
 
 fprintf('\n\n2) Photon Counting Mode Test:\n');
-% check photon counting
+% Check photon counting
 read_noise = 100;
-nin = 1;
+n_in = 1;
 nthr_pts = 5;
 pc_thresh = linspace(200, 900, nthr_pts);
 nrnd = 1000;
 emgain = 6000;
-Npix  = 100;
-zeroFrame = zeros(Npix);
-for ithr = 1:nthr_pts
-    
+npix  = 100;
+zero_frame = zeros(npix);
+for i = 1:nthr_pts
     % Threshold and photon count
-    nthr(ithr) = pc_thresh(ithr) / read_noise ;    %#ok<*SAGROW>
-    randEMno = zeroFrame;
-    for irnd = 1: Npix^2
-        randEMno(irnd) =  rand_em_gain(nin, emgain);
+    nthr(i) = pc_thresh(i) / read_noise;
+    rand_em_no = zero_frame;
+    for irnd = 1: npix^2
+        rand_em_no(irnd) =  rand_em_gain(n_in, emgain);
     end
-    analogfr = reshape(randEMno, Npix, Npix);
-    bright_PC = zeroFrame;
-    bright_PC(analogfr > pc_thresh(ithr)) = 1;
+    analogfr = reshape(rand_em_no, npix, npix);
+    bright_ = zero_frame;
+    bright_PC(analogfr > pc_thresh(i)) = 1;
  
-    n_obs(ithr) = nnz(bright_PC) / Npix^2;
+    n_obs(i) = nnz(bright_PC) / npix^2;
     
-    eps_thr(ithr) = exp(-pc_thresh(ithr)/emgain);
+    eps_thr(i) = exp(-pc_thresh(i)/emgain);
     
-    fprintf('For n_thr = %3.2f n_obs = %3.2f, eps_thr = %3.2f, n / eps = %3.3f\n',nthr(ithr), n_obs(ithr), eps_thr(ithr), n_obs(ithr)/eps_thr(ithr))
+    fprintf('For n_thr = %3.2f n_obs = %3.2f, eps_thr = %3.2f, n / eps = %3.3f\n',...
+            nthr(i), n_obs(i), eps_thr(i), n_obs(i)/eps_thr(i))
     figure, imagesc(analogfr); axis square; colorbar; 
 end
 
-autoArrangeFigures(nr, nc, iMon);
-
-% For  n = 1,  <x> = 0.905
-% For  n = 2,  <x> = 0.954
-% For  n = 3,  <x> = 0.949
-% For  n = 4,  <x> = 0.950
-% For  n = 5,  <x> = 0.951
-% For  n = 6,  <x> = 0.949
-% For  n = 7,  <x> = 0.949
-% For  n = 8,  <x> = 0.949
-% For  n = 9,  <x> = 0.949
-% For  n = 10,  <x> = 0.949
+autoArrangeFigures;

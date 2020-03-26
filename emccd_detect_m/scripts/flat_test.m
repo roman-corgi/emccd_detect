@@ -1,6 +1,3 @@
-% EMCCD Detector Simulation.
-%
-% S Miller and B Nemati - UAH - 21-Feb-2020
 clear; close all; clc; format compact;
 addpath('../');
 addpath('../util');
