@@ -1,28 +1,22 @@
 clear;  format compact; close all; clc;
-restoredefaultpath;
 addpath('../util');
-jMon = 1; fsz = 500*[1,1.4];
-scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
-nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
-
-gain = 100
-
-nvec = 1:6;
-xvec = 0:10:2000;
-for in = 1:length(nvec)
-    n = nvec(in);
-    emgn(in, :)=EMgainpdf(xvec, n,  gain);
-%     pois(in, :)=poisspdf(xvec,   
-    
+gain = 100;
+n_array = 1:5;
+x_array = 0:10:2000;
+pdf = zeros(length(n_array), length(x_array));
+legend_str = {};
+for n = n_array
+    pdf(n, :)=em_gain_pdf(x_array, n, gain);
+    legend_str{end+1} = ['n = ', num2str(n)];  %#ok<SAGROW>
 end
 
-figure
-plot(xvec/gain, emgn)
-ylabel('probability density')
-xlabel('output counts / gain')
-legend('1','2','3','4','5','6','7','8','9','10','11')
+figure;
+plot(x_array/gain, pdf);
+ylabel('probability density');
+xlabel('output counts / gain');
+legend(legend_str);
 
-function p = EMgainpdf (x, n, g)
+function p = em_gain_pdf(x, n, g)
 p = x.^(n-1) .* exp(-x/g) / (g^n * factorial(n-1))  ;  
 end
