@@ -56,7 +56,6 @@ def emccd_detect(fluxmap, frametime, em_gain, full_well_image, full_well_serial,
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
-
     image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,
                              cic, qe, cr_rate, pixel_pitch, shot_noise_on)
 
@@ -101,13 +100,13 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
 
     # Mean shot noise after integrating over frametime
     mean_dark = dark_current * frametime
-    shot_noise = mean_dark + cic
+    mean_shot = mean_dark + cic
 
-    # Electrons actualized at the pixels
+    # Actualize electrons at the pixels
     if shot_noise_on:
-        image_frame = np.random.poisson(mean_e + shot_noise).astype(float)
+        image_frame = np.random.poisson(mean_e + mean_shot).astype(float)
     else:
-        shot_noise_map = np.random.poisson(shot_noise,
+        shot_noise_map = np.random.poisson(mean_shot,
                                            size=mean_e.shape).astype(float)
         image_frame = shot_noise_map + mean_e
 
