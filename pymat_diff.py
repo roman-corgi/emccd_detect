@@ -141,7 +141,7 @@ if __name__ == '__main__':
     dir_mat = Path(current_path, 'emccd_detect_m')
 
     exclude_py = ['__init__', 'config', 'imagesc']
-    exclude_mat = ['autoArrangeFigures', 'histbn']
+    exclude_mat = ['autoArrangeFigures']
     list_py = get_filenames(dir_py, 'py', exclude_py)
     list_mat = get_filenames(dir_mat, 'm', exclude_mat)
 
@@ -185,6 +185,6 @@ if __name__ == '__main__':
         diff = difflib.HtmlDiff().make_file(modified_py, modified_mat,
                                             '{:}'.format(py.name),
                                             '{:}'.format(mat.name))
-        diff_name = 'diff_{:}.html'.format(py.stem)
+        diff_name = '{:}.html'.format(py.stem)
         with open(Path(current_path, 'diff', diff_name), 'w') as file:
             file.write(diff)

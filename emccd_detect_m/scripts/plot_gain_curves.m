@@ -1,3 +1,4 @@
+% Plot EM gain function for a range of n_in values
 clear;  format compact; close all; clc;
 addpath('../util');
 

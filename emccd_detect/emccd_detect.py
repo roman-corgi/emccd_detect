@@ -96,7 +96,6 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
         Image area frame (e-).
 
     """
-
     # Mean electrons after inegrating over frametime
     mean_e = fluxmap * frametime * qe
 
@@ -138,18 +137,11 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
         Bias offset (e-).
 
     """
+    # Flatten image area row by row to simulate readout to serial register
+    serial_frame = image_frame.ravel()
 
-    # Image area frame is flattened on a row by row basis
-    image_frame_flat = image_frame.ravel()
-    serial_frame_flat = np.zeros(image_frame.size)
-
-    serial_frame_flat = rand_em_gain(image_frame_flat, em_gain)
-
-    serial_frame = serial_frame_flat.reshape(image_frame.shape)
-
-#    if cr_rate:
-#        # Tails from cosmic hits
-#        serial_frame = cosmic_tails(serial_frame, full_well_serial, h, k, r)
+    # Apply EM gain
+    serial_frame = rand_em_gain(serial_frame, em_gain)
 
     # Cap at full well capacity of gain register
     serial_frame[serial_frame > full_well_serial] = full_well_serial
@@ -159,13 +151,13 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     image_frame += fixed_pattern
 
     # Apply read noise and bias
-    read_noise_map = read_noise * np.random.normal(size=image_frame.shape)
+    read_noise_map = read_noise * np.random.normal(size=serial_frame.shape)
     serial_frame += read_noise_map + bias
 
-    return serial_frame
+    # Reshape for viewing
+    return serial_frame.reshape(image_frame.shape)
 
 
 def generate_fixed_pattern(serial_frame):
     """Simulate EMCCD fixed pattern."""
-    fixed_pattern = np.zeros(serial_frame.shape)  # This may be modeled later
-    return fixed_pattern
+    return np.zeros(serial_frame.shape)  # This may be modeled later
