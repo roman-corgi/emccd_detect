@@ -2,6 +2,7 @@
 import os
 
 import difflib
+import webbrowser
 from pathlib import Path
 
 
@@ -66,6 +67,11 @@ def matlabize(text_py):
 
         # Remove numpy and scipy
         line = line.replace('np.', '')
+
+        # Compensate for Matlab's lack of +=
+        if '+=' in line:
+            var_end_i = line.index('+') - 1
+            line = line.replace('+=', '= {:} +'.format(line[:var_end_i]))
 
         modified_py.append(line)
 
@@ -188,3 +194,8 @@ if __name__ == '__main__':
         diff_name = '{:}.html'.format(py.stem)
         with open(Path(current_path, 'diff', diff_name), 'w') as file:
             file.write(diff)
+
+    # Display diff filenames
+    dir_diff = get_filenames(Path(current_path, 'diff'), 'html')
+    for name in dir_diff:
+        webbrowser.open('file://' + str(name))
