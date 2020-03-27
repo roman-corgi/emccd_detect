@@ -1,6 +1,6 @@
-function sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
-                               full_well_serial, dark_current, cic, read_noise,...
-                               bias, qe, cr_rate, pixel_pitch, shot_noise_on) 
+function out = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                            full_well_serial, dark_current, cic, read_noise,...
+                            bias, qe, cr_rate, pixel_pitch, shot_noise_on) 
 %EMCCD_DETECT Create an EMCCD-detected image for a given flux map.
 %
 % Notes:
@@ -10,47 +10,72 @@ function sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
 % and CIC is the clock induced charge in units of e-/pix/frame.
 %
 % B Nemati and S Miller - UAH - 18-Jan-2019
+image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,...
+                         cic, qe, cr_rate, pixel_pitch, shot_noise_on);
+
+serial_frame = serial_register(image_frame, em_gain, full_well_serial,...
+                               read_noise, bias);
+
+out = serial_frame;
+end
+
+function image_frame = image_area(fluxmap, frametime, full_well_image,...
+                                  dark_current, cic, qe, cr_rate, pixel_pitch,...
+                                  shot_noise_on)
+% Simulate detector image area.
 
 % Mean electrons after inegrating over exptime
 mean_e = fluxmap * frametime * qe;
 
 % Mean shot noise after integrating over exptime
 mean_dark = dark_current * frametime;
-shot_noise = mean_dark + cic;
+mean_shot = mean_dark + cic;
 
 % Electrons actualized at the pixels
 if shot_noise_on
-    image_frame = poissrnd(mean_e + shot_noise);
+    image_frame = poissrnd(mean_e + mean_shot);
 else
-    image_frame = poissrnd(shot_noise, size(mean_e));
-    image_frame = image_frame + mean_e;
+    shot_noise_map = poissrnd(mean_shot, size(mean_e));
+    image_frame = shot_noise_map + mean_e;
 end
 
+% Simulate cosmic hits on image area
 image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,...
                           full_well_image);
 
-
 % Cap electrons at full well capacity of imaging area
 image_frame(image_frame > full_well_image) = full_well_image;
+end
 
-% Go through EM register
-post_gain_frame = rand_em_gain(image_frame, em_gain);
+function serial_frame = serial_register(image_frame, em_gain, full_well_serial,...
+                                        read_noise, bias)
+% Simulate detector serial (gain) register.
 
-% if cr_rate ~= 0
-%     % Tails from cosmic hits
-%     em_frame = cosmic_tails(em_frame, pars, props);
-% end
+% Flatten image area row by row to simulate readout to serial register
+serial_frame = reshape(image_frame.', 1, []);
+
+% Apply EM gain
+serial_frame = rand_em_gain(serial_frame, em_gain);
 
 % Cap at full well capacity of gain register
-post_gain_frame(post_gain_frame > full_well_serial) = full_well_serial;
+serial_frame(serial_frame > full_well_serial) = full_well_serial;
 
 % Apply fixed pattern
-fixed_pattern = zeros(size(fluxmap));  % This will be modeled later
-image_frame = image_frame + fixed_pattern;
+serial_frame = serial_frame + make_fixed_pattern(serial_frame);
 
-% Read noise
-read_noise_map = read_noise * randn(size(image_frame));
+% Apply read noise and bias
+serial_frame = serial_frame + make_read_noise(serial_frame, read_noise) + bias;
 
-post_gain_frame = post_gain_frame + read_noise_map + bias;
-sim_im = post_gain_frame;
-return
+% Reshape for viewing
+serial_frame = reshape(serial_frame, size(image_frame, 2), size(image_frame, 1)).';
+end
+
+function out = make_fixed_pattern(serial_frame)
+% Simulate EMCCD fixed pattern.
+out = zeros(size(serial_frame));  % This will be modeled later
+end
+
+function out = make_read_noise(serial_frame, read_noise)
+% Simulate EMCCD read noise.
+out = read_noise * randn(size(serial_frame));
+end

@@ -32,9 +32,9 @@ y(inds2) = rand_em_exact(2, n2, em_gain);
 
 % For n_in of 3 or greater, generate random numbers one by one according to the
 % generalized gain equation
-for i = inds3'
-    n_in = n_in_array(i);
-    y(i) = rand_em_approx(n_in, em_gain);
+for i = 1:length(inds3)
+    n_in = n_in_array(inds3(i));
+    y(inds3(i)) = rand_em_approx(n_in, em_gain);
 end
 
 out = reshape(y, size(n_in_array));
