@@ -68,6 +68,9 @@ def matlabize(text_py):
         # Remove numpy and scipy
         line = line.replace('np.', '')
 
+        # Replace docstrings with comments
+        line = line.replace('"""', '# ')
+
         # Compensate for Matlab's lack of +=
         if '+=' in line:
             var_end_i = line.index('+') - 1
@@ -79,8 +82,6 @@ def matlabize(text_py):
     # Remove encoding declaration
     if '# -*- coding: utf-8 -*-' in modified_py:
         modified_py.remove('# -*- coding: utf-8 -*-')
-    if modified_py[0][:3] == '"""':
-        del modified_py[0]
 
     return modified_py
 
@@ -142,6 +143,10 @@ def pythonize(text_mat):
 
 
 if __name__ == '__main__':
+    # Clear console
+    clear = lambda: os.system('clear')
+    clear()
+
     current_path = Path(os.path.dirname(__file__))
     dir_py = Path(current_path, 'emccd_detect')
     dir_mat = Path(current_path, 'emccd_detect_m')
@@ -164,12 +169,12 @@ if __name__ == '__main__':
     if diff_py:
         print('Python directory contains extra files not in Matlab:\n')
         for name in diff_py:
-            print('   + {: <20} [{:}]'.format(str(name.stem), str(name)))
+            print('    + {: <20} [{:}]'.format(str(name.stem), str(name)))
     print('')
     if diff_mat:
         print('Matlab directory contains extra files not in Python:\n')
         for name in diff_mat:
-            print('   + {: <20} [{:}]'.format(str(name.stem), str(name)))
+            print('    + {: <20} [{:}]'.format(str(name.stem), str(name)))
     print('')
 
     # Open files side by side for comparison
@@ -197,5 +202,12 @@ if __name__ == '__main__':
 
     # Display diff filenames
     dir_diff = get_filenames(Path(current_path, 'diff'), 'html')
+    selected = dir_diff[0]
+    print('Diffs available:\n')
     for name in dir_diff:
-        webbrowser.open('file://' + str(name))
+        if name == selected:
+            print('    * {:}'.format(name.stem))
+            webbrowser.open('file://' + str(name))
+        else:
+            print('      {:}'.format(name.stem))
+    print('')
