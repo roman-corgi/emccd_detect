@@ -49,7 +49,7 @@ function y = rand_em_exact(n_in, numel, g)
         case 1
             y = -g * log(1 - x);
         case 2
-            y = -g * lambertw(-1, (x-1)/exp(1)) - g;
+            y = -g * real(lambertw(-1, (x-1)/exp(1))) - g;
     end
     y = round(y);
 end

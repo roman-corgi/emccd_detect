@@ -56,7 +56,6 @@ def emccd_detect(fluxmap, frametime, em_gain, full_well_image, full_well_serial,
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
-    print('test')
     image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,
                              cic, qe, cr_rate, pixel_pitch, shot_noise_on)
 

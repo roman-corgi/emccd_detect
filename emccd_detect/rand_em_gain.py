@@ -53,7 +53,7 @@ def rand_em_exact(n_in, numel, g):
     elif n_in == 1:
         y = -g * np.log(1 - x)
     elif n_in == 2:
-        y = -g * special.lambertw((x-1)/np.exp(1), -1) - g
+        y = -g * special.lambertw((x-1)/np.exp(1), -1).real - g
 
     return np.round(y)
 
