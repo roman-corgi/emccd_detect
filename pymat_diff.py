@@ -168,9 +168,9 @@ def pythonize(text_mat):
 
 def color_grad(num):
     """Put a number between 0 and 100 on a red to green color scale."""
-    if num < 20:
+    if num < 30:
         return 91
-    elif num >= 20 and num < 30:
+    elif num >= 30 and num < 60:
         return 93
     else:
         return 92

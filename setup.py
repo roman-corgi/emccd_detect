@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 setup(
     name='emccd_detect',
     version='0.0.1',
-    description='An EMCCD Detector image simulator',
+    description='EMCCD detector image simulator',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.jpl.nasa.gov/WFIRST-CGI/emccd_detect',
