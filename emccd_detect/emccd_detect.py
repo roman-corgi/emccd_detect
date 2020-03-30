@@ -56,6 +56,7 @@ def emccd_detect(fluxmap, frametime, em_gain, full_well_image, full_well_serial,
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
+    print('test')
     image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,
                              cic, qe, cr_rate, pixel_pitch, shot_noise_on)
 
@@ -96,7 +97,7 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
 
     """
     # Mean electrons after inegrating over frametime
-    mean_e = fluxmap * frametime * qe
+    mean_e_map = fluxmap * frametime * qe
 
     # Mean shot noise after integrating over frametime
     mean_dark = dark_current * frametime
@@ -104,17 +105,16 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
 
     # Actualize electrons at the pixels
     if shot_noise_on:
-        image_frame = np.random.poisson(mean_e + mean_shot).astype(float)
+        image_frame = np.random.poisson(mean_e_map + mean_shot).astype(float)
     else:
-        shot_noise_map = np.random.poisson(mean_shot,
-                                           size=mean_e.shape).astype(float)
-        image_frame = shot_noise_map + mean_e
+        image_frame = mean_e_map + np.random.poisson(mean_shot, mean_e_map.shape
+                                                     ).astype(float)
 
     # Simulate cosmic hits on image area
     image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,
                               full_well_image)
 
-    # Cap electrons at full well capacity of imaging area
+    # Cap at full well capacity of image area
     image_frame[image_frame > full_well_image] = full_well_image
     return image_frame
 
@@ -141,14 +141,11 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
 
     # Apply EM gain
     serial_frame = rand_em_gain(serial_frame, em_gain)
-
     # Cap at full well capacity of gain register
     serial_frame[serial_frame > full_well_serial] = full_well_serial
 
-    # Apply fixed pattern
+    # Apply fixed pattern, read noise, and bias
     serial_frame += make_fixed_pattern(serial_frame)
-
-    # Apply read noise and bias
     serial_frame += make_read_noise(serial_frame, read_noise) + bias
 
     # Reshape for viewing
@@ -157,7 +154,7 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
 
 def make_fixed_pattern(serial_frame):
     """Simulate EMCCD fixed pattern."""
-    return np.zeros(serial_frame.shape)  # This may be modeled later
+    return np.zeros(serial_frame.shape)  # This will be modeled later
 
 
 def make_read_noise(serial_frame, read_noise):

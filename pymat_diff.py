@@ -202,7 +202,7 @@ if __name__ == '__main__':
 
     # Display diff filenames
     dir_diff = get_filenames(Path(current_path, 'diff'), 'html')
-    selected = dir_diff[0]
+    selected = dir_diff[2]
     print('Diffs available:\n')
     for name in dir_diff:
         if name == selected:

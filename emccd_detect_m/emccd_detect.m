@@ -1,7 +1,7 @@
 function out = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
                             full_well_serial, dark_current, cic, read_noise,...
                             bias, qe, cr_rate, pixel_pitch, shot_noise_on) 
-%EMCCD_DETECT Create an EMCCD-detected image for a given flux map.
+%Create an EMCCD-detected image for a given fluxmap.
 %
 % Notes:
 % The flux map must be in units of photons/pix/s. Read noise is in electrons
@@ -24,26 +24,25 @@ function image_frame = image_area(fluxmap, frametime, full_well_image,...
                                   shot_noise_on)
 % Simulate detector image area.
 
-% Mean electrons after inegrating over exptime
-mean_e = fluxmap * frametime * qe;
+% Mean electrons after inegrating over frametime
+mean_e_map = fluxmap * frametime * qe;
 
-% Mean shot noise after integrating over exptime
+% Mean shot noise after integrating over frametime
 mean_dark = dark_current * frametime;
 mean_shot = mean_dark + cic;
 
-% Electrons actualized at the pixels
+% Actualize electrons at the pixels
 if shot_noise_on
-    image_frame = poissrnd(mean_e + mean_shot);
+    image_frame = poissrnd(mean_e_map + mean_shot);
 else
-    shot_noise_map = poissrnd(mean_shot, size(mean_e));
-    image_frame = shot_noise_map + mean_e;
+    image_frame = mean_e_map + poissrnd(mean_shot, size(mean_e_map));
 end
 
 % Simulate cosmic hits on image area
 image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,...
                           full_well_image);
 
-% Cap electrons at full well capacity of imaging area
+% Cap at full well capacity of image area
 image_frame(image_frame > full_well_image) = full_well_image;
 end
 
@@ -56,14 +55,11 @@ serial_frame = reshape(image_frame.', 1, []);
 
 % Apply EM gain
 serial_frame = rand_em_gain(serial_frame, em_gain);
-
 % Cap at full well capacity of gain register
 serial_frame(serial_frame > full_well_serial) = full_well_serial;
 
-% Apply fixed pattern
+% Apply fixed pattern, read noise, and bias
 serial_frame = serial_frame + make_fixed_pattern(serial_frame);
-
-% Apply read noise and bias
 serial_frame = serial_frame + make_read_noise(serial_frame, read_noise) + bias;
 
 % Reshape for viewing
