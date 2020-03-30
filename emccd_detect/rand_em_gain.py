@@ -20,11 +20,11 @@ def rand_em_gain(n_in_array, em_gain):
         raise Exception('EM gain cannot be set to less than 1')
 
     # Find how many values in a array are equal to 0, 1, 2, or >= 3
-    y = np.zeros(n_in_array.size, 1)
-    inds0 = (n_in_array == 0).nonzero()
-    inds1 = (n_in_array == 1).nonzero()
-    inds2 = (n_in_array == 2).nonzero()
-    inds3 = (n_in_array > 2).nonzero()
+    y = np.zeros(n_in_array.size)
+    inds0 = (n_in_array == 0).nonzero()[0]
+    inds1 = (n_in_array == 1).nonzero()[0]
+    inds2 = (n_in_array == 2).nonzero()[0]
+    inds3 = (n_in_array > 2).nonzero()[0]
 
     # For n_in of 0, 1, or 2, generate arrays of random numbers according to gain
     # equations specific to each n_in
@@ -38,7 +38,7 @@ def rand_em_gain(n_in_array, em_gain):
     # For n_in of 3 or greater, generate random numbers one by one according to the
     # generalized gain equation
     for i in inds3:
-        n_in = n_in_array(i)
+        n_in = n_in_array[i]
         y[i] = rand_em_approx(n_in, em_gain)
 
     return np.reshape(y, n_in_array.shape)
@@ -46,14 +46,14 @@ def rand_em_gain(n_in_array, em_gain):
 
 def rand_em_exact(n_in, numel, g):
     """Select a gain distribution based on n_in and generate random numbers."""
-    x = np.ranodm.random(numel, 1)
+    x = np.random.random(numel)
 
     if n_in == 0:
-        y = np.zeros(numel, 1)
+        y = np.zeros(numel)
     elif n_in == 1:
         y = -g * np.log(1 - x)
     elif n_in == 2:
-        y = -g * special.lambertw(-1, (x-1)/np.exp(1)) - g
+        y = -g * special.lambertw((x-1)/np.exp(1), -1) - g
 
     return np.round(y)
 
@@ -77,7 +77,7 @@ def rand_em_approx(n_in, g):
     cdf_lookup = np.random.uniform(min(cdf), max(cdf))
 
     # Map random value to cdf
-    ihi = (cdf > cdf_lookup).nonzero()[0]
+    ihi = (cdf > cdf_lookup).nonzero()[0][0]
     ilo = ihi - 1
     xlo = x[ilo]
     xhi = x[ihi]
