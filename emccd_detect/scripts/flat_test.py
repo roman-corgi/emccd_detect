@@ -16,9 +16,8 @@ npix_across = 20
 flux = 0.07  # photns/pix/s
 fluxmap = flux * np.ones([npix_across, npix_across])
 
-studyCase = 'new'
 # Simulation inputs
-frame_time = 1.  # Frame time (seconds)
+frametime = 1.  # Frame time (s)
 em_gain = 6000.  # CCD EM gain (e-/photon)
 full_well_image = 60000.  # Image area full well capacity (e-)
 full_well_serial = 90000.  # Serial (gain) register full well capacity (e-)
@@ -43,7 +42,7 @@ for i in range(npts):
     eps_thr[i] = np.exp(-pc_thresh[i] / em_gain)
 
     # Dark frame
-    dark_frame = emccd_detect(zero_frame, frame_time, em_gain, full_well_image,
+    dark_frame = emccd_detect(zero_frame, frametime, em_gain, full_well_image,
                               full_well_serial, dark_current, cic, read_noise,
                               bias, qe, cr_rate, pixel_pitch, True)
     # Photon-count
@@ -52,19 +51,19 @@ for i in range(npts):
     # Correct for inefficiencies from thresholding and coincidence loss
     nobs_dk[i] = np.count_nonzero(dark_pc) / npix_across**2
     lambda_dk = -np.log(1 - (nobs_dk[i]/eps_thr[i]))
-    rtrue_dk = lambda_dk / frame_time  # Observed mean rate after photon counting
+    rtrue_dk = lambda_dk / frametime  # Observed mean rate after photon counting
 
     # Bright frame
-    bright_frame = emccd_detect(fluxmap, frame_time, em_gain, full_well_image,
+    bright_frame = emccd_detect(fluxmap, frametime, em_gain, full_well_image,
                                 full_well_serial, dark_current, cic, read_noise,
                                 bias, qe, cr_rate, pixel_pitch, True)
     # Photon-count
-    bright_PC = zero_frame
-    bright_PC[bright_frame > pc_thresh[i]] = 1
+    bright_pc = zero_frame
+    bright_pc[bright_frame > pc_thresh[i]] = 1
     # Correct for inefficiencies from thresholding and coincidence loss
-    nobs_br[i] = np.count_nonzero(bright_PC) / npix_across**2
+    nobs_br[i] = np.count_nonzero(bright_pc) / npix_across**2
     lambda_br = -np.log(1 - (nobs_br[i]/eps_thr[i]))
-    rtrue_br = lambda_br / frame_time  # Observed mean rate after photon counting
+    rtrue_br = lambda_br / frametime  # Observed mean rate after photon counting
 
     # Photo-electron rate
     r_phe[i] = rtrue_br - rtrue_dk
@@ -82,17 +81,20 @@ pp3 = poisson.pmf(r_phe, 3)
 eth1 = eps_th1(sigma_thr*read_noise, em_gain)
 eth2 = eps_th2(sigma_thr*read_noise, em_gain)
 eth3 = eps_th3(sigma_thr*read_noise, em_gain)
-overcountEst2 = (pp1*eth1 + pp2*eth2) / ((pp1+pp2) * eth1)
-overcountEst3 = (pp1*eth1 + pp2*eth2 + pp3*eth3) / ((pp1+pp2+pp3)*eth1)
+overcount_est2 = (pp1*eth1 + pp2*eth2) / ((pp1+pp2) * eth1)
+overcount_est3 = (pp1*eth1 + pp2*eth2 + pp3*eth3) / ((pp1+pp2+pp3)*eth1)
 
 
 plt.figure()
-plt.plot(sigma_thr, nobs_br/frame_time, sigma_thr, r_phe, sigma_thr, flux*np.ones(1, npts))
+plt.plot(sigma_thr, nobs_br/frametime,
+         sigma_thr, r_phe,
+         sigma_thr, flux*np.ones(1, npts))
 plt.grid(True)
 plt.legend('Observed', 'Corrected', 'Actual')
 plt.xlabel('threshold factor')
 plt.ylabel('rates, e/pix/s')
-plt.title('RN=' + str(read_noise) + ' emG=' + str(em_gain) + ' FWCs=' + str(full_well_serial/1000) + 'k')
+plt.title('RN={:d} emG={:d} FWCs={:d}k'.format(int(read_noise), int(em_gain),
+                                               int(full_well_serial/1000)))
 
 plt.figure()
 plt.plot(sigma_thr, eps_thr)
@@ -102,27 +104,33 @@ plt.ylabel('threshold effeciency')
 plt.title('Assuming all pixels are 1 or 0 real ph-e''s')
 
 plt.figure()
-plt.plot(sigma_thr, overcountEst2)
+plt.plot(sigma_thr, overcount_est2)
 plt.grid(True)
 plt.xlabel('threshold factor')
 plt.ylabel('PC over-count factor')
 
 plt.figure()
-plt.plot(sigma_thr, nobs_br/frame_time, '.-', sigma_thr, r_phe, '.-', sigma_thr, flux*np.ones(1, npts),
-         sigma_thr, r_phe/overcountEst2, '.-', sigma_thr, r_phe/overcountEst3, '.-')
+plt.plot(sigma_thr, nobs_br/frametime, '.-',
+         sigma_thr, r_phe, '.-',
+         sigma_thr, flux*np.ones(1, npts),
+         sigma_thr, r_phe/overcount_est2, '.-',
+         sigma_thr, r_phe/overcount_est3, '.-')
 plt.grid(True)
 plt.legend('Raw Phot Cnt', 'thr, CL corr', 'Actual', '+ovrcnt corr', '+n3 corr')
 plt.xlabel('threshold factor')
 plt.ylabel('rates, e/pix/s')
-plt.title('RN=' + str(read_noise) + ' emG=' + str(em_gain) + ' FWCs=' + str(full_well_serial/1000) + 'k')
+plt.title('RN={:d} emG={:d} FWCs={:d}k'.format(int(read_noise), int(em_gain),
+                                               int(full_well_serial/1000)))
 
 actualc = flux*np.ones(1, npts)
-
 plt.figure()
-plt.plot(sigma_thr, r_phe/actualc, '.-', sigma_thr, r_phe/overcountEst2/actualc, '.-',
-         sigma_thr, r_phe/overcountEst3/actualc, '.-', sigma_thr, np.ones(1, npts))
+plt.plot(sigma_thr, r_phe/actualc, '.-',
+         sigma_thr, r_phe/overcount_est2/actualc, '.-',
+         sigma_thr, r_phe/overcount_est3/actualc, '.-',
+         sigma_thr, np.ones(1, npts))
 plt.grid(True)
 plt.legend('thr, CL corr', '+ovrcnt corr', '+n3 corr')
 plt.xlabel('threshold factor')
 plt.ylabel('rate/actual')
-plt.title('RN=' + str(read_noise) + ' emG=' + str(em_gain) + ' FWCs=' + str(full_well_serial/1000) + 'k')
+plt.title('RN={:d} emG={:d} FWCs={:d}k'.format(int(read_noise), int(em_gain),
+                                               int(full_well_serial/1000)))

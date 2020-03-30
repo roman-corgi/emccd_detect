@@ -14,10 +14,10 @@ fluxmap = flux * ones(npix_across);
 % Simulation inputs
 frametime = 1.;  % Frame time (s)
 em_gain = 6000.;  % CCD EM gain (e-/photon)
-full_well_image  = 60000.;  % Image area full well capacity (e-)
+full_well_image = 60000.;  % Image area full well capacity (e-)
 full_well_serial = 90000.;  % Serial (gain) register full well capacity (e-)
 dark_current = 0.00028;  % Dark  current rate (e-/pix/s)
-cic =  0.02;  % Clock induced charge (e-/pix/frame)
+cic = 0.02;  % Clock induced charge (e-/pix/frame)
 read_noise = 100.;  % Read noise (e-/pix/frame)
 bias = 0.;  % Bias offset (e-)
 qe = 1.;  % Quantum effiency
@@ -46,7 +46,7 @@ for i = 1:npts
     % Correct for inefficiencies from thresholding and coincidence loss
     nobs_dk(i) = nnz(dark_pc) / npix_across^2;
     lambda_dk = -log(1-(nobs_dk(i)/eps_thr(i)));
-    rtrue_dk = lambda_dk / frametime;  % Observed mean rate after photon counting 
+    rtrue_dk = lambda_dk / frametime;  % Observed mean rate after photon counting
 
 
     % Bright frame
@@ -59,7 +59,7 @@ for i = 1:npts
     % Correct for inefficiencies from thresholding and coincidence loss
     nobs_br(i) = nnz(bright_pc) / npix_across^2;
     lambda_br = -log(1 - (nobs_br(i)/eps_thr(i)));
-    rtrue_br = lambda_br / frametime;  % Observed mean rate after photon counting 
+    rtrue_br = lambda_br / frametime;  % Observed mean rate after photon counting
 
     % Photo-electron rate
     r_phe(i) = rtrue_br - rtrue_dk;
@@ -84,8 +84,8 @@ overcount_est3 = (pp1.*eth1 + pp2.*eth2 + pp3.*eth3) ./ ((pp1+pp2+pp3).*eth1);
 
 figure;
 plot(sigma_thr, nobs_br/frametime,...
-    sigma_thr, r_phe,...
-    sigma_thr, flux*ones(1, npts));
+     sigma_thr, r_phe,...
+     sigma_thr, flux*ones(1, npts));
 grid;
 legend('Observed', 'Corrected', 'Actual');
 xlabel('threshold factor');
@@ -107,10 +107,10 @@ ylabel('PC over-count factor');
 
 figure;
 plot(sigma_thr, nobs_br/frametime, '.-',...
-     sigma_thr, r_phe,'.-',...
+     sigma_thr, r_phe, '.-',...
      sigma_thr, flux*ones(1, npts),...
-     sigma_thr, r_phe./overcount_est2,'.-',...
-     sigma_thr, r_phe./overcount_est3,'.-');
+     sigma_thr, r_phe./overcount_est2, '.-',...
+     sigma_thr, r_phe./overcount_est3, '.-');
 grid;
 legend('Raw Phot Cnt', 'thr, CL corr', 'Actual', '+ovrcnt corr', '+n3 corr');
 xlabel('threshold factor');
@@ -119,9 +119,9 @@ title(sprintf('RN=%d emG=%d FWCs=%dk', read_noise, em_gain, full_well_serial/100
 
 actualc = flux*ones(1, npts);
 figure;
-plot(sigma_thr, r_phe./actualc,'.-',...
-     sigma_thr, r_phe./overcount_est2./actualc,'.-',...
-     sigma_thr, r_phe./overcount_est3./actualc,'.-',...
+plot(sigma_thr, r_phe./actualc, '.-',...
+     sigma_thr, r_phe./overcount_est2./actualc, '.-',...
+     sigma_thr, r_phe./overcount_est3./actualc, '.-',...
      sigma_thr, ones(1, npts));
 grid;
 legend('thr, CL corr', '+ovrcnt corr', '+n3 corr');
