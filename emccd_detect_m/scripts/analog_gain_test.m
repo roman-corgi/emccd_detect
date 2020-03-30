@@ -1,3 +1,4 @@
+% Analog gain test
 clear; close all; clc; format compact;
 addpath('../');
 addpath('../util');
@@ -5,7 +6,7 @@ jMon = 2; fsz = 500*[1,1.4];
 scrSize = get(0, 'MonitorPositions'); [nMon,~]=size(scrSize); iMon = min(jMon, nMon);
 nr = round(scrSize(iMon,4)/fsz(1)); nc = round(scrSize(iMon,3)/fsz(2)); clear('jMon', 'nMon','fsz');
 
- 
+
 npts = 20;
 emgains = logspace(1, 4, npts);
 fprintf('EM gain random generator tests\n\n1) Analog Mode Test:\n');
@@ -59,7 +60,10 @@ for i = 1:nthr_pts
     
     fprintf('For n_thr = %3.2f n_obs = %3.2f, eps_thr = %3.2f, n / eps = %3.3f\n',...
             nthr(i), n_obs(i), eps_thr(i), n_obs(i)/eps_thr(i))
-    figure, imagesc(analogfr); axis square; colorbar; 
+    figure;
+    imagesc(analogfr);
+    axis square;
+    colorbar; 
 end
 
 autoArrangeFigures;
