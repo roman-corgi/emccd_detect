@@ -5,7 +5,6 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 
 from emccd_detect.cosmic_hits import cosmic_hits
-from emccd_detect.cosmic_tails import cosmic_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 
 
@@ -133,6 +132,11 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
         Read noise (e-/pix/frame).
     bias : float
         Bias offset (e-).
+
+    Returns
+    -------
+    serial_frame : array_like
+        Serial register frame (e-).
 
     """
     # Flatten image area row by row to simulate readout to serial register

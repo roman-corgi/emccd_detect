@@ -1,7 +1,25 @@
 function out = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val)
-%COSMIC_HITS Generate cosmic hits.
+%Generate cosmic hits.
 % 
-% S Miller - UAH - 16-Jan-2019
+%   Parameters
+%   ----------
+%   image_frame : array_like
+%       Image area frame (e-).
+%   cr_rate : float
+%       Cosmic ray rate (hits/cm^2/s).
+%   frametime : float
+%       Frame time (s).
+%   pixel_pitch : float
+%       Distance between pixel centers (m).
+%   max_val : float
+%       Maximum value of cosmic hit (e-).
+% 
+%   Returns
+%   -------
+%   image_frame : array_like
+%       Image area frame with cosmics added (e-).
+% 
+%   S Miller - UAH - 16-Jan-2019
 
 % Find number of hits/frame
 [nr, nc] = size(image_frame);

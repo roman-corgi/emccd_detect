@@ -8,6 +8,25 @@ from scipy import special
 def rand_em_gain(n_in_array, em_gain):
     """Generate random numbers according to EM gain pdfs.
 
+    Parameters
+    ----------
+    n_in_array : array_like
+        Array of electron values (e-).
+    em_gain : float
+        CCD em_gain (e-/photon).
+
+    Returns
+    -------
+    out : array_like
+        Electron values multiplied by random EM gain distribution.
+
+    Notes
+    -----
+    This function returns an array of the same size as n_in_array. Every element
+    in n_in_array is multiplied by em_gain*rand_val, where rand_val is a random
+    number drawn from a specific pdf selected based on the value of the
+    n_in_array element.
+
     References
     ----------
     [1] http://matlabtricks.com/post-44/generate-random-numbers-with-a-given-distribution

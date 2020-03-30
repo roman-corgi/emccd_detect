@@ -2,14 +2,48 @@ function out = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
                             full_well_serial, dark_current, cic, read_noise,...
                             bias, qe, cr_rate, pixel_pitch, shot_noise_on) 
 %Create an EMCCD-detected image for a given fluxmap.
-%
-% Notes:
-% The flux map must be in units of photons/pix/s. Read noise is in electrons
-% and is the amplifier read noise and not the effective read noise after the
-% application of EM gain. Dark current must be supplied in units of e-/pix/s,
-% and CIC is the clock induced charge in units of e-/pix/frame.
-%
-% B Nemati and S Miller - UAH - 18-Jan-2019
+% 
+%   Parameters
+%   ----------
+%   fluxmap : array_like, float
+%       Input fluxmap (photons/pix/s).
+%   frametime : float
+%       Frame time (s).
+%   em_gain : float
+%       CCD em_gain (e-/photon).
+%   full_well_image : float
+%       Image area full well capacity (e-).
+%   full_well_serial : float
+%       Serial (gain) register full well capacity (e-).
+%   dark_current: float
+%       Dark current rate (e-/pix/s).
+%   cic : float
+%       Clock induced charge (e-/pix/frame).
+%   read_noise : float
+%       Read noise (e-/pix/frame).
+%   bias : float
+%       Bias offset (e-).
+%   qe : float
+%       Quantum efficiency.
+%   cr_rate : float
+%       Cosmic ray rate (hits/cm^2/s).
+%   pixel_pitch : float
+%       Distance between pixel centers (m).
+%   shot_noise_on : bool, optional
+%       Apply shot noise. Defaults to True.
+% 
+%   Returns
+%   -------
+%   serial_frame : array_like, float
+%       Detector output (e-).
+% 
+%   Notes
+%   -----
+%   Read noise is the amplifier read noise and not the effective read noise
+%   after the application of EM gain.
+% 
+%   B Nemati and S Miller - UAH - 30-Mar-2020
+
 image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,...
                          cic, qe, cr_rate, pixel_pitch, shot_noise_on);
 
@@ -22,7 +56,33 @@ end
 function image_frame = image_area(fluxmap, frametime, full_well_image,...
                                   dark_current, cic, qe, cr_rate, pixel_pitch,...
                                   shot_noise_on)
-% Simulate detector image area.
+%Simulate detector image area.
+% 
+%   Parameters
+%   ----------
+%   fluxmap : array_like, float
+%       Input fluxmap (photons/pix/s).
+%   frametime : float
+%       Frame time (s).
+%   full_well_image : float
+%       Image area full well capacity (e-).
+%   dark_current: float
+%       Dark current rate (e-/pix/s).
+%   cic : float
+%       Clock induced charge (e-/pix/frame).
+%   qe : float
+%       Quantum efficiency.
+%   cr_rate : float
+%       Cosmic ray rate (hits/cm^2/s).
+%   pixel_pitch : float
+%       Distance between pixel centers (m).
+%   shot_noise_on : bool, optional
+%       Apply shot noise. Defaults to True.
+% 
+%   Returns
+%   -------
+%   image_frame : array_like
+%       Image area frame (e-).
 
 % Mean electrons after inegrating over frametime
 mean_e_map = fluxmap * frametime * qe;
@@ -48,7 +108,25 @@ end
 
 function serial_frame = serial_register(image_frame, em_gain, full_well_serial,...
                                         read_noise, bias)
-% Simulate detector serial (gain) register.
+%Simulate detector serial (gain) register.
+% 
+%   Parameters
+%   ----------
+%   image_frame : array_like
+%       Image area frame (e-).
+%   em_gain : float
+%       CCD em_gain (e-/photon).
+%   full_well_serial : float
+%       Serial (gain) register full well capacity (e-).
+%   read_noise : float
+%       Read noise (e-/pix/frame).
+%   bias : float
+%       Bias offset (e-).
+% 
+%   Returns
+%   -------
+%   serial_frame : array_like
+%       Serial register frame (e-).
 
 % Flatten image area row by row to simulate readout to serial register
 serial_frame = reshape(image_frame.', 1, []);
@@ -67,11 +145,11 @@ serial_frame = reshape(serial_frame, size(image_frame, 2), size(image_frame, 1))
 end
 
 function out = make_fixed_pattern(serial_frame)
-% Simulate EMCCD fixed pattern.
+%Simulate EMCCD fixed pattern.
 out = zeros(size(serial_frame));  % This will be modeled later
 end
 
 function out = make_read_noise(serial_frame, read_noise)
-% Simulate EMCCD read noise.
+%Simulate EMCCD read noise.
 out = read_noise * randn(size(serial_frame));
 end

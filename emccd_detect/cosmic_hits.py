@@ -28,7 +28,6 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
     S Miller - UAH - 16-Jan-2019
 
     """
-
     # Find number of hits/frame
     nr, nc = image_frame.shape
     framesize = (nr*pixel_pitch * nc*pixel_pitch) / 10**-4  # cm^2

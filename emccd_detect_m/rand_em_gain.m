@@ -1,15 +1,32 @@
 function out = rand_em_gain(n_in_array, em_gain)
-%RAND_EM_GAIN Generate random numbers according to EM gain pdfs.
-%   OUT = RAND_EM_GAIN(N_IN_ARRAY, EM_GAIN) returns an array of the same size
-%   as n_in_array. Every element in n_in_array is multiplied by
-%   em_gain*rand_val, where rand_val is a random number drawn from a specific
-%   pdf selected based on the value of the n_in_array element.
-%
-%   References:
+%Generate random numbers according to EM gain pdfs.
+% 
+%   Parameters
+%   ----------
+%   n_in_array : array_like
+%       Array of electron values (e-).
+%   em_gain : float
+%       CCD em_gain (e-/photon).
+% 
+%   Returns
+%   -------
+%   out : array_like
+%       Electron values multiplied by random EM gain distribution.
+% 
+%   Notes
+%   -----
+%   This function returns an array of the same size as n_in_array. Every element
+%   in n_in_array is multiplied by em_gain*rand_val, where rand_val is a random
+%   number drawn from a specific pdf selected based on the value of the
+%   n_in_array element.
+% 
+%   References
+%   ----------
 %   [1] http://matlabtricks.com/post-44/generate-random-numbers-with-a-given-distribution
 %   [2] https://arxiv.org/pdf/astro-ph/0307305.pdf
 %
 %   B Nemati and S Miller - UAH - 20-March-2020
+
 if (em_gain<1)
     error('EM gain cannot be set to less than 1');
 end
