@@ -68,6 +68,14 @@ def matlabize(text_py):
         # Remove leading whitespace
         line = line.lstrip()
 
+        # Remove docstrings
+        line = line.lstrip('"')
+        line = line.rstrip('"')
+
+        # Remove block comments
+        line = line.lstrip('#')
+        line = line.lstrip()
+
         # Remove numpy, and scipy
         line = line.replace('np.', '')
         line = line.replace('sc.', '')
@@ -78,9 +86,6 @@ def matlabize(text_py):
             line = 'figure'
         if line == 'grid(True)':
             line = 'grid'
-
-        # Replace docstrings with comments
-        line = line.replace('"""', '# ')
 
         # Compensate for Matlab's lack of +=
         if '+=' in line:
@@ -125,6 +130,10 @@ def pythonize(text_mat):
         # Remove terminating semicolons even if followed by comments
         line = line.rstrip(';')
         line = line.replace(';  %', '  %')
+
+        # Remove block comments
+        line = line.lstrip('%')
+        line = line.lstrip()
 
         # Replace equivalent syntax
         line = line.replace('% ', '# ')
