@@ -1,3 +1,4 @@
+% Flat frame test
 clear; close all; clc; format compact;
 addpath('../');
 addpath('../util');
@@ -129,4 +130,4 @@ xlabel('threshold factor');
 ylabel('rate/actual');
 title(sprintf('RN=%d emG=%d FWCs=%dk', read_noise, em_gain, full_well_serial/1000));
 
-autoArrangeFigures; 
+autoArrangeFigures;

@@ -1,7 +1,5 @@
-"""EMCCD Detector Simulation.
-
-S Miller and B Nemati - UAH - 21-Feb-2020
-"""
+# -*- coding: utf-8 -*-
+"""Flat frame test."""
 from __future__ import absolute_import, division, print_function
 
 import copy
@@ -10,6 +8,9 @@ from os import path
 from pathlib import Path
 sys.path.insert(0, str(Path(path.dirname(__file__)).parent.parent))
 
+import matplotlib
+matplotlib.rcParams['lines.linewidth'] = 0.5
+matplotlib.rcParams['lines.markersize'] = 2
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import poisson
@@ -94,7 +95,8 @@ plt.figure()
 plt.plot(sigma_thr, nobs_br/frametime,
          sigma_thr, r_phe,
          sigma_thr, flux*np.ones(npts))
-plt.grid(True)
+plt.xlim([np.min(sigma_thr,), np.max(sigma_thr)])
+plt.grid(True, alpha=0.5)
 plt.legend(('Observed', 'Corrected', 'Actual'))
 plt.xlabel('threshold factor')
 plt.ylabel('rates, e/pix/s')
@@ -103,14 +105,16 @@ plt.title('RN={:d} emG={:d} FWCs={:d}k'.format(int(read_noise), int(em_gain),
 
 plt.figure()
 plt.plot(sigma_thr, eps_thr)
-plt.grid(True)
+plt.xlim([np.min(sigma_thr,), np.max(sigma_thr)])
+plt.grid(True, alpha=0.5)
 plt.xlabel('threshold factor')
 plt.ylabel('threshold effeciency')
 plt.title('Assuming all pixels are 1 or 0 real ph-e''s')
 
 plt.figure()
 plt.plot(sigma_thr, overcount_est2)
-plt.grid(True)
+plt.xlim([np.min(sigma_thr,), np.max(sigma_thr)])
+plt.grid(True, alpha=0.5)
 plt.xlabel('threshold factor')
 plt.ylabel('PC over-count factor')
 
@@ -120,7 +124,8 @@ plt.plot(sigma_thr, nobs_br/frametime, '.-',
          sigma_thr, flux*np.ones(npts),
          sigma_thr, r_phe/overcount_est2, '.-',
          sigma_thr, r_phe/overcount_est3, '.-')
-plt.grid(True)
+plt.xlim([np.min(sigma_thr,), np.max(sigma_thr)])
+plt.grid(True, alpha=0.5)
 plt.legend(('Raw Phot Cnt', 'thr, CL corr', 'Actual', '+ovrcnt corr', '+n3 corr'))
 plt.xlabel('threshold factor')
 plt.ylabel('rates, e/pix/s')
@@ -133,7 +138,8 @@ plt.plot(sigma_thr, r_phe/actualc, '.-',
          sigma_thr, r_phe/overcount_est2/actualc, '.-',
          sigma_thr, r_phe/overcount_est3/actualc, '.-',
          sigma_thr, np.ones(npts))
-plt.grid(True)
+plt.xlim([np.min(sigma_thr,), np.max(sigma_thr)])
+plt.grid(True, alpha=0.5)
 plt.legend(('thr, CL corr', '+ovrcnt corr', '+n3 corr'))
 plt.xlabel('threshold factor')
 plt.ylabel('rate/actual')
