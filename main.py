@@ -6,10 +6,10 @@ S Miller and B Nemati - UAH - 21-Feb-2020
 from __future__ import absolute_import, division, print_function
 
 from os import path
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 from astropy.io import fits
-from pathlib import Path
 
 from emccd_detect.emccd_detect import emccd_detect
 from emccd_detect.util.imagesc import imagesc

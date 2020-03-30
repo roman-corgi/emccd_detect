@@ -1,11 +1,11 @@
 """Check diff status between python and matlab codebase."""
 import os
 import pickle
+from pathlib import Path
 
 import difflib
 import inquirer
 import webbrowser
-from pathlib import Path
 
 
 class PymatDiffException(Exception):
