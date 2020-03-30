@@ -37,7 +37,8 @@ def get_filenames(path, ext, exclude=None):
     if not exclude:
         exclude = []
 
-    return sorted([f for f in path.rglob('*.' + ext) if f.stem not in exclude])
+    return sorted([f for f in path.rglob('*.' + ext) if f.stem not in exclude],
+                  key=lambda f: f.stem)
 
 
 def matlabize(text_py):
@@ -161,10 +162,10 @@ if __name__ == '__main__':
     stems_mat = [f.stem for f in list_mat]
     common_stems = sorted(set(stems_py).intersection(stems_mat))
 
-    common_py = sorted([f for f in set(list_py) if f.stem in common_stems])
-    common_mat = sorted([f for f in set(list_mat) if f.stem in common_stems])
-    diff_py = sorted([f for f in set(list_py) if f.stem not in set(stems_mat)])
-    diff_mat = sorted([f for f in set(list_mat) if f.stem not in set(stems_py)])
+    common_py = [f for f in list_py if f.stem in common_stems]
+    common_mat = [f for f in list_mat if f.stem in common_stems]
+    diff_py = [f for f in list_py if f.stem not in stems_mat]
+    diff_mat = [f for f in list_mat if f.stem not in stems_py]
 
     # Disply filenames that exist only in either the matlab or python directory
     if diff_py:
