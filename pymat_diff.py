@@ -157,6 +157,16 @@ def pythonize(text_mat):
     return modified_mat
 
 
+def color_grad(num):
+    """Put a number between 0 and 100 on a red to green color scale."""
+    if num < 20:
+        return 91
+    elif num >= 20 and num < 30:
+        return 93
+    else:
+        return 92
+
+
 if __name__ == '__main__':
     # Clear console
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -231,7 +241,8 @@ if __name__ == '__main__':
     # Display list of both strings and similarity score
     dir_diff = get_filenames(Path(current_path, 'diff'), 'html')
     dir_diff_stems = [f.stem for f in dir_diff]
-    display_list = ['{: <20} {: >4}'.format(name, round(ratio*100))
+    display_list = ['{: <20} \033[{:}m{: >4}\033[0m'.format(
+                    name, color_grad(round(ratio*100)), round(ratio*100))
                     for name, ratio in zip(dir_diff_stems, ratio_list)]
 
     # Display options to opening diffs in browser
