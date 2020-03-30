@@ -40,7 +40,7 @@ for i = 1:npts
     dark_frame = emccd_detect(zero_frame, frametime, em_gain, full_well_image,...
                               full_well_serial, dark_current, cic, read_noise,...
                               bias, qe, cr_rate, pixel_pitch, true);
-    % Photon-count the dark frame
+    % Photon-count
     dark_pc = zero_frame;
     dark_pc(dark_frame > pc_thresh(i)) = 1;
     % Correct for inefficiencies from thresholding and coincidence loss
@@ -53,7 +53,7 @@ for i = 1:npts
     bright_frame = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
                                 full_well_serial, dark_current, cic, read_noise,...
                                 bias, qe, cr_rate, pixel_pitch, true);
-    % Photon-count the dark frame
+    % Photon-count
     bright_pc = zero_frame;
     bright_pc(bright_frame > pc_thresh(i)) = 1;
     % Correct for inefficiencies from thresholding and coincidence loss
