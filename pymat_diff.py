@@ -1,7 +1,9 @@
 """Check diff status between python and matlab codebase."""
 import os
+import pickle
 
 import difflib
+import inquirer
 import webbrowser
 from pathlib import Path
 
@@ -144,14 +146,13 @@ def pythonize(text_mat):
 
 if __name__ == '__main__':
     # Clear console
-    clear = lambda: os.system('clear')
-    clear()
+    os.system('cls' if os.name == 'nt' else 'clear')
 
     current_path = Path(os.path.dirname(__file__))
-    dir_py = Path(current_path, 'emccd_detect')
+    dir_py = Path(current_path)
     dir_mat = Path(current_path, 'emccd_detect_m')
 
-    exclude_py = ['__init__', 'config', 'imagesc']
+    exclude_py = ['__init__', 'config', 'imagesc', 'pymat_diff', 'setup']
     exclude_mat = ['autoArrangeFigures']
     list_py = get_filenames(dir_py, 'py', exclude_py)
     list_mat = get_filenames(dir_mat, 'm', exclude_mat)
@@ -202,12 +203,32 @@ if __name__ == '__main__':
 
     # Display diff filenames
     dir_diff = get_filenames(Path(current_path, 'diff'), 'html')
-    selected = dir_diff[2]
-    print('Diffs available:\n')
+    dir_diff_stems = [f.stem for f in dir_diff]
+
+    # Unpickle selected for use in Checkbox defaults
+    selected_path = Path(current_path, 'diff', 'selected.txt')
+    if selected_path.exists():
+        with open(selected_path, 'rb') as f:
+            selected_past = pickle.load(f)
+    else:
+        selected_past = []
+
+    # Display options to open diffs in browser
+    questions = [
+        inquirer.Checkbox('diffs',
+                          message='Diffs available',
+                          choices=dir_diff_stems,
+                          default=selected_past,
+                          ),
+    ]
+    answers = inquirer.prompt(questions)
+    selected = answers['diffs']
+
+    # Pickle selected for use in Checkbox defaults in next run
+    with open(selected_path, 'wb') as f:
+        pickle.dump(selected, f)
+
+    # Open selected in browser
     for name in dir_diff:
-        if name == selected:
-            print('    * {:}'.format(name.stem))
+        if name.stem in selected:
             webbrowser.open('file://' + str(name))
-        else:
-            print('      {:}'.format(name.stem))
-    print('')
