@@ -68,8 +68,16 @@ def matlabize(text_py):
         # Remove leading whitespace
         line = line.lstrip()
 
-        # Remove numpy and scipy
+        # Remove numpy, and scipy
         line = line.replace('np.', '')
+        line = line.replace('sc.', '')
+
+        # Change matplotlib specific terminology
+        line = line.replace('plt.', '')
+        if line == 'figure()':
+            line = 'figure'
+        if line == 'grid(True)':
+            line = 'grid'
 
         # Replace docstrings with comments
         line = line.replace('"""', '# ')
@@ -130,8 +138,12 @@ def pythonize(text_mat):
         line = line.replace('(i)', '[i]')
 
         # Replace booleans
-        line = line.replace('true', 'True')
-        line = line.replace('false', 'False')
+        line = line.replace(' true', ' True')
+        line = line.replace(' false', ' False')
+
+        # Remove line break dots
+        if line.endswith('...'):
+            line = line.rstrip('.')
 
         # Modify function calls
         if line[:8] == 'function':
