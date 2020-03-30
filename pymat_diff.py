@@ -191,6 +191,8 @@ if __name__ == '__main__':
             print('    + {: <20} [{:}]'.format(str(name.stem), str(name)))
     print('')
 
+    ratio_list = []
+
     # Open files side by side for comparison
     for py, mat in zip(common_py, common_mat):
         with open(py, 'r') as file_py:
@@ -214,9 +216,9 @@ if __name__ == '__main__':
         with open(Path(current_path, 'diff', diff_name), 'w') as file:
             file.write(diff)
 
-    # Display diff filenames
-    dir_diff = get_filenames(Path(current_path, 'diff'), 'html')
-    dir_diff_stems = [f.stem for f in dir_diff]
+        # Get diff ratio
+        ratio = difflib.SequenceMatcher(None, modified_py, modified_mat).ratio()
+        ratio_list.append(ratio)
 
     # Unpickle selected for use in Checkbox defaults
     selected_path = Path(current_path, 'diff', 'selected.txt')
@@ -226,16 +228,23 @@ if __name__ == '__main__':
     else:
         selected_past = []
 
-    # Display options to open diffs in browser
+    # Display list of both strings and similarity score
+    dir_diff = get_filenames(Path(current_path, 'diff'), 'html')
+    dir_diff_stems = [f.stem for f in dir_diff]
+    display_list = ['{: <20} {: >4}'.format(name, round(ratio*100))
+                    for name, ratio in zip(dir_diff_stems, ratio_list)]
+
+    # Display options to opening diffs in browser
     questions = [
         inquirer.Checkbox('diffs',
                           message='Diffs available',
-                          choices=dir_diff_stems,
+                          choices=display_list,
                           default=selected_past,
                           ),
     ]
     answers = inquirer.prompt(questions)
-    selected = answers['diffs']
+    selected_long = answers['diffs']
+    selected = [s.split(' ', 1)[0] for s in selected_long]
 
     # Pickle selected for use in Checkbox defaults in next run
     with open(selected_path, 'wb') as f:
