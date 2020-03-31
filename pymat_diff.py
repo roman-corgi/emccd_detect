@@ -96,8 +96,8 @@ def matlabize(text_py):
 
     # File modifications
     # Remove encoding declaration
-    if '# -*- coding: utf-8 -*-' in modified_py:
-        modified_py.remove('# -*- coding: utf-8 -*-')
+    if '-*- coding: utf-8 -*-' in modified_py:
+        modified_py.remove('-*- coding: utf-8 -*-')
 
     return modified_py
 
