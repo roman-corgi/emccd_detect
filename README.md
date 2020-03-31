@@ -23,7 +23,7 @@ This will install the dependencies, which are as follows:
 
 ### Usage
 
-For an example of how to use emccd\_detect, see scripts/main.py.
+For an example of how to use emccd\_detect, see main.py.
 
 ## Getting Started - Matlab
 ### Installing
