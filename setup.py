@@ -23,7 +23,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    packages=find_packages(),
+    packages=find_packages(exclude=['tests']),
     python_requires='>=3.7',
     install_requires=[
         'astropy',
