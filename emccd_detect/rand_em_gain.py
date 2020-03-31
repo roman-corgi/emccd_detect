@@ -36,7 +36,7 @@ def rand_em_gain(n_in_array, em_gain):
     B Nemati and S Miller - UAH - 20-March-2020
 
     """
-    if em_gain < 1:
+    if em_gain < 1:  # XXX Add check for n_in_array dimensions
         raise Exception('EM gain cannot be set to less than 1')
 
     # Find how many values in a array are equal to 0, 1, 2, or >= 3
