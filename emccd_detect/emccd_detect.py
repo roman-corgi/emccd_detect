@@ -94,19 +94,20 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
         Image area frame (e-).
 
     """
-    # Mean electrons after inegrating over frametime
-    mean_e_map = fluxmap * frametime * qe
+    # Mean photo-electrons after inegrating over frametime
+    mean_phe_map = fluxmap * frametime * qe
 
-    # Mean shot noise after integrating over frametime
+    # Mean expected rate after integrating over frametime
     mean_dark = dark_current * frametime
-    mean_shot = mean_dark + cic
+    mean_noise = mean_dark + cic
 
     # Actualize electrons at the pixels
     if shot_noise_on:
-        image_frame = np.random.poisson(mean_e_map + mean_shot).astype(float)
+        image_frame = np.random.poisson(mean_phe_map + mean_noise).astype(float)
     else:
-        image_frame = mean_e_map + np.random.poisson(mean_shot, mean_e_map.shape
-                                                     ).astype(float)
+        image_frame = mean_phe_map + np.random.poisson(mean_noise,
+                                                       mean_phe_map.shape
+                                                       ).astype(float)
 
     # Simulate cosmic hits on image area
     image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,

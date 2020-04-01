@@ -18,7 +18,7 @@ from scipy.stats import poisson
 from emccd_detect.emccd_detect import emccd_detect
 
 # Input fluxmap
-npix_across = 20
+npix_across = 400
 flux = 0.07  # photns/pix/s
 fluxmap = flux * np.ones([npix_across, npix_across])
 

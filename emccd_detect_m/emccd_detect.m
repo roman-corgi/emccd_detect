@@ -84,18 +84,18 @@ function image_frame = image_area(fluxmap, frametime, full_well_image,...
 %   image_frame : array_like
 %       Image area frame (e-).
 
-% Mean electrons after inegrating over frametime
-mean_e_map = fluxmap * frametime * qe;
+% Mean photo-electrons after inegrating over frametime
+mean_phe_map = fluxmap * frametime * qe;
 
-% Mean shot noise after integrating over frametime
+% Mean expected rate after integrating over frametime
 mean_dark = dark_current * frametime;
-mean_shot = mean_dark + cic;
+mean_noise = mean_dark + cic;
 
 % Actualize electrons at the pixels
 if shot_noise_on
-    image_frame = poissrnd(mean_e_map + mean_shot);
+    image_frame = poissrnd(mean_phe_map + mean_noise);
 else
-    image_frame = mean_e_map + poissrnd(mean_shot, size(mean_e_map));
+    image_frame = mean_phe_map + poissrnd(mean_noise, size(mean_phe_map));
 end
 
 % Simulate cosmic hits on image area
