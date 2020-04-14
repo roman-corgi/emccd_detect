@@ -105,8 +105,11 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
         Image area frame (e-).
 
     """
+    image_frame = np.zeros([1024, 1024])
+    image_frame = transform_fluxmap(fluxmap, image_frame)
+
     # Mean photo-electrons after inegrating over frametime
-    mean_phe_map = fluxmap * frametime * qe
+    mean_phe_map = image_frame * frametime * qe
 
     # Mean expected rate after integrating over frametime
     mean_dark = dark_current * frametime
@@ -165,6 +168,13 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
 
     # Reshape for viewing
     return serial_frame.reshape(image_frame.shape)
+
+
+def transform_fluxmap(fluxmap, image_frame):
+    """Place fluxmap at specified position on image section."""
+    rows, cols = fluxmap.shape
+    image_frame[0:rows, 0:cols] = fluxmap
+    return image_frame
 
 
 def make_fixed_pattern(serial_frame):
