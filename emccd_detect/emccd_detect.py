@@ -10,10 +10,10 @@ from emccd_detect.rand_em_gain import rand_em_gain
 
 def emccd_detect(fluxmap,
                  frametime,
-                 em_gain=5000.,
-                 full_well_image=50000.,
-                 full_well_serial=90000.,
-                 dark_current=0.0028,
+                 em_gain,
+                 full_well_image=60000.,
+                 full_well_serial=100000.,
+                 dark_current=0.00028,
                  cic=0.01,
                  read_noise=100,
                  bias=0.,
@@ -33,23 +33,23 @@ def emccd_detect(fluxmap,
     em_gain : float
         CCD em_gain (e-/photon).
     full_well_image : float
-        Image area full well capacity (e-).
+        Image area full well capacity (e-). Defaults to 6000.
     full_well_serial : float
-        Serial (gain) register full well capacity (e-).
+        Serial (gain) register full well capacity (e-). Defaults to 100000.
     dark_current: float
-        Dark current rate (e-/pix/s).
+        Dark current rate (e-/pix/s). Defaults to 0.00028.
     cic : float
-        Clock induced charge (e-/pix/frame).
+        Clock induced charge (e-/pix/frame). Defaults to 0.01.
     read_noise : float
-        Read noise (e-/pix/frame).
+        Read noise (e-/pix/frame). Defaults to 100.
     bias : float
-        Bias offset (e-).
+        Bias offset (e-). Defaults to 0.
     qe : float
-        Quantum efficiency.
+        Quantum efficiency. Defaults to 0.9.
     cr_rate : float
-        Cosmic ray rate (hits/cm^2/s).
+        Cosmic ray rate (hits/cm^2/s). Defaults to 0.
     pixel_pitch : float
-        Distance between pixel centers (m).
+        Distance between pixel centers (m). Defaults to 13e-6.
     shot_noise_on : bool, optional
         Apply shot noise. Defaults to True.
 
