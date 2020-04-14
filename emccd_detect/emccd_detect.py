@@ -3,6 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import scipy.interpolate as interp
 
 from emccd_detect.cosmic_hits import cosmic_hits
 from emccd_detect.rand_em_gain import rand_em_gain
@@ -106,7 +107,7 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
 
     """
     image_frame = np.zeros([1024, 1024])
-    image_frame = transform_fluxmap(fluxmap, image_frame)
+    image_frame = embed_fluxmap(fluxmap, image_frame)
 
     # Mean photo-electrons after inegrating over frametime
     mean_phe_map = image_frame * frametime * qe
@@ -170,11 +171,36 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     return serial_frame.reshape(image_frame.shape)
 
 
-def transform_fluxmap(fluxmap, image_frame):
-    """Place fluxmap at specified position on image section."""
+def embed_fluxmap(fluxmap, image_frame):
+    """Place fluxmap at specified position on image section.
+
+    Parameters
+    ----------
+    fluxmap : array_like
+        Input fluxmap (photons/pix/s).
+    image_frame : array_like
+        Image area frame before electrons are actualized (photons/pix/s).
+
+    Returns
+    -------
+    image_frame : array_like
+        Image area frame before electrons are actualized (photons/pix/s).
+
+    """
+    ref_pix = (0, 0)
+    ref_row, ref_col = ref_pix
     rows, cols = fluxmap.shape
-    image_frame[0:rows, 0:cols] = fluxmap
+    image_frame[ref_row:ref_row+rows, ref_col:ref_col+cols] = fluxmap
     return image_frame
+
+
+def interpolate_fluxmap(fluxmap, ref_pix):
+    """Map fluxmap onto pixels."""
+    fluxmap_pad = np.pad(fluxmap, 1)
+    rows = np.arange(fluxmap_pad.shape[0])
+    cols = np.arange(fluxmap_pad.shape[1])
+    f = interp.interp2d(cols, rows, fluxmap_pad)
+    return f(cols+ref_pix[1], rows+ref_pix[0])
 
 
 def make_fixed_pattern(serial_frame):
