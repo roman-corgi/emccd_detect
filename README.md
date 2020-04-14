@@ -9,7 +9,7 @@ This is a preliminary version; future updates will have fast EMCCD capability (f
 ## Getting Started - Python
 ### Installing
 
-This package requires Python 3.7. To install emccd\_detect, navigate to the root emccd\_detect directory where setup.py is located. (If you are using conda, activate the environment where you would like it installed). Then use
+This package requires Python 3.5 or higher. To install emccd\_detect, navigate to the root emccd\_detect directory where setup.py is located. (If you are using conda, activate the environment where you would like it installed). Then use
 
 	pip install .
 
