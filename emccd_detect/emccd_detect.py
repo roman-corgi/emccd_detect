@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import scipy.interpolate as interp
 
-from emccd_detect.cosmics import cosmic_hits
+from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 
 
@@ -161,6 +161,9 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
 
     # Apply EM gain
     serial_frame = rand_em_gain(serial_frame, em_gain)
+
+    # Simulate saturation tails
+    serial_frame = sat_tails(serial_frame, full_well_serial)
     # Cap at full well capacity of gain register
     serial_frame[serial_frame > full_well_serial] = full_well_serial
 

@@ -67,3 +67,19 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
         image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
 
     return image_frame
+
+
+def sat_tails(serial_frame, full_well_serial):
+    """Simulate tails created by serial register saturation.
+
+    This is most prevalent in cosmic hits.
+
+    Parameters
+    ----------
+    serial_frame : array_like
+        Serial register frame (e-).
+    full_well_serial : float
+        Serial (gain) register full well capacity (e-).
+
+    """
+    return serial_frame
