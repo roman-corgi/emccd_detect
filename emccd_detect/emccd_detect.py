@@ -106,8 +106,9 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
         Image area frame (e-).
 
     """
-    image_frame = np.zeros([1024, 1024])
-    image_frame = embed_fluxmap(fluxmap, image_frame)
+    image_frame = np.zeros([70, 70])
+    ul = (0, 0)
+    image_frame = embed_fluxmap(fluxmap, image_frame, ul)
 
     # Mean photo-electrons after inegrating over frametime
     mean_phe_map = image_frame * frametime * qe
@@ -171,8 +172,8 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     return serial_frame.reshape(image_frame.shape)
 
 
-def embed_fluxmap(fluxmap, image_frame):
-    """Place fluxmap at specified position on image section.
+def embed_fluxmap(fluxmap, image_frame, ul):
+    """Add fluxmap at specified position on image section.
 
     Parameters
     ----------
@@ -180,6 +181,8 @@ def embed_fluxmap(fluxmap, image_frame):
         Input fluxmap (photons/pix/s).
     image_frame : array_like
         Image area frame before electrons are actualized (photons/pix/s).
+    ul : tuple
+        Upper left corner of fluxmap wrt upper left corner of image section.
 
     Returns
     -------
@@ -187,20 +190,19 @@ def embed_fluxmap(fluxmap, image_frame):
         Image area frame before electrons are actualized (photons/pix/s).
 
     """
-    ref_pix = (0, 0)
-    ref_row, ref_col = ref_pix
-    rows, cols = fluxmap.shape
-    image_frame[ref_row:ref_row+rows, ref_col:ref_col+cols] = fluxmap
-    return image_frame
+    pad = np.zeros(image_frame.shape)
 
+    # Initially place fluxmap at 1,1 so it is padded all around
+    pad[1:1+fluxmap.shape[0], 1:1+fluxmap.shape[1]] = fluxmap
 
-def interpolate_fluxmap(fluxmap, ref_pix):
-    """Map fluxmap onto pixels."""
-    fluxmap_pad = np.pad(fluxmap, 1)
-    rows = np.arange(fluxmap_pad.shape[0])
-    cols = np.arange(fluxmap_pad.shape[1])
-    f = interp.interp2d(cols, rows, fluxmap_pad)
-    return f(cols+ref_pix[1], rows+ref_pix[0])
+    # Initialize interpolation
+    rows = np.arange(pad.shape[0])
+    cols = np.arange(pad.shape[1])
+    f = interp.interp2d(cols, rows, pad)
+
+    # Subtract 1 from ul coordinates to compensate for padding
+    pad_interp = f(cols - (ul[1]-1), rows - (ul[0]-1))
+    return image_frame + pad_interp
 
 
 def make_fixed_pattern(serial_frame):
