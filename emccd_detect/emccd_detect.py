@@ -106,7 +106,7 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
         Image area frame (e-).
 
     """
-    image_frame = np.zeros([70, 70])
+    image_frame = np.zeros([1024, 1024])
     ul = (0, 0)
     image_frame = embed_fluxmap(fluxmap, image_frame, ul)
 
