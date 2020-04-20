@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import scipy.interpolate as interp
 
-from emccd_detect.cosmic_hits import cosmic_hits
+from emccd_detect.cosmics import cosmic_hits
 from emccd_detect.rand_em_gain import rand_em_gain
 
 
