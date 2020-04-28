@@ -2,6 +2,8 @@
 """Simulation for EMCCD detector."""
 from __future__ import absolute_import, division, print_function
 
+import os
+
 import numpy as np
 import scipy.interpolate as interp
 
@@ -9,10 +11,12 @@ from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from proc_cgi_frame.read_metadata import Metadata
 
+here = os.path.abspath(os.path.dirname(__file__))
+meta = Metadata(os.path.join(here, 'metadata.yaml'))
+
 
 def emccd_detect(fluxmap,
                  frametime,
-                 meta_path,
                  em_gain=5000.,
                  full_well_image=50000.,
                  full_well_serial=90000.,
@@ -33,8 +37,6 @@ def emccd_detect(fluxmap,
         Input fluxmap (photons/pix/s).
     frametime : float
         Frame time (s).
-    meta_path : str
-        Full path of metadta yaml.
     em_gain : float
         CCD em_gain (e-/photon).
     full_well_image : float
@@ -71,18 +73,18 @@ def emccd_detect(fluxmap,
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
-    meta = Metadata(meta_path)
-    image_frame = image_area(fluxmap, frametime, meta, full_well_image, dark_current,
-                             cic, qe, cr_rate, pixel_pitch, shot_noise_on)
+    image_frame = image_section(fluxmap, frametime, full_well_image,
+                                dark_current, cic, qe, cr_rate, pixel_pitch,
+                                shot_noise_on)
 
     serial_frame = serial_register(image_frame, em_gain, full_well_serial,
                                    read_noise, bias)
     return serial_frame
 
 
-def image_area(fluxmap, frametime, meta, full_well_image, dark_current, cic, qe,
-               cr_rate, pixel_pitch, shot_noise_on):
-    """Simulate detector image area.
+def image_section(fluxmap, frametime, full_well_image, dark_current, cic, qe,
+                  cr_rate, pixel_pitch, shot_noise_on):
+    """Simulate detector image section.
 
     Parameters
     ----------
@@ -90,8 +92,6 @@ def image_area(fluxmap, frametime, meta, full_well_image, dark_current, cic, qe,
         Input fluxmap (photons/pix/s).
     frametime : float
         Frame time (s).
-    meta : instance
-        Instance of Metadata class containing detector metadata.
     full_well_image : float
         Image area full well capacity (e-).
     dark_current: float
@@ -113,12 +113,12 @@ def image_area(fluxmap, frametime, meta, full_well_image, dark_current, cic, qe,
         Image area frame (e-).
 
     """
-    image_frame = np.zeros([1024, 1024])
     ul = (0, 0)
-    image_frame = embed_fluxmap(fluxmap, image_frame, ul)
+    active_frame = np.zeros([meta.geom.image_rows, meta.geom.image_cols])
+    active_frame = embed_fluxmap(fluxmap, active_frame, ul)
 
     # Mean photo-electrons after inegrating over frametime
-    mean_phe_map = image_frame * frametime * qe
+    mean_phe_map = active_frame * frametime * qe
 
     # Mean expected rate after integrating over frametime
     mean_dark = dark_current * frametime
@@ -126,15 +126,23 @@ def image_area(fluxmap, frametime, meta, full_well_image, dark_current, cic, qe,
 
     # Actualize electrons at the pixels
     if shot_noise_on:
-        image_frame = np.random.poisson(mean_phe_map + mean_noise).astype(float)
+        active_frame = np.random.poisson(mean_phe_map + mean_noise).astype(float)
     else:
-        image_frame = mean_phe_map + np.random.poisson(mean_noise,
+        active_frame = mean_phe_map + np.random.poisson(mean_noise,
                                                        mean_phe_map.shape
                                                        ).astype(float)
 
     # Simulate cosmic hits on image area
-    image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,
-                              full_well_image)
+    active_frame = cosmic_hits(active_frame, cr_rate, frametime, pixel_pitch,
+                               full_well_image)
+
+    # Place active frame in image frame
+    image_rows = meta.geom.serial_prescan_rows
+    image_cols = meta.geom.parallel_overscan_cols
+    image_frame = np.zeros([image_rows, image_cols])
+    ul = (meta.geom.dark_reference_rows + meta.geom.transition_rows_upper,
+          meta.geom.dark_reference_cols)
+    image_frame = embed_fluxmap(active_frame, image_frame, ul)
 
     # Cap at full well capacity of image area
     image_frame[image_frame > full_well_image] = full_well_image
@@ -163,8 +171,13 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
         Serial register frame (e-).
 
     """
+    # Make prescan
+    prescan = np.zeros([meta.geom.serial_prescan_rows,
+                        meta.geom.serial_prescan_cols])
+    serial_frame2d = np.append(prescan, image_frame, axis=1)
+
     # Flatten image area row by row to simulate readout to serial register
-    serial_frame = image_frame.ravel()
+    serial_frame = serial_frame2d.ravel()
 
     # Apply EM gain
     serial_frame = rand_em_gain(serial_frame, em_gain)
@@ -179,7 +192,7 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     serial_frame += make_read_noise(serial_frame, read_noise) + bias
 
     # Reshape for viewing
-    return serial_frame.reshape(image_frame.shape)
+    return serial_frame.reshape(serial_frame2d.shape)
 
 
 def embed_fluxmap(fluxmap, image_frame, ul):
