@@ -1,0 +1,21 @@
+geom:
+  detector_rows: 1137
+  detector_cols: 2144
+  image_rows: 1024
+  image_cols: 1024
+  dark_reference_rows: 5
+  dark_reference_cols: 16
+  transition_rows_upper: 1
+  transition_rows_lower: 2
+  transition_cols: 1056
+  parallel_overscan_rows: 100
+  parallel_overscan_cols: 1056
+  serial_prescan_rows: 1137
+  serial_prescan_cols: 1088
+electrons_per_dn: 0.88
+fwc: 90000
+sat_thresh: 0.99
+plat_thresh: 0.85
+cosm_filter: 3
+tail_filter: 5
+cic_thresh: 100

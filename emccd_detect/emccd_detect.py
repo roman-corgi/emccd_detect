@@ -7,10 +7,12 @@ import scipy.interpolate as interp
 
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
+from proc_cgi_frame.read_metadata import Metadata
 
 
 def emccd_detect(fluxmap,
                  frametime,
+                 meta_path,
                  em_gain=5000.,
                  full_well_image=50000.,
                  full_well_serial=90000.,
@@ -31,6 +33,8 @@ def emccd_detect(fluxmap,
         Input fluxmap (photons/pix/s).
     frametime : float
         Frame time (s).
+    meta_path : str
+        Full path of metadta yaml.
     em_gain : float
         CCD em_gain (e-/photon).
     full_well_image : float
@@ -67,7 +71,8 @@ def emccd_detect(fluxmap,
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
-    image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,
+    meta = Metadata(meta_path)
+    image_frame = image_area(fluxmap, frametime, meta, full_well_image, dark_current,
                              cic, qe, cr_rate, pixel_pitch, shot_noise_on)
 
     serial_frame = serial_register(image_frame, em_gain, full_well_serial,
@@ -75,7 +80,7 @@ def emccd_detect(fluxmap,
     return serial_frame
 
 
-def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
+def image_area(fluxmap, frametime, meta, full_well_image, dark_current, cic, qe,
                cr_rate, pixel_pitch, shot_noise_on):
     """Simulate detector image area.
 
@@ -85,6 +90,8 @@ def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
         Input fluxmap (photons/pix/s).
     frametime : float
         Frame time (s).
+    meta : instance
+        Instance of Metadata class containing detector metadata.
     full_well_image : float
         Image area full well capacity (e-).
     dark_current: float

@@ -5,7 +5,7 @@ S Miller and B Nemati - UAH - 21-Feb-2020
 """
 from __future__ import absolute_import, division, print_function
 
-from os import path
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,11 +14,13 @@ from astropy.io import fits
 from emccd_detect.emccd_detect import emccd_detect
 from emccd_detect.util.imagesc import imagesc
 
+here = os.path.abspath(os.path.dirname(__file__))
+
 # Input fluxmap
 fits_name = 'ref_frame.fits'
-current_path = Path(path.dirname(__file__))
-fits_path = Path(current_path, 'data', fits_name)
+fits_path = Path(here, 'data', fits_name)
 fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
+meta_path = Path(here, 'emccd_detect', 'metadata.yaml')
 
 # Simulation inputs
 frametime = 100.  # Frame time (s)
@@ -35,7 +37,7 @@ pixel_pitch = 13e-6  # Distance between pixel centers (m)
 shot_noise_on = True  # Apply shot noise
 
 # Simulate single image
-sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,
+sim_im = emccd_detect(fluxmap, frametime, meta_path, em_gain, full_well_image,
                       full_well_serial, dark_current, cic, read_noise, bias,
                       qe, cr_rate, pixel_pitch, shot_noise_on)
 
