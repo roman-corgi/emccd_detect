@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Generate cosmic hits."""
 from __future__ import absolute_import, division, print_function
+
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -82,4 +84,26 @@ def sat_tails(serial_frame, full_well_serial):
         Serial (gain) register full well capacity (e-).
 
     """
+    scale = .9
+    overflow = 0.
+    for i, pix in enumerate(serial_frame):
+        pix += overflow * scale
+        serial_frame[i] = pix
+        if pix > full_well_serial:
+            overflow = pix - full_well_serial
+        else:
+            overflow = 0.
     return serial_frame
+
+
+if __name__ == '__main__':
+    full_well_serial = 90000
+
+    row = np.ones(100)
+    row[2] = full_well_serial * 100
+
+    tail_row = sat_tails(row, full_well_serial)
+
+    plt.figure()
+    plt.plot(tail_row)
+    plt.show()
