@@ -77,7 +77,7 @@ def emccd_detect(fluxmap,
                                 dark_current, cic, qe, cr_rate, pixel_pitch,
                                 shot_noise_on)
 
-    serial_frame = serial_register(image_frame, em_gain, full_well_serial,
+    serial_frame = serial_register(image_frame, em_gain, cic, full_well_serial,
                                    read_noise, bias)
     return serial_frame
 
@@ -129,17 +129,19 @@ def image_section(fluxmap, frametime, full_well_image, dark_current, cic, qe,
         active_frame = np.random.poisson(mean_phe_map + mean_noise).astype(float)
     else:
         active_frame = mean_phe_map + np.random.poisson(mean_noise,
-                                                       mean_phe_map.shape
-                                                       ).astype(float)
+                                                        mean_phe_map.shape
+                                                        ).astype(float)
 
     # Simulate cosmic hits on image area
     active_frame = cosmic_hits(active_frame, cr_rate, frametime, pixel_pitch,
                                full_well_image)
 
-    # Place active frame in image frame
+    # Create image frame
     image_rows = meta.geom.serial_prescan_rows
     image_cols = meta.geom.parallel_overscan_cols
     image_frame = np.zeros([image_rows, image_cols])
+
+    # Place active frame in image frame
     ul = (meta.geom.dark_reference_rows + meta.geom.transition_rows_upper,
           meta.geom.dark_reference_cols)
     image_frame = embed_fluxmap(active_frame, image_frame, ul)
@@ -149,7 +151,7 @@ def image_section(fluxmap, frametime, full_well_image, dark_current, cic, qe,
     return image_frame
 
 
-def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
+def serial_register(image_frame, em_gain, cic, full_well_serial, read_noise, bias):
     """Simulate detector serial (gain) register.
 
     Parameters
@@ -174,6 +176,8 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     # Make prescan
     prescan = np.zeros([meta.geom.serial_prescan_rows,
                         meta.geom.serial_prescan_cols])
+    prescan = np.random.poisson(prescan + cic)
+
     serial_frame2d = np.append(prescan, image_frame, axis=1)
 
     # Flatten image area row by row to simulate readout to serial register
@@ -183,7 +187,7 @@ def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     serial_frame = rand_em_gain(serial_frame, em_gain)
 
     # Simulate saturation tails
-    serial_frame = sat_tails(serial_frame, full_well_serial)
+    # serial_frame = sat_tails(serial_frame, full_well_serial)
     # Cap at full well capacity of gain register
     serial_frame[serial_frame > full_well_serial] = full_well_serial
 

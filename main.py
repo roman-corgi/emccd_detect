@@ -40,6 +40,11 @@ sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,
                       full_well_serial, dark_current, cic, read_noise, bias,
                       qe, cr_rate, pixel_pitch, shot_noise_on)
 
+write_to_file = True
+if write_to_file:
+    path = '/Users/sammiller/Documents/GitHub/proc_cgi_frame/data/sim/'
+    fits.writeto(Path(path, 'sim.fits'), sim_im)
+
 # Plot images
 plot_images = True
 if plot_images:

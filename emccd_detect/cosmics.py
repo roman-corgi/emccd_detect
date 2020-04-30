@@ -91,8 +91,7 @@ def sat_tails(serial_frame, full_well_serial):
         serial_frame[i] = pix
         if pix > full_well_serial:
             overflow = pix - full_well_serial
-        else:
-            overflow = 0.
+
     return serial_frame
 
 
