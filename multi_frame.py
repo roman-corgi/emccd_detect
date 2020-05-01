@@ -43,7 +43,8 @@ for i in range(nfiles):
                           qe=0.9,
                           cr_rate=1.
                           )
-    fits.writeto(Path(path, '{}{}.fits'.format(file_name, i)), sim_im.astype(int))
+    fits.writeto(Path(path, '{}{}.fits'.format(file_name, i)),
+                 sim_im.astype(np.int32), overwrite=True)
     if plot_images:
         imagesc(sim_im, 'Output Image')
 
@@ -63,7 +64,8 @@ for i in range(nfiles):
                           qe=0.9,
                           cr_rate=0.
                           )
-    fits.writeto(Path(path, '{}{}.fits'.format(file_name, i)), sim_im.astype(int))
+    fits.writeto(Path(path, '{}{}.fits'.format(file_name, i)),
+                 sim_im.astype(np.int32), overwrite=True)
     if plot_images:
         imagesc(sim_im, 'Output Image')
 

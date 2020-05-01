@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function
 import os
 from pathlib import Path
 
+import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
@@ -29,7 +30,7 @@ full_well_serial = 90000.  # Serial (gain) register full well capacity (e-)
 dark_current = 0.0028  # Dark current rate (e-/pix/s)
 cic = 0.01  # Clock induced charge (e-/pix/frame)
 read_noise = 100.  # Read noise (e-/pix/frame)
-bias = 0.  # Bias offset (e-)
+bias = 5000.  # Bias offset (e-)
 qe = 0.9  # Quantum efficiency
 cr_rate = 1.  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
 pixel_pitch = 13e-6  # Distance between pixel centers (m)
@@ -43,10 +44,11 @@ sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,
 write_to_file = True
 if write_to_file:
     path = '/Users/sammiller/Documents/GitHub/proc_cgi_frame/data/sim/'
-    fits.writeto(Path(path, 'sim.fits'), sim_im.astype(int))
+    fits.writeto(Path(path, 'sim.fits'), sim_im.astype(np.int32),
+                 overwrite=True)
 
 # Plot images
-plot_images = True
+plot_images = False
 if plot_images:
     imagesc(fluxmap, 'Input Fluxmap')
 
