@@ -137,9 +137,8 @@ def image_section(fluxmap, frametime, full_well_image, dark_current, cic, qe,
                                full_well_image)
 
     # Create image frame
-    image_rows = meta.geom.serial_prescan_rows
-    image_cols = meta.geom.parallel_overscan_cols
-    image_frame = np.zeros([image_rows, image_cols])
+    image_frame = np.zeros([meta.geom.serial_prescan_rows,
+                            meta.geom.parallel_overscan_cols])
 
     # Place active frame in image frame
     ul = (meta.geom.dark_reference_rows + meta.geom.transition_rows_upper,
