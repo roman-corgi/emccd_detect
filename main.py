@@ -18,7 +18,7 @@ from emccd_detect.util.imagesc import imagesc
 here = os.path.abspath(os.path.dirname(__file__))
 
 # Input fluxmap
-fits_name = 'ref_frame.fits'
+fits_name = 'sci_frame.fits'
 fits_path = Path(here, 'data', fits_name)
 fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
 
@@ -36,19 +36,23 @@ cr_rate = 1.  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
 pixel_pitch = 13e-6  # Distance between pixel centers (m)
 shot_noise_on = True  # Apply shot noise
 
+# Use this for eperdn (aka K-gain) correction for now
+eperdn = 0.88
+
 # Simulate single image
 sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,
                       full_well_serial, dark_current, cic, read_noise, bias,
-                      qe, cr_rate, pixel_pitch, shot_noise_on)
+                      qe, cr_rate, pixel_pitch, shot_noise_on) * 1/eperdn
 
 write_to_file = True
 if write_to_file:
-    path = '/Users/sammiller/Documents/GitHub/proc_cgi_frame/data/sim/'
+    # path = '/Users/sammiller/Documents/GitHub/proc_cgi_frame/data/sim/'
+    path = '.'
     fits.writeto(Path(path, 'sim.fits'), sim_im.astype(np.int32),
                  overwrite=True)
 
 # Plot images
-plot_images = False
+plot_images = True
 if plot_images:
     imagesc(fluxmap, 'Input Fluxmap')
 

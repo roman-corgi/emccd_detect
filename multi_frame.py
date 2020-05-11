@@ -16,13 +16,13 @@ from emccd_detect.emccd_detect import emccd_detect
 from emccd_detect.util.imagesc import imagesc
 
 # Input fluxmap
-fits_name = 'ref_frame.fits'
+fits_name = 'sci_frame.fits'
 current_path = Path(path.dirname(__file__))
 fits_path = Path(current_path, 'data', fits_name)
-fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
+fluxmap = fits.getdata(fits_path) *2  # Input fluxmap (photons/pix/s)
 
 # Number of images to create
-nfiles = 3
+nfiles = 5
 
 # Plot output images
 plot_images = True
@@ -42,7 +42,7 @@ for i in range(nfiles):
                           bias=5000.,
                           qe=0.9,
                           cr_rate=1.
-                          )
+                          ) * 1/0.88
     fits.writeto(Path(path, '{}{}.fits'.format(file_name, i)),
                  sim_im.astype(np.int32), overwrite=True)
     if plot_images:
@@ -63,7 +63,7 @@ for i in range(nfiles):
                           bias=5000.,
                           qe=0.9,
                           cr_rate=0.
-                          )
+                          ) * 1/0.88
     fits.writeto(Path(path, '{}{}.fits'.format(file_name, i)),
                  sim_im.astype(np.int32), overwrite=True)
     if plot_images:
