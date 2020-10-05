@@ -25,12 +25,12 @@ fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
 # Simulation inputs
 frametime = 100.  # Frame time (s)
 em_gain = 5000.  # CCD EM gain (e-/photon)
-full_well_image = 50000.  # Image area full well capacity (e-)
-full_well_serial = 90000.  # Serial (gain) register full well capacity (e-)
+full_well_image = 50000.  # Image area full well capacity (e-) XXX
+full_well_serial = 90000.  # Serial (gain) register full well capacity (e-) XXX
 dark_current = 0.0028  # Dark current rate (e-/pix/s)
 cic = 0.01  # Clock induced charge (e-/pix/frame)
 read_noise = 100.  # Read noise (e-/pix/frame)
-bias = 5000.  # Bias offset (e-)
+bias = 5000.  # Bias offset (e-) XXX
 qe = 0.9  # Quantum efficiency
 cr_rate = 1.  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
 pixel_pitch = 13e-6  # Distance between pixel centers (m)
@@ -42,9 +42,9 @@ eperdn = 0.88
 # Simulate single image
 sim_im = emccd_detect(fluxmap, frametime, em_gain, full_well_image,
                       full_well_serial, dark_current, cic, read_noise, bias,
-                      qe, cr_rate, pixel_pitch, shot_noise_on) * 1/eperdn
+                      qe, cr_rate, pixel_pitch, shot_noise_on)
 
-write_to_file = True
+write_to_file = False
 if write_to_file:
     # path = '/Users/sammiller/Documents/GitHub/proc_cgi_frame/data/sim/'
     path = '.'

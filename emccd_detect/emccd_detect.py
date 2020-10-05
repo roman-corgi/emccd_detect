@@ -6,13 +6,14 @@ import os
 
 import numpy as np
 import scipy.interpolate as interp
+from pathlib import Path
 
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
-from proc_cgi_frame.read_metadata import Metadata
+from emccd_detect.util.read_metadata import Metadata
 
-here = os.path.abspath(os.path.dirname(__file__))
-meta = Metadata(os.path.join(here, 'metadata.yaml'))
+here = Path(os.path.abspath(os.path.dirname(__file__)))
+META = Metadata(Path(here.parent, 'data', 'metadata.yaml'))
 
 
 def emccd_detect(fluxmap,
@@ -73,6 +74,8 @@ def emccd_detect(fluxmap,
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
+    # Separate image and serial register simulation into two parts, as the real
+    # detector will be separated in this way
     image_frame = image_section(fluxmap, frametime, full_well_image,
                                 dark_current, cic, qe, cr_rate, pixel_pitch,
                                 shot_noise_on)
@@ -114,7 +117,8 @@ def image_section(fluxmap, frametime, full_well_image, dark_current, cic, qe,
 
     """
     ul = (0, 0)
-    active_frame = np.zeros([meta.geom.image_rows, meta.geom.image_cols])
+    active_frame = np.zeros([META.geom['image']['rows'],
+                             META.geom['image']['cols']])
     active_frame = embed_fluxmap(fluxmap, active_frame, ul)
 
     # Mean photo-electrons after inegrating over frametime
@@ -137,12 +141,12 @@ def image_section(fluxmap, frametime, full_well_image, dark_current, cic, qe,
                                full_well_image)
 
     # Create image frame
-    image_frame = np.zeros([meta.geom.serial_prescan_rows,
-                            meta.geom.parallel_overscan_cols])
+    image_frame = np.zeros([META.geom['prescan']['rows'],
+                            META.geom['overscan']['cols']])
 
     # Place active frame in image frame
-    ul = (meta.geom.dark_reference_rows + meta.geom.transition_rows_upper,
-          meta.geom.dark_reference_cols)
+    ul = (META.geom['dark_ref_top']['rows'] + META.geom['transition_top']['rows'],
+          META.geom['dark_ref_left']['cols'])
     image_frame = embed_fluxmap(active_frame, image_frame, ul)
 
     # Cap at full well capacity of image area
@@ -173,8 +177,8 @@ def serial_register(image_frame, em_gain, cic, full_well_serial, read_noise, bia
 
     """
     # Make prescan
-    prescan = np.zeros([meta.geom.serial_prescan_rows,
-                        meta.geom.serial_prescan_cols])
+    prescan = np.zeros([META.geom['prescan']['rows'],
+                        META.geom['prescan']['cols']])
     prescan = np.random.poisson(prescan + cic)
 
     serial_frame2d = np.append(prescan, image_frame, axis=1)

@@ -1,0 +1,64 @@
+frame_rows: 1137
+frame_cols: 2144
+geom:
+  image:
+    rows: 1024
+    cols: 1024
+    ul:
+      - 6
+      - 1104
+  prescan:
+    rows: 1137
+    cols: 1088
+    ul:
+      - 0
+      - 0
+  overscan:
+    rows: 100
+    cols: 1056
+    ul:
+      - 1037
+      - 1088
+  dark_ref_top:
+    rows: 5
+    cols: 1056
+    ul:
+      - 0
+      - 1088
+  dark_ref_left:
+    rows: 1024
+    cols: 16
+    ul:
+      - 6
+      - 1088
+  dark_ref_right:
+    rows: 1024
+    cols: 16
+    ul:
+      - 6
+      - 2128
+  dark_ref_bottom:
+    rows: 5
+    cols: 1056
+    ul:
+      - 1032
+      - 1088
+  transition_top:
+    rows: 1
+    cols: 1056
+    ul:
+      - 5
+      - 1088
+  transition_bottom:
+    rows: 2
+    cols: 1056
+    ul:
+      - 1030
+      - 1088
+eperdn: 0.88
+fwc: 48440
+sat_thresh: 0.99
+plat_thresh: 0.85
+cosm_filter: 3
+tail_filter: 5
+cic_thresh: 100
