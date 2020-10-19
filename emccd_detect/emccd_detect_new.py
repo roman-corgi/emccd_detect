@@ -85,13 +85,62 @@ def emccd_detect(fluxmap,
     return serial_frame
 
 
-def image_section(fluxmap, frametime, full_well_image, dark_current, cic, qe,
+class EMCCDDetect:
+    def __init__(self,
+                 frametime,
+                 em_gain=5000.,
+                 full_well_image=50000.,
+                 full_well_serial=90000.,
+                 dark_current=0.0028,
+                 cic=0.01,
+                 read_noise=100,
+                 bias=0.,
+                 qe=0.9,
+                 cr_rate=0.,
+                 pixel_pitch=13e-6,
+                 shot_noise_on=True,
+                 meta_path=None
+                 ):
+        self.frametime = frametime
+        self.em_gain = em_gain
+        self.full_well_image = full_well_image
+        self.full_well_serial = full_well_serial
+        self.dark_current = dark_current
+        self.cic = cic
+        self.read_noise = read_noise
+        self.bias = bias
+        self.qe = self.qe
+        self.cr_rate = cr_rate
+        self.pixel_pitch = pixel_pitch
+        self.shot_noise_on = shot_noise_on
+        self.meta_path = meta_path
+
+        # Initialize metadata
+        self.meta = Metadata(self.meta_path)
+
+    def full_frame(self, fluxmap):
+
+        serial_counts = np.zeros((self.meta['prescan']['rows'],
+                                  self.meta['overscan']['cols']))
+        serial_counts = fluxmap
+        image_frame = image_section(serial_counts, self.frametime,
+                                    self.full_well_image, self.dark_current,
+                                    self.cic, self.qe, self.cr_rate,
+                                    self.pixel_pitch, self.shot_noise_on)
+
+        serial_frame = serial_register(image_frame, self.em_gain, self.cic,
+                                       self.full_well_serial, self.read_noise,
+                                       self.bias)
+        return serial_frame
+
+
+def image_section(active_frame, frametime, full_well_image, dark_current, cic, qe,
                   cr_rate, pixel_pitch, shot_noise_on):
     """Simulate detector image section.
 
     Parameters
     ----------
-    fluxmap : array_like, float
+    active_frame : array_like, float
         Input fluxmap (photons/pix/s).
     frametime : float
         Frame time (s).
@@ -116,11 +165,6 @@ def image_section(fluxmap, frametime, full_well_image, dark_current, cic, qe,
         Image area frame (e-).
 
     """
-    ul = (0, 0)
-    active_frame = np.zeros([META.geom['image']['rows'],
-                             META.geom['image']['cols']])
-    active_frame = embed_fluxmap(fluxmap, active_frame, ul)
-
     # Mean photo-electrons after inegrating over frametime
     mean_phe_map = active_frame * frametime * qe
 
