@@ -11,6 +11,7 @@ from pathlib import Path
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata import Metadata
+from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 
 here = Path(os.path.abspath(os.path.dirname(__file__)))
 META = Metadata(Path(here.parent, 'data', 'metadata.yaml'))
@@ -85,7 +86,7 @@ def emccd_detect(fluxmap,
     return serial_frame
 
 
-class EMCCDDetect:
+class EMCCDDetect(object):
     def __init__(self,
                  frametime,
                  em_gain=5000.,
@@ -109,29 +110,54 @@ class EMCCDDetect:
         self.cic = cic
         self.read_noise = read_noise
         self.bias = bias
-        self.qe = self.qe
+        self.qe = qe
         self.cr_rate = cr_rate
         self.pixel_pitch = pixel_pitch
         self.shot_noise_on = shot_noise_on
         self.meta_path = meta_path
 
         # Initialize metadata
-        self.meta = Metadata(self.meta_path)
+        self.meta = MetadataWrapper(self.meta_path)
 
-    def full_frame(self, fluxmap):
+    def sim_frame(self, fluxmap):
+        # Embed fluxmap in full frame
+        full_frame = self.meta.embed('image', fluxmap)
 
-        serial_counts = np.zeros((self.meta['prescan']['rows'],
-                                  self.meta['overscan']['cols']))
-        serial_counts = fluxmap
-        image_frame = image_section(serial_counts, self.frametime,
-                                    self.full_well_image, self.dark_current,
-                                    self.cic, self.qe, self.cr_rate,
-                                    self.pixel_pitch, self.shot_noise_on)
+        # Get just the serial counts
+        image_frame = self.image_section(full_frame)
 
         serial_frame = serial_register(image_frame, self.em_gain, self.cic,
                                        self.full_well_serial, self.read_noise,
                                        self.bias)
         return serial_frame
+
+    def image_section(self, active_frame):
+        # Mean photo-electrons after inegrating over frametime
+        mean_phe_map = active_frame * self.frametime * self.qe
+
+        # Mean expected rate after integrating over frametime
+        mean_dark = self.dark_current * self.frametime
+        mean_noise = mean_dark + self.cic
+
+        # Actualize electrons at the pixels
+        if self.shot_noise_on:
+            active_frame = np.random.poisson(mean_phe_map + mean_noise).astype(float)
+        else:
+            active_frame = mean_phe_map + np.random.poisson(mean_noise,
+                                                            mean_phe_map.shape
+                                                            ).astype(float)
+
+        # Simulate cosmic hits on image area
+        image = self.meta.active(self.meta.slice_section(active_frame))
+        image_m = self.meta.active(self.meta.mask('image'))
+        active_frame[image_m] = cosmic_hits(image, self.cr_rate,
+                                            self.frametime, self.pixel_pitch,
+                                            self.full_well_image)
+
+        # Cap at serial full well capacity
+        active_frame[active_frame > self.full_well_image] = self.full_well_image
+
+        return active_frame
 
 
 def image_section(active_frame, frametime, full_well_image, dark_current, cic, qe,
