@@ -54,8 +54,6 @@ class MetadataWrapper(Metadata):
         return full_frame_m.astype(bool)
 
     def embed(self, frame, key, data):
-        frame = self.full_frame_zeros.copy()
-
         rows, cols, ul = self._unpack_geom(key)
         try:
             frame[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = data
@@ -64,14 +62,14 @@ class MetadataWrapper(Metadata):
                                                'section')
         return frame
 
-    def embed_im(self, frame_im, key, data):
+    def embed_im(self, im_area, key, data):
         rows, cols, ul = self._unpack_geom_im(key)
         try:
-            frame_im[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = data
+            im_area[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = data
         except Exception:
             raise ReadMetadataWrapperException('Data does not fit in selected '
                                                'section')
-        return frame_im
+        return im_area
 
     def imaging_slice(self, frame):
         """Select only the real counts from full frame and exclude virtual.
@@ -80,38 +78,55 @@ class MetadataWrapper(Metadata):
         acting on only the image frame.
 
         """
-        rows_pre, cols_pre, ul_pre = self._unpack_geom('prescan')
-        rows_ovr, cols_ovr, ul_ovr = self._unpack_geom('overscan')
-        return frame[0:ul_ovr[0], ul_pre[1]+cols_pre:]
+        rows, cols, ul = self._imaging_area_geom()
 
-    def imaging_embed(self, full_frame, frame_im):
+        return frame[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols]
+
+    def imaging_embed(self, frame, im_area):
         """Add the imaging area back to the full frame."""
-        rows_pre, cols_pre, ul_pre = self._unpack_geom('prescan')
-        rows_ovr, cols_ovr, ul_ovr = self._unpack_geom('overscan')
+        rows, cols, ul = self._imaging_area_geom()
 
-        full_frame[0:ul_ovr[0], ul_pre[1]+cols_pre:] = frame_im
-        return full_frame
+        frame[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = im_area
+        return frame
 
     def _unpack_geom_im(self, key):
         """Wrapper for _unpack_geom, transforms ul locations from full frame
         coords to imaging area coords.
 
         """
+        # Unpack geomotry of requested section
         rows, cols, ul_original = self._unpack_geom(key)
+        # Unpack geometry of imaging area
+        rows_im, cols_im, ul_im = self._imaging_area_geom()
 
-        # Shift all upper left locations by the upper left of dark_ref_top.
-        _, _, ul_dark_ref_top = self._unpack_geom('dark_ref_top')
+        # Shift upper left locations by the upper left of the imaging area
         ul = ul_original.copy()
-        ul[1] -= ul_dark_ref_top[1]
+        ul[0] -= ul_im[0]
+        ul[1] -= ul_im[1]
+
+        # Make sure new geom is valid
+        pass
 
         return rows, cols, ul
 
-    def slice_section_im(self, frame_im, key):
+    def _imaging_area_geom(self):
+        """Return geometry of imaging area in reference to full frame."""
+        _, cols_pre, _ = self._unpack_geom('prescan')
+        rows_ovr, _, _ = self._unpack_geom('overscan')
+        _, _, ul_dark_ref_top = self._unpack_geom('dark_ref_top')
+
+        rows_im = self.frame_rows - rows_ovr
+        cols_im = self.frame_cols - cols_pre
+        ul_im = ul_dark_ref_top.copy()
+
+        return rows_im, cols_im, ul_im
+
+    def slice_section_im(self, im_area, key):
         """Slice 2d section out of imaging area of frame.
 
         Parameters
         ----------
-        frame_im : array_like
+        im_area : array_like
             Imaging area of frame, i.e. the full frame with the prescan and
             overscan removed:
                 full_frame[:overscan[ul[0]], overscan[ul[1]]:]
@@ -122,7 +137,7 @@ class MetadataWrapper(Metadata):
         """
         rows, cols, ul = self._unpack_geom_im(key)
 
-        section = frame_im[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols]
+        section = im_area[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols]
         if section.size == 0:
             raise ReadMetadataWrapperException('Corners invalid')
         return section

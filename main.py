@@ -12,8 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-from emccd_detect.emccd_detect import emccd_detect
-from emccd_detect.emccd_detect_new import EMCCDDetect
+from emccd_detect.emccd_detect import emccd_detect, EMCCDDetect
 from emccd_detect.util.imagesc import imagesc
 
 here = os.path.abspath(os.path.dirname(__file__))
