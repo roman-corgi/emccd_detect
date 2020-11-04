@@ -58,16 +58,16 @@ class EMCCDDetect:
         # Get just the image counts
         image_frame = self.image_section(self.meta.imaging_slice(full_frame))
 
-
+        # Get the serial counts
         full_frame = self.meta.imaging_embed(full_frame, image_frame)
         serial_frame = self.serial_register(full_frame)
 
         # Reshape from 1d to 2d
         return serial_frame.reshape(full_frame.shape)
 
-    def image_section(self, active_frame):
+    def image_section(self, imaging_area):
         # Mean photo-electrons after inegrating over frametime
-        mean_phe_map = active_frame * self.frametime * self.qe
+        mean_phe_map = imaging_area * self.frametime * self.qe
 
         # Mean expected rate after integrating over frametime
         mean_dark = self.dark_current * self.frametime
@@ -75,23 +75,23 @@ class EMCCDDetect:
 
         # Actualize electrons at the pixels
         if self.shot_noise_on:
-            active_frame = np.random.poisson(mean_phe_map + mean_noise).astype(float)
+            imaging_area = np.random.poisson(mean_phe_map + mean_noise).astype(float)
         else:
-            active_frame = mean_phe_map + np.random.poisson(mean_noise,
+            imaging_area = mean_phe_map + np.random.poisson(mean_noise,
                                                             mean_phe_map.shape
                                                             ).astype(float)
 
-        # Simulate cosmic hits on image area
-        image = self.meta.slice_section_im(active_frame, 'image')
+        # Simulate cosmic hits on image section
+        image = self.meta.slice_section_im(imaging_area, 'image')
         image_cosm = cosmic_hits(image, self.cr_rate, self.frametime,
                                  self.pixel_pitch, self.full_well_image)
 
-        active_frame = self.meta.embed_im(active_frame, 'image', image_cosm)
+        imaging_area = self.meta.embed_im(imaging_area, 'image', image_cosm)
 
         # Cap at serial full well capacity
-        active_frame[active_frame > self.full_well_image] = self.full_well_image
+        imaging_area[imaging_area > self.full_well_image] = self.full_well_image
 
-        return active_frame
+        return imaging_area
 
     def serial_register(self, full_frame):
         # Actualize cic electrons in prescan and overscan pixels
