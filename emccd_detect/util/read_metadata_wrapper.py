@@ -4,7 +4,7 @@ import numpy as np
 from emccd_detect.util.read_metadata import Metadata
 
 
-class ReadMetadataWrapprException(Exception):
+class ReadMetadataWrapperException(Exception):
     """Exception class for read_metadata_wrapper module."""
 
 
@@ -53,23 +53,76 @@ class MetadataWrapper(Metadata):
         full_frame_m[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = 1
         return full_frame_m.astype(bool)
 
-    def embed(self, key, data):
-        full_frame = self.full_frame_zeros.copy()
+    def embed(self, frame, key, data):
+        frame = self.full_frame_zeros.copy()
 
         rows, cols, ul = self._unpack_geom(key)
         try:
-            full_frame[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = data
+            frame[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = data
         except Exception:
-            raise ReadMetadataWrapprException('Data does not fit in selected '
-                                              'section')
-        return full_frame
+            raise ReadMetadataWrapperException('Data does not fit in selected '
+                                               'section')
+        return frame
 
-    def active(self, full_frame):
+    def embed_im(self, frame_im, key, data):
+        rows, cols, ul = self._unpack_geom_im(key)
+        try:
+            frame_im[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = data
+        except Exception:
+            raise ReadMetadataWrapperException('Data does not fit in selected '
+                                               'section')
+        return frame_im
+
+    def imaging_slice(self, frame):
         """Select only the real counts from full frame and exclude virtual.
 
         Use this to transform mask and embed from acting on the full frame to
         acting on only the image frame.
+
         """
         rows_pre, cols_pre, ul_pre = self._unpack_geom('prescan')
         rows_ovr, cols_ovr, ul_ovr = self._unpack_geom('overscan')
-        return full_frame[0:ul_ovr[0], ul_pre[1]+cols_pre:]
+        return frame[0:ul_ovr[0], ul_pre[1]+cols_pre:]
+
+    def imaging_embed(self, full_frame, frame_im):
+        """Add the imaging area back to the full frame."""
+        rows_pre, cols_pre, ul_pre = self._unpack_geom('prescan')
+        rows_ovr, cols_ovr, ul_ovr = self._unpack_geom('overscan')
+
+        full_frame[0:ul_ovr[0], ul_pre[1]+cols_pre:] = frame_im
+        return full_frame
+
+    def _unpack_geom_im(self, key):
+        """Wrapper for _unpack_geom, transforms ul locations from full frame
+        coords to imaging area coords.
+
+        """
+        rows, cols, ul_original = self._unpack_geom(key)
+
+        # Shift all upper left locations by the upper left of dark_ref_top.
+        _, _, ul_dark_ref_top = self._unpack_geom('dark_ref_top')
+        ul = ul_original.copy()
+        ul[1] -= ul_dark_ref_top[1]
+
+        return rows, cols, ul
+
+    def slice_section_im(self, frame_im, key):
+        """Slice 2d section out of imaging area of frame.
+
+        Parameters
+        ----------
+        frame_im : array_like
+            Imaging area of frame, i.e. the full frame with the prescan and
+            overscan removed:
+                full_frame[:overscan[ul[0]], overscan[ul[1]]:]
+        key : str
+            Keyword referencing section to be sliced; must exist in geom and
+            must not be 'prescan' or 'overscan'.
+
+        """
+        rows, cols, ul = self._unpack_geom_im(key)
+
+        section = frame_im[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols]
+        if section.size == 0:
+            raise ReadMetadataWrapperException('Corners invalid')
+        return section

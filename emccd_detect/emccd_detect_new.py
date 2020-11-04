@@ -86,7 +86,7 @@ def emccd_detect(fluxmap,
     return serial_frame
 
 
-class EMCCDDetect(object):
+class EMCCDDetect:
     def __init__(self,
                  frametime,
                  em_gain=5000.,
@@ -97,7 +97,7 @@ class EMCCDDetect(object):
                  read_noise=100,
                  bias=0.,
                  qe=0.9,
-                 cr_rate=0.,
+                 cr_rate=1.,
                  pixel_pitch=13e-6,
                  shot_noise_on=True,
                  meta_path=None
@@ -120,16 +120,19 @@ class EMCCDDetect(object):
         self.meta = MetadataWrapper(self.meta_path)
 
     def sim_frame(self, fluxmap):
-        # Embed fluxmap in full frame
-        full_frame = self.meta.embed('image', fluxmap)
+        # Embed fluxmap in the correct position within the full frame
+        full_frame = self.meta.embed(self.meta.full_frame_zeros, 'image',
+                                     fluxmap)
 
-        # Get just the serial counts
-        image_frame = self.image_section(full_frame)
+        # Get just the image counts
+        image_frame = self.image_section(self.meta.imaging_slice(full_frame))
 
-        serial_frame = serial_register(image_frame, self.em_gain, self.cic,
-                                       self.full_well_serial, self.read_noise,
-                                       self.bias)
-        return serial_frame
+
+        full_frame = self.meta.imaging_embed(full_frame, image_frame)
+        serial_frame = self.serial_register(full_frame)
+
+        # Reshape from 1d to 2d
+        return serial_frame.reshape(full_frame.shape)
 
     def image_section(self, active_frame):
         # Mean photo-electrons after inegrating over frametime
@@ -148,16 +151,39 @@ class EMCCDDetect(object):
                                                             ).astype(float)
 
         # Simulate cosmic hits on image area
-        image = self.meta.active(self.meta.slice_section(active_frame))
-        image_m = self.meta.active(self.meta.mask('image'))
-        active_frame[image_m] = cosmic_hits(image, self.cr_rate,
-                                            self.frametime, self.pixel_pitch,
-                                            self.full_well_image)
+        image = self.meta.slice_section_im(active_frame, 'image')
+        image_cosm = cosmic_hits(image, self.cr_rate, self.frametime,
+                                 self.pixel_pitch, self.full_well_image)
+
+        active_frame = self.meta.embed_im(active_frame, 'image', image_cosm)
 
         # Cap at serial full well capacity
         active_frame[active_frame > self.full_well_image] = self.full_well_image
 
         return active_frame
+
+    def serial_register(self, full_frame):
+        # Actualize cic electrons in prescan and overscan pixels
+        virtual_mask = self.meta.mask('prescan') + self.meta.mask('overscan')
+        full_frame[virtual_mask] = np.random.poisson(full_frame[virtual_mask]
+                                                     + self.cic)
+
+        # Flatten image area row by row to simulate readout to serial register
+        serial_frame = full_frame.ravel()
+
+        # Apply EM gain
+        serial_frame = rand_em_gain(serial_frame, self.em_gain)
+
+        # Simulate saturation tails
+        # serial_frame = sat_tails(serial_frame, full_well_serial)
+        # Cap at full well capacity of gain register
+        serial_frame[serial_frame > self.full_well_serial] = self.full_well_serial
+
+        # Apply fixed pattern, read noise, and bias
+        serial_frame += make_fixed_pattern(serial_frame)
+        serial_frame += make_read_noise(serial_frame, self.read_noise) + self.bias
+
+        return serial_frame
 
 
 def image_section(active_frame, frametime, full_well_image, dark_current, cic, qe,
