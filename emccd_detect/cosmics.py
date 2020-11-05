@@ -2,7 +2,6 @@
 """Generate cosmic hits."""
 from __future__ import absolute_import, division, print_function
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -96,6 +95,8 @@ def sat_tails(serial_frame, full_well_serial):
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+
     full_well_serial = 90000
 
     row = np.ones(100)
