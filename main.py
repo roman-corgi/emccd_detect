@@ -12,7 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-from emccd_detect.emccd_detect import emccd_detect, EMCCDDetect
+from emccd_detect.emccd_detect import EMCCDDetect
 from emccd_detect.util.imagesc import imagesc
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -45,11 +45,6 @@ emccd = EMCCDDetect(frametime, meta_path=Path(here, 'data', 'metadata.yaml'))
 image = np.zeros((1024, 1024))
 image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
 sim_im = emccd.sim_frame(image)
-
-# Simulate single image
-# sim_im = emccd_detect(np.ones((1137, 2144))*0.1, frametime, em_gain, full_well_image,
-#                       full_well_serial, dark_current, cic, read_noise, bias,
-#                       qe, cr_rate, pixel_pitch, shot_noise_on)
 
 write_to_file = False
 if write_to_file:
