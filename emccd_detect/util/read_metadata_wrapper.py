@@ -43,8 +43,13 @@ class MetadataWrapper(Metadata):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.full_frame_zeros = np.zeros((self.frame_rows, self.frame_cols),
-                                         dtype=int)
+
+        # Get imaging area geometry
+        self.rows_im, self.cols_im, self.ul_im = self._imaging_area_geom()
+
+        # Make some zeros frames for initial creation of arrays
+        self.imaging_area_zeros = np.zeros((self.rows_im, self.cols_im))
+        self.full_frame_zeros = np.zeros((self.frame_rows, self.frame_cols))
 
     def mask(self, key):
         full_frame_m = self.full_frame_zeros.copy()

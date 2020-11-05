@@ -51,21 +51,26 @@ class EMCCDDetect:
         self.meta = MetadataWrapper(self.meta_path)
 
     def sim_frame(self, fluxmap):
-        # Embed fluxmap in the correct position within the full frame
-        full_frame = self.meta.embed(self.meta.full_frame_zeros, 'image',
-                                     fluxmap)
+        # Embed fluxmap in the correct position within the imaging area
+        imaging_area = self.meta.embed_im(self.meta.imaging_area_zeros.copy(),
+                                          'image', fluxmap)
 
-        # Get just the image counts
-        image_frame = self.image_section(self.meta.imaging_slice(full_frame))
+        # Simulate the integration process
+        imaging_area = self.integrate(imaging_area)
 
-        # Get the serial counts
-        full_frame = self.meta.imaging_embed(full_frame, image_frame)
-        serial_frame = self.serial_register(full_frame)
+        # Simulate parallel clocking
+        # Embed imaging area in full frame
+        full_frame = self.meta.imaging_embed(self.meta.full_frame_zeros.copy(),
+                                             imaging_area)
+        pass
+
+        # Simulate serial clocking
+        full_frame_flat = self.clock_serial(full_frame)
 
         # Reshape from 1d to 2d
-        return serial_frame.reshape(full_frame.shape)
+        return full_frame_flat.reshape(full_frame.shape)
 
-    def image_section(self, imaging_area):
+    def integrate(self, imaging_area):
         # Mean photo-electrons after inegrating over frametime
         mean_phe_map = imaging_area * self.frametime * self.qe
 
@@ -93,7 +98,7 @@ class EMCCDDetect:
 
         return imaging_area
 
-    def serial_register(self, full_frame):
+    def clock_serial(self, full_frame):
         # Actualize cic electrons in prescan and overscan pixels
         virtual_mask = self.meta.mask('prescan') + self.meta.mask('overscan')
         full_frame[virtual_mask] = np.random.poisson(full_frame[virtual_mask]
