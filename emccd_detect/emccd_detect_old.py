@@ -81,10 +81,7 @@ def image_section(active_frame, frametime, full_well_image, dark_current, cic, q
         Image area full well capacity (e-).
     dark_current: float
         Dark current rate (e-/pix/s).
-    cic : float
-        Clock induced charge (e-/pix/frame).
-    qe : float
-        Quantum efficiency.
+    cic  efficiency.
     cr_rate : float
         Cosmic ray rate (hits/cm^2/s).
     pixel_pitch : float
