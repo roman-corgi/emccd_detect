@@ -8,6 +8,13 @@ import numpy as np
 def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
     """Generate cosmic hits.
 
+    This function does not return the values of the cosmics; instead it returns
+    the electron map which occurs as a result of the photelectric effect when
+    the cosmics strike the detector. This allows the user to ignore the
+    physical properties of the cosmics and focus only on their effect on the
+    detector. This is especially helpful when setting max_val greater than the
+    full well capacity, as it allows the user to create saturated cosmics.
+
     Parameters
     ----------
     image_frame : array_like
