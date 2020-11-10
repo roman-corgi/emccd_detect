@@ -2,19 +2,11 @@
 """Simulation for EMCCD detector."""
 from __future__ import absolute_import, division, print_function
 
-import os
-
 import numpy as np
-import scipy.interpolate as interp
-from pathlib import Path
 
-from emccd_detect.cosmics import cosmic_hits, sat_tails
+from emccd_detect.cosmics import cosmic_hits
 from emccd_detect.rand_em_gain import rand_em_gain
-from emccd_detect.util.read_metadata import Metadata
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
-
-here = Path(os.path.abspath(os.path.dirname(__file__)))
-META = Metadata(Path(here.parent, 'data', 'metadata.yaml'))
 
 
 class EMCCDDetect:
@@ -28,7 +20,7 @@ class EMCCDDetect:
                  read_noise=100,
                  bias=0.,
                  qe=0.9,
-                 cr_rate=0.,
+                 cr_rate=1.,
                  pixel_pitch=13e-6,
                  shot_noise_on=True,
                  meta_path=None
@@ -51,12 +43,13 @@ class EMCCDDetect:
         self.meta = MetadataWrapper(self.meta_path)
 
     def sim_frame(self, fluxmap):
-        # Embed fluxmap in the correct position within the imaging area
-        imaging_area = self.meta.embed_im(self.meta.imaging_area_zeros.copy(),
+        # Embed fluxmap in the correct position within the imaging area. This
+        # will be called full fluxmap to distinguish it from the input fluxmap
+        full_fluxmap = self.meta.embed_im(self.meta.imaging_area_zeros.copy(),
                                           'image', fluxmap)
 
         # Simulate the integration process
-        imaging_area = self.integrate(imaging_area)
+        imaging_area = self.integrate(fluxmap)
 
         # Simulate parallel clocking
         # Embed imaging area in full frame
@@ -70,31 +63,16 @@ class EMCCDDetect:
         # Reshape from 1d to 2d
         return full_frame_flat.reshape(full_frame.shape)
 
-    def integrate(self, imaging_area):
-        # Mean photo-electrons after inegrating over frametime
-        mean_phe_map = imaging_area * self.frametime * self.qe
+    def integrate(self, fluxmap):
+        # Simulate cosmic hits on
+        # cosm_fluxmap = cosmic_hits(np.zeros_like(full_fluxmap), self.cr_rate,
+        #                            self.frametime, self.pixel_pitch,
+        #                            self.full_well_image)
 
-        # Mean expected rate after integrating over frametime
-        mean_dark = self.dark_current * self.frametime
-        mean_noise = mean_dark + self.cic
+        # cosm_full_fluxmap = self.meta.embed_im(self.meta.imaging_area_zeros,
+        #                                        'image', cosm_fluxmap)
 
-        # Actualize electrons at the pixels
-        if self.shot_noise_on:
-            imaging_area = np.random.poisson(mean_phe_map + mean_noise).astype(float)
-        else:
-            imaging_area = mean_phe_map + np.random.poisson(mean_noise,
-                                                            mean_phe_map.shape
-                                                            ).astype(float)
-
-        # Simulate cosmic hits on image section
-        image = self.meta.slice_section_im(imaging_area, 'image')
-        image_cosm = cosmic_hits(image, self.cr_rate, self.frametime,
-                                 self.pixel_pitch, self.full_well_image)
-
-        imaging_area = self.meta.embed_im(imaging_area, 'image', image_cosm)
-
-        # Cap at serial full well capacity
-        imaging_area[imaging_area > self.full_well_image] = self.full_well_image
+        imaging_area = self.imaging_area(fluxmap, self.frametime)
 
         return imaging_area
 
@@ -120,6 +98,64 @@ class EMCCDDetect:
         serial_frame += make_read_noise(serial_frame, self.read_noise) + self.bias
 
         return serial_frame
+
+    def imaging_area(self, fluxmap, frametime):
+        """Simulate imaging area pixel behavior for a given fluxmap and
+        frametime.
+
+        Note that the imaging area is defined as the active pixels which are
+        exposed to light plus the surrounding dark reference and transition
+        areas, which are covered and recieve no light. These pixels are
+        indentical to the active area, so while they recieve none of the
+        fluxmap they still have the same noise profile.
+
+        Parameters
+        ----------
+        fluxmap : array_like
+            Incident photon rate fluxmap (phot/pix/s).
+        frametime : float
+            Frame exposure time (s).
+
+        Returns
+        -------
+        actualized_e : array_like
+            Map of actualized electrons (e-).
+
+        """
+        # Initialize the imaging area pixels
+        imaging_area_zeros = self.meta.imaging_area_zeros.copy()
+
+        # Embed the fluxmap within the imaging area. Create a mask for
+        # referencing the fluxmap subsection later
+        imaging_area = self.meta.embed_im(imaging_area_zeros, 'image', fluxmap)
+        fluxmap_m = self.meta.imaging_slice(self.meta.mask('image'))
+
+        # Calculate mean photo-electrons after integrating over frametime
+        mean_phe_map = imaging_area * self.frametime * self.qe
+
+        # Calculate mean expected rate after integrating over frametime
+        mean_dark = self.dark_current * self.frametime
+        mean_noise = mean_dark + self.cic
+
+        # Actualize electrons at the pixels
+        if self.shot_noise_on:
+            actualized_e = np.random.poisson(mean_phe_map
+                                             + mean_noise).astype(float)
+        else:
+            actualized_e = mean_phe_map + np.random.poisson(mean_noise,
+                                                            mean_phe_map.shape
+                                                            ).astype(float)
+
+        # Add cosmic ray effects
+        cosm_actualized_e = cosmic_hits(np.zeros_like(fluxmap), self.cr_rate,
+                                        self.frametime, self.pixel_pitch,
+                                        self.full_well_image)
+        actualized_e[fluxmap_m.nonzero()] += cosm_actualized_e.ravel()
+
+        # Cap at pixel full well capacity
+        actualized_e[actualized_e > self.full_well_image] = self.full_well_image
+
+        return actualized_e
 
 
 def make_fixed_pattern(serial_frame):
