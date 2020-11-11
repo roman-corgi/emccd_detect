@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from emccd_detect.cosmics import cosmic_hits
+from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 
@@ -96,7 +96,7 @@ class EMCCDDetect:
         serial_frame = rand_em_gain(serial_frame, self.em_gain)
 
         # Simulate saturation tails
-        # serial_frame = sat_tails(serial_frame, full_well_serial)
+        serial_frame = sat_tails(serial_frame, self.full_well_serial)
         # Cap at full well capacity of gain register
         serial_frame[serial_frame > self.full_well_serial] = self.full_well_serial
 

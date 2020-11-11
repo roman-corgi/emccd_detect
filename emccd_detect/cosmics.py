@@ -90,15 +90,25 @@ def sat_tails(serial_frame, full_well_serial):
         Serial (gain) register full well capacity (e-).
 
     """
-    scale = .9
     overflow = 0.
+    overflow_i = 0.
     for i, pix in enumerate(serial_frame):
-        pix += overflow * scale
-        serial_frame[i] = pix
-        if pix > full_well_serial:
-            overflow = pix - full_well_serial
+        serial_frame[i] += _set_tail_val(overflow, overflow_i, i)
+
+        if serial_frame[i] > full_well_serial:
+            overflow = serial_frame[i] - full_well_serial
+            overflow_i = i
 
     return serial_frame
+
+
+def _set_tail_val(overflow, overflow_i, i):
+    relative_i = i+1 - overflow_i
+    tail_val = overflow * 1 / relative_i
+    if tail_val < 1000:
+        tail_val = 0
+
+    return tail_val
 
 
 if __name__ == '__main__':
@@ -107,7 +117,7 @@ if __name__ == '__main__':
     full_well_serial = 90000
 
     row = np.ones(100)
-    row[2] = full_well_serial * 100
+    row[2] = full_well_serial * 2
 
     tail_row = sat_tails(row, full_well_serial)
 
