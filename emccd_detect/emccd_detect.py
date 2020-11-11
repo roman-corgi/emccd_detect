@@ -40,10 +40,9 @@ class EMCCDDetect:
         # Initialize metadata
         self.meta = MetadataWrapper(self.meta_path)
 
-    def sim_frame(self, fluxmap, frametime):
+    def sim_full_frame(self, fluxmap, frametime):
         # Initialize the imaging area pixels
         imaging_area_zeros = self.meta.imaging_area_zeros.copy()
-
         # Embed the fluxmap within the imaging area. Create a mask for
         # referencing the input fluxmap subsection later
         fluxmap_full = self.meta.embed_im(imaging_area_zeros, 'image',
@@ -53,18 +52,21 @@ class EMCCDDetect:
         # Simulate the integration process
         actualized_e = self.integrate(fluxmap_full, frametime, exposed_pix_m)
 
-        # Embed the imaging area within the full frame
-        full_frame = self.meta.imaging_embed(self.meta.full_frame_zeros.copy(),
-                                             actualized_e)
-
         # Simulate parallel clocking
         pass  # XXX Call arcticpy here
 
+        # Initialize the serial register elements.
+        full_frame_zeros = self.meta.full_frame_zeros.copy()
+        # Embed the imaging area within the full frame. Create a mask for
+        # referencing the prescan and overscan subsections later
+        actualized_e_full = self.meta.imaging_embed(full_frame_zeros, actualized_e)
+        empty_element_m = self.meta.mask('prescan') + self.meta.mask('overscan')
+
         # Simulate serial clocking
-        full_frame_flat = self.clock_serial(full_frame)
+        amplified_counts = self.clock_serial(actualized_e_full, empty_element_m)
 
         # Reshape from 1d to 2d
-        return full_frame_flat.reshape(full_frame.shape)
+        return amplified_counts.reshape(actualized_e_full.shape)
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
         # Add cosmic ray effects
@@ -78,35 +80,29 @@ class EMCCDDetect:
         cosm_actualized_e[exposed_pix_m == 0] = 0
 
         # Simulate imaging area pixel effects over time
-        actualized_e = self.imaging_area_elements(fluxmap_full, frametime,
-                                                  cosm_actualized_e)
+        actualized_e = self._imaging_area_elements(fluxmap_full, frametime,
+                                                   cosm_actualized_e)
 
         return actualized_e
 
-    def clock_serial(self, full_frame):
+    def clock_serial(self, actualized_e_full, empty_element_m):
         # Actualize cic electrons in prescan and overscan pixels
-        virtual_mask = self.meta.mask('prescan') + self.meta.mask('overscan')
-        full_frame[virtual_mask] = np.random.poisson(full_frame[virtual_mask]
-                                                     + self.cic)
+        # XXX Another place where we are fudging a little
+        actualized_e_full[empty_element_m] = np.random.poisson(actualized_e_full[empty_element_m]
+                                                               + self.cic)
 
-        # Flatten image area row by row to simulate readout to serial register
-        serial_frame = full_frame.ravel()
+        # Flatten row by row
+        actualized_e_full_flat = actualized_e_full.ravel()
 
-        # Apply EM gain
-        serial_frame = rand_em_gain(serial_frame, self.em_gain)
+        # Pass electrons through serial register elements
+        serial_counts = self._serial_register_elements(actualized_e_full_flat)
 
-        # Simulate saturation tails
-        serial_frame = sat_tails(serial_frame, self.full_well_serial)
-        # Cap at full well capacity of gain register
-        serial_frame[serial_frame > self.full_well_serial] = self.full_well_serial
+        # Pass electrons through amplifier
+        amplified_counts = self._amp(serial_counts)
 
-        # Apply fixed pattern, read noise, and bias
-        serial_frame += make_fixed_pattern(serial_frame)
-        serial_frame += make_read_noise(serial_frame, self.read_noise) + self.bias
+        return amplified_counts
 
-        return serial_frame
-
-    def imaging_area_elements(self, fluxmap_full, frametime, cosm_actualized_e):
+    def _imaging_area_elements(self, fluxmap_full, frametime, cosm_actualized_e):
         """Simulate imaging area pixel behavior for a given fluxmap and
         frametime.
 
@@ -122,6 +118,8 @@ class EMCCDDetect:
             Incident photon rate fluxmap (phot/pix/s).
         frametime : float
             Frame exposure time (s).
+        cosm_actualized_e : array_like
+            Electrons actualized from cosmic rays, same size as fluxmap_full (-e).
 
         Returns
         -------
@@ -154,12 +152,34 @@ class EMCCDDetect:
 
         return actualized_e
 
+    def _serial_register_elements(self, actualized_e_full_flat):
+        """Simulate serial register element behavior.
 
-def make_fixed_pattern(serial_frame):
-    """Simulate EMCCD fixed pattern."""
-    return np.zeros(serial_frame.shape)  # This will be modeled later
+        Parameters
+        ----------
+        actualized_e_full_flat : array_like
+            Electrons actualized before clocking through the serial register.
 
+        Returns
+        -------
+        serial_counts : array_like
+            Electrons counts after passing through serial register elements.
 
-def make_read_noise(serial_frame, read_noise):
-    """Simulate EMCCD read noise."""
-    return read_noise * np.random.normal(size=serial_frame.shape)
+        """
+        # Apply EM gain
+        serial_counts = rand_em_gain(actualized_e_full_flat, self.em_gain)
+
+        # Simulate saturation tails
+        serial_counts = sat_tails(serial_counts, self.full_well_serial)
+
+        # Cap at full well capacity of gain register
+        serial_counts[serial_counts > self.full_well_serial] = self.full_well_serial
+
+        return serial_counts
+
+    def _amp(self, serial_counts):
+        # Create read noise distribution
+        read_noise_dist = self.read_noise * np.random.normal(size=serial_counts.shape)
+
+        # Apply read noise and bias to counts
+        return serial_counts + read_noise_dist + self.bias
