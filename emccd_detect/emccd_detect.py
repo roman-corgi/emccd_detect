@@ -42,20 +42,25 @@ class EMCCDDetect:
         # Initialize metadata
         self.meta = MetadataWrapper(self.meta_path)
 
-    def sim_frame(self, fluxmap):
-        # Embed fluxmap in the correct position within the imaging area. This
-        # will be called full fluxmap to distinguish it from the input fluxmap
-        full_fluxmap = self.meta.embed_im(self.meta.imaging_area_zeros.copy(),
-                                          'image', fluxmap)
+    def sim_frame(self, fluxmap, frametime):
+        # Initialize the imaging area pixels
+        imaging_area_zeros = self.meta.imaging_area_zeros.copy()
+
+        # Embed the fluxmap within the imaging area. Create a mask for
+        # referencing the input fluxmap subsection later
+        fluxmap_full = self.meta.embed_im(imaging_area_zeros, 'image',
+                                          fluxmap)
+        exposed_pix_m = self.meta.imaging_slice(self.meta.mask('image'))
 
         # Simulate the integration process
-        imaging_area = self.integrate(fluxmap)
+        actualized_e = self.integrate(fluxmap_full, frametime, exposed_pix_m)
+
+        # Embed the imaging area within the full frame
+        full_frame = self.meta.imaging_embed(self.meta.full_frame_zeros.copy(),
+                                             actualized_e)
 
         # Simulate parallel clocking
-        # Embed imaging area in full frame
-        full_frame = self.meta.imaging_embed(self.meta.full_frame_zeros.copy(),
-                                             imaging_area)
-        pass
+        pass  # XXX Call arcticpy here
 
         # Simulate serial clocking
         full_frame_flat = self.clock_serial(full_frame)
@@ -63,18 +68,22 @@ class EMCCDDetect:
         # Reshape from 1d to 2d
         return full_frame_flat.reshape(full_frame.shape)
 
-    def integrate(self, fluxmap):
-        # Simulate cosmic hits on
-        # cosm_fluxmap = cosmic_hits(np.zeros_like(full_fluxmap), self.cr_rate,
-        #                            self.frametime, self.pixel_pitch,
-        #                            self.full_well_image)
+    def integrate(self, fluxmap_full, frametime, exposed_pix_m):
+        # Add cosmic ray effects
+        # XXX Want to change this to units of flux later
+        cosm_actualized_e = cosmic_hits(np.zeros_like(fluxmap_full),
+                                        self.cr_rate, frametime,
+                                        self.pixel_pitch, self.full_well_image)
 
-        # cosm_full_fluxmap = self.meta.embed_im(self.meta.imaging_area_zeros,
-        #                                        'image', cosm_fluxmap)
+        # Mask flux out of unexposed (covered) pixels
+        fluxmap_full[exposed_pix_m == 0] = 0
+        cosm_actualized_e[exposed_pix_m == 0] = 0
 
-        imaging_area = self.imaging_area(fluxmap, self.frametime)
+        # Simulate imaging area pixel effects over time
+        actualized_e = self.imaging_area_elements(fluxmap_full, frametime,
+                                                  cosm_actualized_e)
 
-        return imaging_area
+        return actualized_e
 
     def clock_serial(self, full_frame):
         # Actualize cic electrons in prescan and overscan pixels
@@ -99,7 +108,7 @@ class EMCCDDetect:
 
         return serial_frame
 
-    def imaging_area(self, fluxmap, frametime):
+    def imaging_area_elements(self, fluxmap_full, frametime, cosm_actualized_e):
         """Simulate imaging area pixel behavior for a given fluxmap and
         frametime.
 
@@ -111,7 +120,7 @@ class EMCCDDetect:
 
         Parameters
         ----------
-        fluxmap : array_like
+        fluxmap_full : array_like
             Incident photon rate fluxmap (phot/pix/s).
         frametime : float
             Frame exposure time (s).
@@ -122,16 +131,8 @@ class EMCCDDetect:
             Map of actualized electrons (e-).
 
         """
-        # Initialize the imaging area pixels
-        imaging_area_zeros = self.meta.imaging_area_zeros.copy()
-
-        # Embed the fluxmap within the imaging area. Create a mask for
-        # referencing the fluxmap subsection later
-        imaging_area = self.meta.embed_im(imaging_area_zeros, 'image', fluxmap)
-        fluxmap_m = self.meta.imaging_slice(self.meta.mask('image'))
-
         # Calculate mean photo-electrons after integrating over frametime
-        mean_phe_map = imaging_area * self.frametime * self.qe
+        mean_phe_map = fluxmap_full * self.frametime * self.qe
 
         # Calculate mean expected rate after integrating over frametime
         mean_dark = self.dark_current * self.frametime
@@ -147,10 +148,8 @@ class EMCCDDetect:
                                                             ).astype(float)
 
         # Add cosmic ray effects
-        cosm_actualized_e = cosmic_hits(np.zeros_like(fluxmap), self.cr_rate,
-                                        self.frametime, self.pixel_pitch,
-                                        self.full_well_image)
-        actualized_e[fluxmap_m.nonzero()] += cosm_actualized_e.ravel()
+        # XXX Want to change this to units of flux later
+        actualized_e += cosm_actualized_e
 
         # Cap at pixel full well capacity
         actualized_e[actualized_e > self.full_well_image] = self.full_well_image
