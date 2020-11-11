@@ -11,7 +11,6 @@ from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 
 class EMCCDDetect:
     def __init__(self,
-                 frametime,
                  em_gain=5000.,
                  full_well_image=50000.,
                  full_well_serial=90000.,
@@ -25,7 +24,6 @@ class EMCCDDetect:
                  shot_noise_on=True,
                  meta_path=None
                  ):
-        self.frametime = frametime
         self.em_gain = em_gain
         self.full_well_image = full_well_image
         self.full_well_serial = full_well_serial
@@ -132,10 +130,10 @@ class EMCCDDetect:
 
         """
         # Calculate mean photo-electrons after integrating over frametime
-        mean_phe_map = fluxmap_full * self.frametime * self.qe
+        mean_phe_map = fluxmap_full * frametime * self.qe
 
         # Calculate mean expected rate after integrating over frametime
-        mean_dark = self.dark_current * self.frametime
+        mean_dark = self.dark_current * frametime
         mean_noise = mean_dark + self.cic
 
         # Actualize electrons at the pixels

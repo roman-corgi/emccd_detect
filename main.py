@@ -40,7 +40,7 @@ shot_noise_on = True  # Apply shot noise
 eperdn = 0.88
 
 # Test class
-emccd = EMCCDDetect(frametime, meta_path=Path(here, 'data', 'metadata.yaml'))
+emccd = EMCCDDetect(meta_path=Path(here, 'data', 'metadata.yaml'))
 # Put fluxmap in 1024x1024 image section
 image = np.zeros((1024, 1024))
 image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
