@@ -1,9 +1,19 @@
+# -*- coding: utf-8 -*-
+"""Simulation for EMCCD detector."""
+from __future__ import absolute_import, division, print_function
+
+import numpy as np
+
+from emccd_detect.cosmics import cosmic_hits
+from emccd_detect.rand_em_gain import rand_em_gain
+
+
 def emccd_detect(fluxmap,
                  frametime,
-                 em_gain=5000.,
-                 full_well_image=50000.,
-                 full_well_serial=90000.,
-                 dark_current=0.0028,
+                 em_gain,
+                 full_well_image=60000.,
+                 full_well_serial=100000.,
+                 dark_current=0.00028,
                  cic=0.01,
                  read_noise=100,
                  bias=0.,
@@ -23,23 +33,23 @@ def emccd_detect(fluxmap,
     em_gain : float
         CCD em_gain (e-/photon).
     full_well_image : float
-        Image area full well capacity (e-).
+        Image area full well capacity (e-). Defaults to 6000.
     full_well_serial : float
-        Serial (gain) register full well capacity (e-).
+        Serial (gain) register full well capacity (e-). Defaults to 100000.
     dark_current: float
-        Dark current rate (e-/pix/s).
+        Dark current rate (e-/pix/s). Defaults to 0.00028.
     cic : float
-        Clock induced charge (e-/pix/frame).
+        Clock induced charge (e-/pix/frame). Defaults to 0.01.
     read_noise : float
-        Read noise (e-/pix/frame).
+        Read noise (e-/pix/frame). Defaults to 100.
     bias : float
-        Bias offset (e-).
+        Bias offset (e-). Defaults to 0.
     qe : float
-        Quantum efficiency.
+        Quantum efficiency. Defaults to 0.9.
     cr_rate : float
-        Cosmic ray rate (hits/cm^2/s).
+        Cosmic ray rate (hits/cm^2/s). Defaults to 0.
     pixel_pitch : float
-        Distance between pixel centers (m).
+        Distance between pixel centers (m). Defaults to 13e-6.
     shot_noise_on : bool, optional
         Apply shot noise. Defaults to True.
 
@@ -56,24 +66,21 @@ def emccd_detect(fluxmap,
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
-    # Separate image and serial register simulation into two parts, as the real
-    # detector will be separated in this way
-    image_frame = image_section(fluxmap, frametime, full_well_image,
-                                dark_current, cic, qe, cr_rate, pixel_pitch,
-                                shot_noise_on)
+    image_frame = image_area(fluxmap, frametime, full_well_image, dark_current,
+                             cic, qe, cr_rate, pixel_pitch, shot_noise_on)
 
-    serial_frame = serial_register(image_frame, em_gain, cic, full_well_serial,
+    serial_frame = serial_register(image_frame, em_gain, full_well_serial,
                                    read_noise, bias)
     return serial_frame
 
 
-def image_section(active_frame, frametime, full_well_image, dark_current, cic, qe,
-                  cr_rate, pixel_pitch, shot_noise_on):
-    """Simulate detector image section.
+def image_area(fluxmap, frametime, full_well_image, dark_current, cic, qe,
+               cr_rate, pixel_pitch, shot_noise_on):
+    """Simulate detector image area.
 
     Parameters
     ----------
-    active_frame : array_like, float
+    fluxmap : array_like, float
         Input fluxmap (photons/pix/s).
     frametime : float
         Frame time (s).
@@ -81,7 +88,10 @@ def image_section(active_frame, frametime, full_well_image, dark_current, cic, q
         Image area full well capacity (e-).
     dark_current: float
         Dark current rate (e-/pix/s).
-    cic  efficiency.
+    cic : float
+        Clock induced charge (e-/pix/frame).
+    qe : float
+        Quantum efficiency.
     cr_rate : float
         Cosmic ray rate (hits/cm^2/s).
     pixel_pitch : float
@@ -96,7 +106,7 @@ def image_section(active_frame, frametime, full_well_image, dark_current, cic, q
 
     """
     # Mean photo-electrons after inegrating over frametime
-    mean_phe_map = active_frame * frametime * qe
+    mean_phe_map = fluxmap * frametime * qe
 
     # Mean expected rate after integrating over frametime
     mean_dark = dark_current * frametime
@@ -104,31 +114,22 @@ def image_section(active_frame, frametime, full_well_image, dark_current, cic, q
 
     # Actualize electrons at the pixels
     if shot_noise_on:
-        active_frame = np.random.poisson(mean_phe_map + mean_noise).astype(float)
+        image_frame = np.random.poisson(mean_phe_map + mean_noise).astype(float)
     else:
-        active_frame = mean_phe_map + np.random.poisson(mean_noise,
-                                                        mean_phe_map.shape
-                                                        ).astype(float)
+        image_frame = mean_phe_map + np.random.poisson(mean_noise,
+                                                       mean_phe_map.shape
+                                                       ).astype(float)
 
     # Simulate cosmic hits on image area
-    active_frame = cosmic_hits(active_frame, cr_rate, frametime, pixel_pitch,
-                               full_well_image)
-
-    # Create image frame
-    image_frame = np.zeros([META.geom['prescan']['rows'],
-                            META.geom['overscan']['cols']])
-
-    # Place active frame in image frame
-    ul = (META.geom['dark_ref_top']['rows'] + META.geom['transition_top']['rows'],
-          META.geom['dark_ref_left']['cols'])
-    image_frame = embed_fluxmap(active_frame, image_frame, ul)
+    image_frame = cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch,
+                              full_well_image)
 
     # Cap at full well capacity of image area
     image_frame[image_frame > full_well_image] = full_well_image
     return image_frame
 
 
-def serial_register(image_frame, em_gain, cic, full_well_serial, read_noise, bias):
+def serial_register(image_frame, em_gain, full_well_serial, read_noise, bias):
     """Simulate detector serial (gain) register.
 
     Parameters
@@ -150,21 +151,11 @@ def serial_register(image_frame, em_gain, cic, full_well_serial, read_noise, bia
         Serial register frame (e-).
 
     """
-    # Make prescan
-    prescan = np.zeros([META.geom['prescan']['rows'],
-                        META.geom['prescan']['cols']])
-    prescan = np.random.poisson(prescan + cic)
-
-    serial_frame2d = np.append(prescan, image_frame, axis=1)
-
     # Flatten image area row by row to simulate readout to serial register
-    serial_frame = serial_frame2d.ravel()
+    serial_frame = image_frame.ravel()
 
     # Apply EM gain
     serial_frame = rand_em_gain(serial_frame, em_gain)
-
-    # Simulate saturation tails
-    # serial_frame = sat_tails(serial_frame, full_well_serial)
     # Cap at full well capacity of gain register
     serial_frame[serial_frame > full_well_serial] = full_well_serial
 
@@ -173,37 +164,14 @@ def serial_register(image_frame, em_gain, cic, full_well_serial, read_noise, bia
     serial_frame += make_read_noise(serial_frame, read_noise) + bias
 
     # Reshape for viewing
-    return serial_frame.reshape(serial_frame2d.shape)
+    return serial_frame.reshape(image_frame.shape)
 
 
-def embed_fluxmap(fluxmap, image_frame, ul):
-    """Add fluxmap at specified position on image section.
+def make_fixed_pattern(serial_frame):
+    """Simulate EMCCD fixed pattern."""
+    return np.zeros(serial_frame.shape)  # This will be modeled later
 
-    Parameters
-    ----------
-    fluxmap : array_like
-        Input fluxmap (photons/pix/s).
-    image_frame : array_like
-        Image area frame before electrons are actualized (photons/pix/s).
-    ul : tuple
-        Upper left corner of fluxmap wrt upper left corner of image section.
 
-    Returns
-    -------
-    image_frame : array_like
-        Image area frame before electrons are actualized (photons/pix/s).
-
-    """
-    pad = np.zeros(image_frame.shape)
-
-    # Initially place fluxmap at 1,1 so it is padded all around
-    pad[1:1+fluxmap.shape[0], 1:1+fluxmap.shape[1]] = fluxmap
-
-    # Initialize interpolation
-    rows = np.arange(pad.shape[0])
-    cols = np.arange(pad.shape[1])
-    f = interp.interp2d(cols, rows, pad)
-
-    # Subtract 1 from ul coordinates to compensate for padding
-    pad_interp = f(cols - (ul[1]-1), rows - (ul[0]-1))
-    return image_frame + pad_interp
+def make_read_noise(serial_frame, read_noise):
+    """Simulate EMCCD read noise."""
+    return read_noise * np.random.normal(size=serial_frame.shape)
