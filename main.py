@@ -23,6 +23,10 @@ fits_name = 'sci_frame.fits'
 fits_path = Path(here, 'data', fits_name)
 fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
 
+# Put fluxmap in 1024x1024 image section
+image = np.zeros((1024, 1024))
+image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
+
 # Simulation inputs
 frametime = 100.  # Frame time (s)
 em_gain = 5000.  # CCD EM gain (e-/photon)
@@ -36,7 +40,7 @@ qe = 0.9  # Quantum efficiency
 cr_rate = 0.  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
 pixel_pitch = 13e-6  # Distance between pixel centers (m)
 shot_noise_on = True  # Apply shot noise
-np.random.seed(0)
+
 # Use class
 emccd = EMCCDDetect(
     meta_path=Path(here, 'data', 'metadata.yaml'),
@@ -53,35 +57,14 @@ emccd = EMCCDDetect(
     shot_noise_on=shot_noise_on
 )
 
-# Put fluxmap in 1024x1024 image section
-image = np.zeros((1024, 1024))
-image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap.copy()
-np.random.seed(0)
-sim_class_full_init = emccd.sim_full_frame(image, frametime)
-sim_class_full = emccd.slice_fluxmap(sim_class_full_init)
-sim_class_full = sim_class_full[0:fluxmap.shape[0], 0:fluxmap.shape[1]]
-np.random.seed(0)
-sim_class_sub = emccd.sim_sub_frame(fluxmap.copy(), frametime)
-np.random.seed(0)
+sim_full = emccd.sim_full_frame(image, frametime)
+# sim_class_full = emccd.slice_fluxmap(sim_full)
+# sim_class_full = sim_class_full[0:fluxmap.shape[0], 0:fluxmap.shape[1]]
+
+sim_sub = emccd.sim_sub_frame(fluxmap.copy(), frametime)
+
 # Use function wrapper
 sim_wrap = emccd_detect(
-    fluxmap=fluxmap,
-    frametime=frametime,
-    em_gain=em_gain,
-    full_well_image=full_well_image,
-    full_well_serial=full_well_serial,
-    dark_current=dark_current,
-    cic=cic,
-    read_noise=read_noise,
-    bias=bias,
-    qe=qe,
-    cr_rate=cr_rate,
-    pixel_pitch=pixel_pitch,
-    shot_noise_on=shot_noise_on
-)
-np.random.seed(0)
-# Use old function
-sim_old = emccd_detect_old(
     fluxmap=fluxmap,
     frametime=frametime,
     em_gain=em_gain,
@@ -101,7 +84,7 @@ write_to_file = False
 if write_to_file:
     # path = '/Users/sammiller/Documents/GitHub/proc_cgi_frame/data/sim/'
     path = '.'
-    fits.writeto(Path(path, 'sim.fits'), sim_class_full.astype(np.int32),
+    fits.writeto(Path(path, 'sim.fits'), sim_full.astype(np.int32),
                  overwrite=True)
 
 # Plot images
@@ -109,7 +92,7 @@ plot_images = True
 if plot_images:
     imagesc(fluxmap, 'Input Fluxmap')
 
-    for im in [sim_class_full, sim_class_sub, sim_wrap, sim_old]:
+    for im in [sim_full, sim_sub, sim_wrap]:
         subtitle = ('Gain: {:.0f}   Read Noise: {:.0f}e-   Frame Time: {:.0f}s'
                     .format(em_gain, read_noise, frametime))
         imagesc(im, 'Output Image\n' + subtitle)
