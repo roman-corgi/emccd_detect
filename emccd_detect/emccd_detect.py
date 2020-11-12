@@ -7,7 +7,10 @@ import numpy as np
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
-np.random.seed(0)
+from arcticpy.main import add_cti, remove_cti
+from arcticpy.roe import ROE
+from arcticpy.ccd import CCD
+from arcticpy.traps import Trap
 
 class EMCCDDetectBase:
     """Base class for EMCCD detector.
@@ -96,12 +99,12 @@ class EMCCDDetectBase:
         actualized_e = self.integrate(fluxmap, frametime, exposed_pix_m)
 
         # Simulate parallel clocking
-        actualized_e = self.clock_parallel(actualized_e)
+        parallel_counts = self.clock_parallel(actualized_e)
 
         # No empty elements
-        empty_element_m = np.zeros_like(actualized_e).astype(bool)
+        empty_element_m = np.zeros_like(parallel_counts).astype(bool)
         # Simulate serial clocking
-        gain_counts = self.clock_serial(actualized_e, empty_element_m)
+        gain_counts = self.clock_serial(parallel_counts, empty_element_m)
 
         # Simulate amplifier and adc redout
         output_dn = self.readout(gain_counts)
@@ -127,8 +130,21 @@ class EMCCDDetectBase:
         return actualized_e
 
     def clock_parallel(self, actualized_e):
-        # XXX Call arcticpy here
-        return actualized_e
+        # ROE, CCD, and trap species parameters
+        ccd = CCD(well_fill_power=0.5, full_well_depth=self.full_well_image)
+        roe = ROE()
+        trap = Trap()
+
+        # Add cti
+        parallel_counts = add_cti(
+            actualized_e,
+            parallel_express=0,
+            parallel_roe=roe,
+            parallel_ccd=ccd,
+            parallel_traps=[trap]
+        )
+
+        return parallel_counts
 
     def clock_serial(self, actualized_e_full, empty_element_m):
         # Actualize cic electrons in prescan and overscan pixels
@@ -187,10 +203,12 @@ class EMCCDDetectBase:
         mean_dark = self.dark_current * frametime
         mean_noise = mean_dark + self.cic
 
+        # Lambda
+        self.mean_expected_rate = mean_phe_map + mean_noise
+
         # Actualize electrons at the pixels
         if self.shot_noise_on:
-            actualized_e = np.random.poisson(mean_phe_map
-                                             + mean_noise).astype(float)
+            actualized_e = np.random.poisson(self.mean_expected_rate).astype(float)
         else:
             actualized_e = mean_phe_map + np.random.poisson(mean_noise,
                                                             mean_phe_map.shape

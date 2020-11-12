@@ -32,7 +32,7 @@ frametime = 100.  # Frame time (s)
 em_gain = 5000.  # CCD EM gain (e-/photon)
 full_well_image = 60000.  # Image area full well capacity (e-)
 full_well_serial = 100000.  # Serial (gain) register full well capacity (e-)
-dark_current = 0.00028  # Dark current rate (e-/pix/s)
+dark_current = 0.0028  # Dark current rate (e-/pix/s)
 cic = 0.01  # Clock induced charge (e-/pix/frame)
 read_noise = 100.  # Read noise (e-/pix/frame)
 bias = 0.  # Bias offset (e-)
@@ -57,12 +57,16 @@ emccd = EMCCDDetect(
     shot_noise_on=shot_noise_on
 )
 
+np.random.seed(0)
 sim_full = emccd.sim_full_frame(image, frametime)
-# sim_class_full = emccd.slice_fluxmap(sim_full)
-# sim_class_full = sim_class_full[0:fluxmap.shape[0], 0:fluxmap.shape[1]]
 
+sim_full_sliced = emccd.slice_fluxmap(sim_full)
+sim_full_sliced = sim_full_sliced[0:fluxmap.shape[0], 0:fluxmap.shape[1]]
+
+np.random.seed(0)
 sim_sub = emccd.sim_sub_frame(fluxmap.copy(), frametime)
 
+np.random.seed(0)
 # Use function wrapper
 sim_wrap = emccd_detect(
     fluxmap=fluxmap,
