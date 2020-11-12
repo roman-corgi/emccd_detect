@@ -74,7 +74,7 @@ class EMCCDDetect:
     def sim_fast_frame(self, fluxmap, frametime):
         """A fast way of adding noise to a fluxmap."""
         # No unexposed pixels
-        exposed_pix_m = np.ones_like(fluxmap).astype(int)
+        exposed_pix_m = np.ones_like(fluxmap).astype(bool)
 
         # Simulate the integration process
         actualized_e = self.integrate(fluxmap, frametime, exposed_pix_m)
@@ -83,7 +83,7 @@ class EMCCDDetect:
         actualized_e = self.clock_parallel(actualized_e)
 
         # No empty elements
-        empty_element_m = np.zeros_like(actualized_e).astype(int)
+        empty_element_m = np.zeros_like(actualized_e).astype(bool)
 
         # Simulate serial clocking
         amplified_counts = self.clock_serial(actualized_e, empty_element_m)
@@ -100,8 +100,8 @@ class EMCCDDetect:
                                         self.pixel_pitch, self.full_well_image)
 
         # Mask flux out of unexposed (covered) pixels
-        fluxmap_full[exposed_pix_m == 0] = 0
-        cosm_actualized_e[exposed_pix_m == 0] = 0
+        fluxmap_full[~exposed_pix_m] = 0
+        cosm_actualized_e[~exposed_pix_m] = 0
 
         # Simulate imaging area pixel effects over time
         actualized_e = self._imaging_area_elements(fluxmap_full, frametime,

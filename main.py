@@ -46,7 +46,7 @@ image = np.zeros((1024, 1024))
 image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
 sim_im = emccd.sim_fast_frame(image, frametime)
 
-write_to_file = False
+write_to_file = True
 if write_to_file:
     # path = '/Users/sammiller/Documents/GitHub/proc_cgi_frame/data/sim/'
     path = '.'
