@@ -384,6 +384,22 @@ class EMCCDDetect(EMCCDDetectBase):
         # Reshape from 1d to 2d
         return output_dn.reshape(actualized_e_full.shape)
 
+    def slice_fluxmap(self, full_frame):
+        """Return only the fluxmap portion of a full frame.
+
+        Parameters
+        ----------
+        full_frame : array_like
+            Simulated full frame.
+
+        Returns
+        -------
+        array_like
+            Fluxmap area of full frame.
+
+        """
+        return self.meta.slice_section(full_frame, 'image')
+
 
 def emccd_detect(fluxmap,
                  frametime,
@@ -401,8 +417,8 @@ def emccd_detect(fluxmap,
                  ):
     """Create an EMCCD-detected image for a given fluxmap.
 
-    This is a convenience function which wraps the new class implementation of
-    the EMCCD simulator.
+    This is a convenience function which wraps the class implementation of the
+    EMCCD simulator.
 
     Parameters
     ----------
@@ -446,7 +462,7 @@ def emccd_detect(fluxmap,
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
-    emccd = EMCCDDetect(
+    emccd = EMCCDDetectBase(
         em_gain=em_gain,
         full_well_image=full_well_image,
         full_well_serial=full_well_serial,
@@ -457,5 +473,8 @@ def emccd_detect(fluxmap,
         qe=qe,
         cr_rate=cr_rate,
         pixel_pitch=pixel_pitch,
+        eperdn=1.0,  # Set to one for legacy purposes
         shot_noise_on=shot_noise_on
         )
+
+    return emccd.sim_sub_frame(fluxmap, frametime)

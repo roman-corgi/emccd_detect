@@ -8,20 +8,20 @@ from emccd_detect.cosmics import cosmic_hits
 from emccd_detect.rand_em_gain import rand_em_gain
 
 
-def emccd_detect(fluxmap,
-                 frametime,
-                 em_gain,
-                 full_well_image=60000.,
-                 full_well_serial=100000.,
-                 dark_current=0.00028,
-                 cic=0.01,
-                 read_noise=100,
-                 bias=0.,
-                 qe=0.9,
-                 cr_rate=0.,
-                 pixel_pitch=13e-6,
-                 shot_noise_on=True
-                 ):
+def emccd_detect_old(fluxmap,
+                     frametime,
+                     em_gain,
+                     full_well_image=60000.,
+                     full_well_serial=100000.,
+                     dark_current=0.00028,
+                     cic=0.01,
+                     read_noise=100,
+                     bias=0.,
+                     qe=0.9,
+                     cr_rate=0.,
+                     pixel_pitch=13e-6,
+                     shot_noise_on=True
+                     ):
     """Create an EMCCD-detected image for a given fluxmap.
 
     Parameters
