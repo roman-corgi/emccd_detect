@@ -43,6 +43,10 @@ class EMCCDDetect:
     def sim_full_frame(self, fluxmap, frametime):
         """Simulate a full detector frame.
 
+        Note that the fluxmap provided must be the same size as the exposed
+        detector pixels (labeled 'image' in metadata). A full frame including
+        prescan and overscan regions will be made around the fluxmap.
+
         Parameters
         ----------
         fluxmap : array_like
@@ -53,7 +57,7 @@ class EMCCDDetect:
         Returns
         -------
         output_counts : array_like
-            Detector output counts (e-)
+            Detector output counts (dn).
 
         """
         # Initialize the imaging area pixels
@@ -78,10 +82,10 @@ class EMCCDDetect:
         empty_element_m = self.meta.mask('prescan') + self.meta.mask('overscan')
 
         # Simulate serial clocking
-        serial_counts = self.clock_serial(actualized_e_full, empty_element_m)
+        gain_counts = self.clock_serial(actualized_e_full, empty_element_m)
 
         # Simulate amplifier and adc redout
-        output_dn = self.readout(serial_counts)
+        output_dn = self.readout(gain_counts)
 
         # Reshape from 1d to 2d
         return output_dn.reshape(actualized_e_full.shape)
@@ -111,7 +115,6 @@ class EMCCDDetect:
         """
         # No unexposed pixels
         exposed_pix_m = np.ones_like(fluxmap).astype(bool)
-
         # Simulate the integration process
         actualized_e = self.integrate(fluxmap, frametime, exposed_pix_m)
 
@@ -120,12 +123,14 @@ class EMCCDDetect:
 
         # No empty elements
         empty_element_m = np.zeros_like(actualized_e).astype(bool)
-
         # Simulate serial clocking
-        output_counts = self.clock_serial(actualized_e, empty_element_m)
+        gain_counts = self.clock_serial(actualized_e, empty_element_m)
+
+        # Simulate amplifier and adc redout
+        output_dn = self.readout(gain_counts)
 
         # Reshape from 1d to 2d
-        return output_counts.reshape(actualized_e.shape)
+        return output_dn.reshape(actualized_e.shape)
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
         # Add cosmic ray effects
@@ -160,11 +165,13 @@ class EMCCDDetect:
         # Pass electrons through serial register elements
         serial_counts = self._serial_register_elements(actualized_e_full_flat)
 
-        return serial_counts
+        gain_counts = self._gain_register_elements(serial_counts)
 
-    def readout(self, serial_counts):
+        return gain_counts
+
+    def readout(self, gain_counts):
         # Pass electrons through amplifier
-        amp_ev = self._amp(serial_counts)
+        amp_ev = self._amp(gain_counts)
 
         # Pass amp electron volt counts through analog to digital converter
         output_dn = self._adc(amp_ev)
@@ -235,16 +242,34 @@ class EMCCDDetect:
             Electrons counts after passing through serial register elements.
 
         """
+        # XXX Call arcticpy here
+        serial_counts = actualized_e_full_flat
+        return serial_counts
+
+    def _gain_register_elements(self, serial_counts):
+        """Simulate gain register element behavior.
+
+        Parameters
+        ----------
+        serial_counts : array_like
+            Electrons counts after passing through serial register elements.
+
+        Returns
+        -------
+        gain_counts : array_like
+            Electron counts after passing through gain register elements.
+
+        """
         # Apply EM gain
-        serial_counts = rand_em_gain(actualized_e_full_flat, self.em_gain)
+        gain_counts = rand_em_gain(serial_counts, self.em_gain)
 
         # Simulate saturation tails
-        serial_counts = sat_tails(serial_counts, self.full_well_serial)
+        gain_counts = sat_tails(gain_counts, self.full_well_serial)
 
         # Cap at full well capacity of gain register
-        serial_counts[serial_counts > self.full_well_serial] = self.full_well_serial
+        gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
 
-        return serial_counts
+        return gain_counts
 
     def _amp(self, serial_counts):
         """Simulate amp behavior.
