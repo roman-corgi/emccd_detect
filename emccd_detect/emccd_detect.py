@@ -19,7 +19,7 @@ class EMCCDDetect:
                  read_noise=100,
                  bias=0.,
                  qe=0.9,
-                 cr_rate=1.,
+                 cr_rate=0.,
                  pixel_pitch=13e-6,
                  shot_noise_on=True,
                  meta_path=None
@@ -53,7 +53,7 @@ class EMCCDDetect:
         actualized_e = self.integrate(fluxmap_full, frametime, exposed_pix_m)
 
         # Simulate parallel clocking
-        pass  # XXX Call arcticpy here
+        actualized_e = self.clock_parallel(actualized_e)
 
         # Initialize the serial register elements.
         full_frame_zeros = self.meta.full_frame_zeros.copy()
@@ -67,6 +67,30 @@ class EMCCDDetect:
 
         # Reshape from 1d to 2d
         return amplified_counts.reshape(actualized_e_full.shape)
+
+    def sim_full_frame_dn(self, fluxmap, frametime):
+        return self.sim_full_frame(fluxmap, frametime) / self.meta.eperdn
+
+    def sim_fast_frame(self, fluxmap, frametime):
+        """A fast way of adding noise to a fluxmap."""
+        # No unexposed pixels
+        exposed_pix_m = np.ones_like(fluxmap).astype(int)
+
+        # Simulate the integration process
+        actualized_e = self.integrate(fluxmap, frametime, exposed_pix_m)
+
+        # Simulate parallel clocking
+        actualized_e = self.clock_parallel(actualized_e)
+
+        # No empty elements
+        empty_element_m = np.zeros_like(actualized_e).astype(int)
+
+        # Simulate serial clocking
+        amplified_counts = self.clock_serial(actualized_e, empty_element_m)
+
+        # Reshape from 1d to 2d
+        return amplified_counts.reshape(actualized_e.shape)
+
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
         # Add cosmic ray effects
@@ -83,6 +107,10 @@ class EMCCDDetect:
         actualized_e = self._imaging_area_elements(fluxmap_full, frametime,
                                                    cosm_actualized_e)
 
+        return actualized_e
+
+    def clock_parallel(self, actualized_e):
+        # XXX Call arcticpy here
         return actualized_e
 
     def clock_serial(self, actualized_e_full, empty_element_m):
