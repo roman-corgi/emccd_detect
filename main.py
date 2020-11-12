@@ -43,6 +43,7 @@ sim_im_old = emccd_detect(fluxmap, frametime, em_gain, full_well_image,
 
 # Use class
 emccd = EMCCDDetect(
+    meta_path=Path(here, 'data', 'metadata.yaml'),
     em_gain=em_gain,
     full_well_image=full_well_image,
     full_well_serial=full_well_serial,
@@ -53,8 +54,7 @@ emccd = EMCCDDetect(
     qe=qe,
     cr_rate=cr_rate,
     pixel_pitch=pixel_pitch,
-    shot_noise_on=shot_noise_on,
-    meta_path=Path(here, 'data', 'metadata.yaml')
+    shot_noise_on=shot_noise_on
     )
 
 # Put fluxmap in 1024x1024 image section

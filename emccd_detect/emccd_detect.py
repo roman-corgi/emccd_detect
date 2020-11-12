@@ -10,11 +10,46 @@ from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 
 
 class EMCCDDetect:
+    """Create an EMCCD-detected image for a given fluxmap.
+
+    This class gives a method for simulating full frames (sim_full_frame) and
+    also for adding simulated noise only to the input fluxmap (sim_sub_frame).
+
+    Parameters
+    ----------
+    em_gain : float
+        CCD em_gain (e-/photon). Defaults to 5000.
+    full_well_image : float
+        Image area full well capacity (e-). Defaults to 60000.
+    full_well_serial : float
+        Serial (gain) register full well capacity (e-). Defaults to 100000.
+    dark_current: float
+        Dark current rate (e-/pix/s). Defaults to 0.00028.
+    cic : float
+        Clock induced charge (e-/pix/frame). Defaults to 0.01.
+    read_noise : float
+        Read noise (e-/pix/frame). Defaults to 100.
+    bias : float
+        Bias offset (e-). Defaults to 0.
+    qe : float
+        Quantum efficiency. Defaults to 0.9.
+    cr_rate : float
+        Cosmic ray rate (hits/cm^2/s). Defaults to 0.
+    pixel_pitch : float
+        Distance between pixel centers (m). Defaults to 13e-6.
+    shot_noise_on : bool
+        Apply shot noise. Defaults to True.
+    meta_path : str
+        Full path of metadata yaml.
+
+    """
+
     def __init__(self,
+                 meta_path,
                  em_gain=5000.,
-                 full_well_image=50000.,
-                 full_well_serial=90000.,
-                 dark_current=0.0028,
+                 full_well_image=60000.,
+                 full_well_serial=100000.,
+                 dark_current=0.00028,
                  cic=0.01,
                  read_noise=100,
                  bias=0.,
@@ -22,8 +57,8 @@ class EMCCDDetect:
                  cr_rate=0.,
                  pixel_pitch=13e-6,
                  shot_noise_on=True,
-                 meta_path=None
                  ):
+        self.meta_path
         self.em_gain = em_gain
         self.full_well_image = full_well_image
         self.full_well_serial = full_well_serial
@@ -35,10 +70,11 @@ class EMCCDDetect:
         self.cr_rate = cr_rate
         self.pixel_pitch = pixel_pitch
         self.shot_noise_on = shot_noise_on
-        self.meta_path = meta_path
 
         # Initialize metadata
         self.meta = MetadataWrapper(self.meta_path)
+
+        self.eperdn = self.meta.eperdn
 
     def sim_full_frame(self, fluxmap, frametime):
         """Simulate a full detector frame.
@@ -67,7 +103,6 @@ class EMCCDDetect:
         fluxmap_full = self.meta.embed_im(imaging_area_zeros, 'image',
                                           fluxmap)
         exposed_pix_m = self.meta.imaging_slice(self.meta.mask('image'))
-
         # Simulate the integration process
         actualized_e = self.integrate(fluxmap_full, frametime, exposed_pix_m)
 
@@ -80,7 +115,6 @@ class EMCCDDetect:
         # referencing the prescan and overscan subsections later
         actualized_e_full = self.meta.imaging_embed(full_frame_zeros, actualized_e)
         empty_element_m = self.meta.mask('prescan') + self.meta.mask('overscan')
-
         # Simulate serial clocking
         gain_counts = self.clock_serial(actualized_e_full, empty_element_m)
 
@@ -308,6 +342,82 @@ class EMCCDDetect:
 
         """
         # Convert from electron volts to dn
-        output_dn = amp_ev / self.meta.eperdn
+        output_dn = amp_ev / self.eperdn
 
         return output_dn
+
+
+def emccd_detect(fluxmap,
+                 frametime,
+                 em_gain,
+                 full_well_image=60000.,
+                 full_well_serial=100000.,
+                 dark_current=0.00028,
+                 cic=0.01,
+                 read_noise=100,
+                 bias=0.,
+                 qe=0.9,
+                 cr_rate=0.,
+                 pixel_pitch=13e-6,
+                 shot_noise_on=True
+                 ):
+    """Create an EMCCD-detected image for a given fluxmap.
+
+    This is a convenience function which wraps the new class implementation of
+    the EMCCD simulator.
+
+    Parameters
+    ----------
+    fluxmap : array_like, float
+        Input fluxmap (photons/pix/s).
+    frametime : float
+        Frame time (s).
+    em_gain : float
+        CCD em_gain (e-/photon).
+    full_well_image : float
+        Image area full well capacity (e-). Defaults to 6000.
+    full_well_serial : float
+        Serial (gain) register full well capacity (e-). Defaults to 100000.
+    dark_current: float
+        Dark current rate (e-/pix/s). Defaults to 0.00028.
+    cic : float
+        Clock induced charge (e-/pix/frame). Defaults to 0.01.
+    read_noise : float
+        Read noise (e-/pix/frame). Defaults to 100.
+    bias : float
+        Bias offset (e-). Defaults to 0.
+    qe : float
+        Quantum efficiency. Defaults to 0.9.
+    cr_rate : float
+        Cosmic ray rate (hits/cm^2/s). Defaults to 0.
+    pixel_pitch : float
+        Distance between pixel centers (m). Defaults to 13e-6.
+    shot_noise_on : bool, optional
+        Apply shot noise. Defaults to True.
+
+    Returns
+    -------
+    serial_frame : array_like, float
+        Detector output (e-).
+
+    Notes
+    -----
+    Read noise is the amplifier read noise and not the effective read noise
+    after the application of EM gain.
+
+    B Nemati and S Miller - UAH - 18-Jan-2019
+
+    """
+    emccd = EMCCDDetect(
+        em_gain=em_gain,
+        full_well_image=full_well_image,
+        full_well_serial=full_well_serial,
+        dark_current=dark_current,
+        cic=cic,
+        read_noise=read_noise,
+        bias=bias,
+        qe=qe,
+        cr_rate=cr_rate,
+        pixel_pitch=pixel_pitch,
+        shot_noise_on=shot_noise_on
+        )
