@@ -36,7 +36,7 @@ qe = 0.9  # Quantum efficiency
 cr_rate = 0.  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
 pixel_pitch = 13e-6  # Distance between pixel centers (m)
 shot_noise_on = True  # Apply shot noise
-
+np.random.seed(0)
 # Use class
 emccd = EMCCDDetect(
     meta_path=Path(here, 'data', 'metadata.yaml'),
@@ -55,13 +55,14 @@ emccd = EMCCDDetect(
 
 # Put fluxmap in 1024x1024 image section
 image = np.zeros((1024, 1024))
-image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
+image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap.copy()
+np.random.seed(0)
 sim_class_full_init = emccd.sim_full_frame(image, frametime)
 sim_class_full = emccd.slice_fluxmap(sim_class_full_init)
 sim_class_full = sim_class_full[0:fluxmap.shape[0], 0:fluxmap.shape[1]]
-
-sim_class_sub = emccd.sim_sub_frame(fluxmap, frametime)
-
+np.random.seed(0)
+sim_class_sub = emccd.sim_sub_frame(fluxmap.copy(), frametime)
+np.random.seed(0)
 # Use function wrapper
 sim_wrap = emccd_detect(
     fluxmap=fluxmap,
@@ -78,7 +79,7 @@ sim_wrap = emccd_detect(
     pixel_pitch=pixel_pitch,
     shot_noise_on=shot_noise_on
 )
-
+np.random.seed(0)
 # Use old function
 sim_old = emccd_detect_old(
     fluxmap=fluxmap,

@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from scipy import special
-
+np.random.seed(0)
 
 def rand_em_gain(n_in_array, em_gain):
     """Generate random numbers according to EM gain pdfs.

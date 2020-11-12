@@ -7,7 +7,7 @@ import numpy as np
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
-
+np.random.seed(0)
 
 class EMCCDDetectBase:
     """Base class for EMCCD detector.
@@ -51,8 +51,8 @@ class EMCCDDetectBase:
                  qe=0.9,
                  cr_rate=0.,
                  pixel_pitch=13e-6,
-                 eperdn=1.,
                  shot_noise_on=True,
+                 eperdn=1.
                  ):
         self.em_gain = em_gain
         self.full_well_image = full_well_image
@@ -413,7 +413,8 @@ def emccd_detect(fluxmap,
                  qe=0.9,
                  cr_rate=0.,
                  pixel_pitch=13e-6,
-                 shot_noise_on=True
+                 shot_noise_on=True,
+                 eperdn=1.
                  ):
     """Create an EMCCD-detected image for a given fluxmap.
 
@@ -473,8 +474,8 @@ def emccd_detect(fluxmap,
         qe=qe,
         cr_rate=cr_rate,
         pixel_pitch=pixel_pitch,
-        eperdn=1.0,  # Set to one for legacy purposes
-        shot_noise_on=shot_noise_on
+        shot_noise_on=shot_noise_on,
+        eperdn=eperdn
         )
 
     return emccd.sim_sub_frame(fluxmap, frametime)
