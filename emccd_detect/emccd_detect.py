@@ -9,11 +9,8 @@ from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 
 
-class EMCCDDetect:
-    """Create an EMCCD-detected image for a given fluxmap.
-
-    This class gives a method for simulating full frames (sim_full_frame) and
-    also for adding simulated noise only to the input fluxmap (sim_sub_frame).
+class EMCCDDetectBase:
+    """Base class for EMCCD detector.
 
     Parameters
     ----------
@@ -37,15 +34,13 @@ class EMCCDDetect:
         Cosmic ray rate (hits/cm^2/s). Defaults to 0.
     pixel_pitch : float
         Distance between pixel centers (m). Defaults to 13e-6.
+    eperdn : float
+        Electrons per dn. Defaults to 1.
     shot_noise_on : bool
         Apply shot noise. Defaults to True.
-    meta_path : str
-        Full path of metadata yaml.
 
     """
-
     def __init__(self,
-                 meta_path,
                  em_gain=5000.,
                  full_well_image=60000.,
                  full_well_serial=100000.,
@@ -56,9 +51,9 @@ class EMCCDDetect:
                  qe=0.9,
                  cr_rate=0.,
                  pixel_pitch=13e-6,
+                 eperdn=1.,
                  shot_noise_on=True,
                  ):
-        self.meta_path
         self.em_gain = em_gain
         self.full_well_image = full_well_image
         self.full_well_serial = full_well_serial
@@ -69,60 +64,8 @@ class EMCCDDetect:
         self.qe = qe
         self.cr_rate = cr_rate
         self.pixel_pitch = pixel_pitch
+        self.eperdn = eperdn
         self.shot_noise_on = shot_noise_on
-
-        # Initialize metadata
-        self.meta = MetadataWrapper(self.meta_path)
-
-        self.eperdn = self.meta.eperdn
-
-    def sim_full_frame(self, fluxmap, frametime):
-        """Simulate a full detector frame.
-
-        Note that the fluxmap provided must be the same size as the exposed
-        detector pixels (labeled 'image' in metadata). A full frame including
-        prescan and overscan regions will be made around the fluxmap.
-
-        Parameters
-        ----------
-        fluxmap : array_like
-            Input fluxmap of same shape as self.meta.geom.image (phot/pix/s).
-        frametime : float
-            Frame exposure time (s).
-
-        Returns
-        -------
-        output_counts : array_like
-            Detector output counts (dn).
-
-        """
-        # Initialize the imaging area pixels
-        imaging_area_zeros = self.meta.imaging_area_zeros.copy()
-        # Embed the fluxmap within the imaging area. Create a mask for
-        # referencing the input fluxmap subsection later
-        fluxmap_full = self.meta.embed_im(imaging_area_zeros, 'image',
-                                          fluxmap)
-        exposed_pix_m = self.meta.imaging_slice(self.meta.mask('image'))
-        # Simulate the integration process
-        actualized_e = self.integrate(fluxmap_full, frametime, exposed_pix_m)
-
-        # Simulate parallel clocking
-        actualized_e = self.clock_parallel(actualized_e)
-
-        # Initialize the serial register elements.
-        full_frame_zeros = self.meta.full_frame_zeros.copy()
-        # Embed the imaging area within the full frame. Create a mask for
-        # referencing the prescan and overscan subsections later
-        actualized_e_full = self.meta.imaging_embed(full_frame_zeros, actualized_e)
-        empty_element_m = self.meta.mask('prescan') + self.meta.mask('overscan')
-        # Simulate serial clocking
-        gain_counts = self.clock_serial(actualized_e_full, empty_element_m)
-
-        # Simulate amplifier and adc redout
-        output_dn = self.readout(gain_counts)
-
-        # Reshape from 1d to 2d
-        return output_dn.reshape(actualized_e_full.shape)
 
     def sim_sub_frame(self, fluxmap, frametime):
         """A fast way of adding noise to a fluxmap.
@@ -345,6 +288,101 @@ class EMCCDDetect:
         output_dn = amp_ev / self.eperdn
 
         return output_dn
+
+
+class EMCCDDetect(EMCCDDetectBase):
+    """Create an EMCCD-detected image for a given fluxmap.
+
+    This class gives a method for simulating full frames (sim_full_frame) and
+    also for adding simulated noise only to the input fluxmap (sim_sub_frame).
+
+    Parameters
+    ----------
+    em_gain : float
+        CCD em_gain (e-/photon). Defaults to 5000.
+    full_well_image : float
+        Image area full well capacity (e-). Defaults to 60000.
+    full_well_serial : float
+        Serial (gain) register full well capacity (e-). Defaults to 100000.
+    dark_current: float
+        Dark current rate (e-/pix/s). Defaults to 0.00028.
+    cic : float
+        Clock induced charge (e-/pix/frame). Defaults to 0.01.
+    read_noise : float
+        Read noise (e-/pix/frame). Defaults to 100.
+    bias : float
+        Bias offset (e-). Defaults to 0.
+    qe : float
+        Quantum efficiency. Defaults to 0.9.
+    cr_rate : float
+        Cosmic ray rate (hits/cm^2/s). Defaults to 0.
+    pixel_pitch : float
+        Distance between pixel centers (m). Defaults to 13e-6.
+    shot_noise_on : bool
+        Apply shot noise. Defaults to True.
+    meta_path : str
+        Full path of metadata yaml.
+
+    """
+
+    def __init__(self, meta_path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.meta_path = meta_path
+
+        # Initialize metadata
+        self.meta = MetadataWrapper(self.meta_path)
+
+        # Override base class value with metadata value
+        self.eperdn = self.meta.eperdn
+
+    def sim_full_frame(self, fluxmap, frametime):
+        """Simulate a full detector frame.
+
+        Note that the fluxmap provided must be the same size as the exposed
+        detector pixels (labeled 'image' in metadata). A full frame including
+        prescan and overscan regions will be made around the fluxmap.
+
+        Parameters
+        ----------
+        fluxmap : array_like
+            Input fluxmap of same shape as self.meta.geom.image (phot/pix/s).
+        frametime : float
+            Frame exposure time (s).
+
+        Returns
+        -------
+        output_counts : array_like
+            Detector output counts (dn).
+
+        """
+        # Initialize the imaging area pixels
+        imaging_area_zeros = self.meta.imaging_area_zeros.copy()
+        # Embed the fluxmap within the imaging area. Create a mask for
+        # referencing the input fluxmap subsection later
+        fluxmap_full = self.meta.embed_im(imaging_area_zeros, 'image',
+                                          fluxmap)
+        exposed_pix_m = self.meta.imaging_slice(self.meta.mask('image'))
+        # Simulate the integration process
+        actualized_e = self.integrate(fluxmap_full, frametime, exposed_pix_m)
+
+        # Simulate parallel clocking
+        actualized_e = self.clock_parallel(actualized_e)
+
+        # Initialize the serial register elements.
+        full_frame_zeros = self.meta.full_frame_zeros.copy()
+        # Embed the imaging area within the full frame. Create a mask for
+        # referencing the prescan and overscan subsections later
+        actualized_e_full = self.meta.imaging_embed(full_frame_zeros, actualized_e)
+        empty_element_m = self.meta.mask('prescan') + self.meta.mask('overscan')
+        # Simulate serial clocking
+        gain_counts = self.clock_serial(actualized_e_full, empty_element_m)
+
+        # Simulate amplifier and adc redout
+        output_dn = self.readout(gain_counts)
+
+        # Reshape from 1d to 2d
+        return output_dn.reshape(actualized_e_full.shape)
 
 
 def emccd_detect(fluxmap,
