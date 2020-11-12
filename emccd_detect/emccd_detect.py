@@ -41,6 +41,21 @@ class EMCCDDetect:
         self.meta = MetadataWrapper(self.meta_path)
 
     def sim_full_frame(self, fluxmap, frametime):
+        """Simulate a full detector frame.
+
+        Parameters
+        ----------
+        fluxmap : array_like
+            Input fluxmap of same shape as self.meta.geom.image (phot/pix/s).
+        frametime : float
+            Frame exposure time (s).
+
+        Returns
+        -------
+        output_counts : array_like
+            Detector output counts (e-)
+
+        """
         # Initialize the imaging area pixels
         imaging_area_zeros = self.meta.imaging_area_zeros.copy()
         # Embed the fluxmap within the imaging area. Create a mask for
@@ -63,16 +78,37 @@ class EMCCDDetect:
         empty_element_m = self.meta.mask('prescan') + self.meta.mask('overscan')
 
         # Simulate serial clocking
-        amplified_counts = self.clock_serial(actualized_e_full, empty_element_m)
+        serial_counts = self.clock_serial(actualized_e_full, empty_element_m)
+
+        # Simulate amplifier and adc redout
+        output_dn = self.readout(serial_counts)
 
         # Reshape from 1d to 2d
-        return amplified_counts.reshape(actualized_e_full.shape)
+        return output_dn.reshape(actualized_e_full.shape)
 
-    def sim_full_frame_dn(self, fluxmap, frametime):
-        return self.sim_full_frame(fluxmap, frametime) / self.meta.eperdn
+    def sim_sub_frame(self, fluxmap, frametime):
+        """A fast way of adding noise to a fluxmap.
 
-    def sim_fast_frame(self, fluxmap, frametime):
-        """A fast way of adding noise to a fluxmap."""
+        This is a fast way of adding noise to an arbitrarily sized fluxmap.
+        This method is slightly less accurate when cosmics are used, since the
+        tail wrapping will be too strong. In a full frame the cosmic tails wrap
+        into the next row in the prescan and trail off significantly before
+        getting back to the image area, but here we only deal with the image
+        so there is no prescan.
+
+        Parameters
+        ----------
+        fluxmap : array_like
+            Input fluxmap of arbitrary shape (phot/pix/s).
+        frametime : float
+            Frame exposure time (s).
+
+        Returns
+        -------
+        output_counts : array_like
+            Detector output counts (e-)
+
+        """
         # No unexposed pixels
         exposed_pix_m = np.ones_like(fluxmap).astype(bool)
 
@@ -86,11 +122,10 @@ class EMCCDDetect:
         empty_element_m = np.zeros_like(actualized_e).astype(bool)
 
         # Simulate serial clocking
-        amplified_counts = self.clock_serial(actualized_e, empty_element_m)
+        output_counts = self.clock_serial(actualized_e, empty_element_m)
 
         # Reshape from 1d to 2d
-        return amplified_counts.reshape(actualized_e.shape)
-
+        return output_counts.reshape(actualized_e.shape)
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
         # Add cosmic ray effects
@@ -125,10 +160,16 @@ class EMCCDDetect:
         # Pass electrons through serial register elements
         serial_counts = self._serial_register_elements(actualized_e_full_flat)
 
-        # Pass electrons through amplifier
-        amplified_counts = self._amp(serial_counts)
+        return serial_counts
 
-        return amplified_counts
+    def readout(self, serial_counts):
+        # Pass electrons through amplifier
+        amp_ev = self._amp(serial_counts)
+
+        # Pass amp electron volt counts through analog to digital converter
+        output_dn = self._adc(amp_ev)
+
+        return output_dn
 
     def _imaging_area_elements(self, fluxmap_full, frametime, cosm_actualized_e):
         """Simulate imaging area pixel behavior for a given fluxmap and
@@ -206,8 +247,42 @@ class EMCCDDetect:
         return serial_counts
 
     def _amp(self, serial_counts):
-        # Create read noise distribution
-        read_noise_dist = self.read_noise * np.random.normal(size=serial_counts.shape)
+        """Simulate amp behavior.
 
-        # Apply read noise and bias to counts
-        return serial_counts + read_noise_dist + self.bias
+        Parameters
+        ----------
+        serial_counts : array_like
+            Electron counts from the serial register.
+
+        Returns
+        -------
+        amp_ev : array_like
+            Output from amp (eV).
+
+        """
+        # Create read noise distribution in units of electrons
+        read_noise_e = self.read_noise * np.random.normal(size=serial_counts.shape)
+
+        # Apply read noise and bias to counts to get output electron volts
+        amp_ev = serial_counts + read_noise_e + self.bias
+
+        return amp_ev
+
+    def _adc(self, amp_ev):
+        """Simulate analog to digital converter behavior.
+
+        Parameters
+        ----------
+        amp_ev : array_like
+            Electron volt counts from amp (eV).
+
+        Returns
+        -------
+        output_dn : array_like
+            Analog to digital converter output (dn).
+
+        """
+        # Convert from electron volts to dn
+        output_dn = amp_ev / self.meta.eperdn
+
+        return output_dn
