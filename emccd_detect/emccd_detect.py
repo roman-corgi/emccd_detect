@@ -7,7 +7,7 @@ import numpy as np
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
-from arcticpy.main import add_cti, remove_cti
+from arcticpy.main import add_cti
 from arcticpy.roe import ROE
 from arcticpy.ccd import CCD
 from arcticpy.traps import Trap
@@ -82,6 +82,9 @@ class EMCCDDetectBase:
         self.express = None
         self.offset = None
         self.window_range = None
+
+        # Placeholders for simulation values
+        self.mean_expected_rate = None
 
     @property
     def eperdn(self):
@@ -173,7 +176,7 @@ class EMCCDDetectBase:
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
         # Add cosmic ray effects
-        # XXX Want to change this to units of flux later
+        # XXX Maybe change this to units of flux later
         cosm_actualized_e = cosmic_hits(np.zeros_like(fluxmap_full),
                                         self.cr_rate, frametime,
                                         self.pixel_pitch, self.full_well_image)
@@ -189,7 +192,6 @@ class EMCCDDetectBase:
         return actualized_e
 
     def clock_parallel(self, actualized_e):
-
         # Only add CTI if update_cti has been called
         if self.ccd is not None and self.roe is not None and self.traps is not None:
             parallel_counts = add_cti(
@@ -263,7 +265,7 @@ class EMCCDDetectBase:
         mean_dark = self.dark_current * frametime
         mean_noise = mean_dark + self.cic
 
-        # Lambda
+        # Set mean expected rate (commonly referred to as lambda)
         self.mean_expected_rate = mean_phe_map + mean_noise
 
         # Actualize electrons at the pixels
@@ -275,7 +277,7 @@ class EMCCDDetectBase:
                                                             ).astype(float)
 
         # Add cosmic ray effects
-        # XXX Want to change this to units of flux later
+        # XXX Maybe change this to units of flux later
         actualized_e += cosm_actualized_e
 
         # Cap at pixel full well capacity
@@ -338,6 +340,11 @@ class EMCCDDetectBase:
         -------
         amp_ev : array_like
             Output from amp (eV).
+
+        Notes
+        -----
+        Read noise is the amplifier read noise and not the effective read noise
+        after the application of EM gain.
 
         """
         # Create read noise distribution in units of electrons
@@ -491,13 +498,12 @@ def emccd_detect(fluxmap,
                  qe=0.9,
                  cr_rate=0.,
                  pixel_pitch=13e-6,
-                 shot_noise_on=True,
-                 eperdn=1.
+                 shot_noise_on=True
                  ):
     """Create an EMCCD-detected image for a given fluxmap.
 
-    This is a convenience function which wraps the class implementation of the
-    EMCCD simulator.
+    This is a convenience function which wraps the base class implementation
+    of the EMCCD simulator. It maintains the API of emccd_detect version 1.0.1.
 
     Parameters
     ----------
@@ -535,8 +541,9 @@ def emccd_detect(fluxmap,
 
     Notes
     -----
-    Read noise is the amplifier read noise and not the effective read noise
-    after the application of EM gain.
+    The value for eperdn (electrons per dn) is hardcoded to 1. This is for
+    legacy purposes, as the version 1.0.1 implementation output electrons
+    instead of dn.
 
     B Nemati and S Miller - UAH - 18-Jan-2019
 
@@ -553,7 +560,7 @@ def emccd_detect(fluxmap,
         cr_rate=cr_rate,
         pixel_pitch=pixel_pitch,
         shot_noise_on=shot_noise_on,
-        eperdn=eperdn
+        eperdn=1.
         )
 
     return emccd.sim_sub_frame(fluxmap, frametime)
