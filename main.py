@@ -21,10 +21,10 @@ here = os.path.abspath(os.path.dirname(__file__))
 # Input fluxmap
 fits_name = 'sci_frame.fits'
 fits_path = Path(here, 'data', fits_name)
-fluxmap = fits.getdata(fits_path)  # Input fluxmap (photons/pix/s)
+fluxmap = fits.getdata(fits_path).astype(float)  # Input fluxmap (photons/pix/s)
 
 # Put fluxmap in 1024x1024 image section
-image = np.zeros((1024, 1024))
+image = np.zeros((1024, 1024)).astype(float)
 image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
 
 # Simulation inputs
@@ -57,38 +57,13 @@ emccd = EMCCDDetect(
     shot_noise_on=shot_noise_on
 )
 
-np.random.seed(0)
-sim_full = emccd.sim_full_frame(image, frametime)
-
-sim_full_sliced = emccd.slice_fluxmap(sim_full)
-sim_full_sliced = sim_full_sliced[0:fluxmap.shape[0], 0:fluxmap.shape[1]]
-
-np.random.seed(0)
-sim_sub = emccd.sim_sub_frame(fluxmap.copy(), frametime)
-
-np.random.seed(0)
-# Use function wrapper
-sim_wrap = emccd_detect(
-    fluxmap=fluxmap,
-    frametime=frametime,
-    em_gain=em_gain,
-    full_well_image=full_well_image,
-    full_well_serial=full_well_serial,
-    dark_current=dark_current,
-    cic=cic,
-    read_noise=read_noise,
-    bias=bias,
-    qe=qe,
-    cr_rate=cr_rate,
-    pixel_pitch=pixel_pitch,
-    shot_noise_on=shot_noise_on
-)
+sim_frame = emccd.sim_sub_frame(fluxmap, frametime)
 
 write_to_file = False
 if write_to_file:
     # path = '/Users/sammiller/Documents/GitHub/proc_cgi_frame/data/sim/'
     path = '.'
-    fits.writeto(Path(path, 'sim.fits'), sim_full.astype(np.int32),
+    fits.writeto(Path(path, 'sim.fits'), sim_frame.astype(np.int32),
                  overwrite=True)
 
 # Plot images
@@ -96,9 +71,8 @@ plot_images = True
 if plot_images:
     imagesc(fluxmap, 'Input Fluxmap')
 
-    for im in [sim_full, sim_sub, sim_wrap]:
-        subtitle = ('Gain: {:.0f}   Read Noise: {:.0f}e-   Frame Time: {:.0f}s'
-                    .format(em_gain, read_noise, frametime))
-        imagesc(im, 'Output Image\n' + subtitle)
+    subtitle = ('Gain: {:.0f}   Read Noise: {:.0f}e-   Frame Time: {:.0f}s'
+                .format(em_gain, read_noise, frametime))
+    imagesc(sim_frame, 'Output Image\n' + subtitle)
 
     plt.show()

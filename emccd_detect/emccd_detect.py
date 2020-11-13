@@ -143,7 +143,7 @@ class EMCCDDetectBase:
             parallel_ccd=ccd,
             parallel_traps=[trap]
         )
-
+        # parallel_counts = actualized_e
         return parallel_counts
 
     def clock_serial(self, actualized_e_full, empty_element_m):
@@ -385,22 +385,22 @@ class EMCCDDetect(EMCCDDetectBase):
         actualized_e = self.integrate(fluxmap_full, frametime, exposed_pix_m)
 
         # Simulate parallel clocking
-        actualized_e = self.clock_parallel(actualized_e)
+        parallel_counts = self.clock_parallel(actualized_e)
 
         # Initialize the serial register elements.
         full_frame_zeros = self.meta.full_frame_zeros.copy()
         # Embed the imaging area within the full frame. Create a mask for
         # referencing the prescan and overscan subsections later
-        actualized_e_full = self.meta.imaging_embed(full_frame_zeros, actualized_e)
+        parallel_counts_full = self.meta.imaging_embed(full_frame_zeros, parallel_counts)
         empty_element_m = self.meta.mask('prescan') + self.meta.mask('overscan')
         # Simulate serial clocking
-        gain_counts = self.clock_serial(actualized_e_full, empty_element_m)
+        gain_counts = self.clock_serial(parallel_counts_full, empty_element_m)
 
         # Simulate amplifier and adc redout
         output_dn = self.readout(gain_counts)
 
         # Reshape from 1d to 2d
-        return output_dn.reshape(actualized_e_full.shape)
+        return output_dn.reshape(parallel_counts_full.shape)
 
     def slice_fluxmap(self, full_frame):
         """Return only the fluxmap portion of a full frame.
