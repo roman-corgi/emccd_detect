@@ -15,6 +15,9 @@ from astropy.io import fits
 from emccd_detect.emccd_detect_old import emccd_detect_old
 from emccd_detect.emccd_detect import EMCCDDetect, emccd_detect
 from emccd_detect.util.imagesc import imagesc
+from arcticpy.roe import ROE
+from arcticpy.ccd import CCD
+from arcticpy.traps import Trap
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -57,7 +60,23 @@ emccd = EMCCDDetect(
     shot_noise_on=shot_noise_on
 )
 
+# Simulate frame
 sim_frame = emccd.sim_sub_frame(fluxmap, frametime)
+
+# Add cti
+emccd.update_cti()
+sim_frame_cti = emccd.sim_sub_frame(fluxmap, frametime)
+
+# Change cti
+ccd = CCD()
+roe = ROE()
+traps = [Trap(density=10)]
+emccd.update_cti(ccd=ccd, roe=roe, traps=traps)
+sim_frame_cti2 = emccd.sim_sub_frame(fluxmap, frametime)
+
+# Test unset cti
+emccd.unset_cti()
+sim_frame_unset = emccd.sim_sub_frame(fluxmap, frametime)
 
 write_to_file = False
 if write_to_file:
@@ -71,8 +90,12 @@ plot_images = True
 if plot_images:
     imagesc(fluxmap, 'Input Fluxmap')
 
-    subtitle = ('Gain: {:.0f}   Read Noise: {:.0f}e-   Frame Time: {:.0f}s'
-                .format(em_gain, read_noise, frametime))
-    imagesc(sim_frame, 'Output Image\n' + subtitle)
+    ims = [sim_frame, sim_frame_cti, sim_frame_cti2, sim_frame_unset]
+    vmin = np.min(ims)
+    vmax = np.max(ims)
+    for im in ims:
+        subtitle = ('Gain: {:.0f}   Read Noise: {:.0f}e-   Frame Time: {:.0f}s'
+                    .format(em_gain, read_noise, frametime))
+        imagesc(im, 'Output Image\n' + subtitle, vmin=vmin, vmax=vmax)
 
     plt.show()

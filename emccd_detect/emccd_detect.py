@@ -75,6 +75,14 @@ class EMCCDDetectBase:
         self.eperdn = eperdn
         self.shot_noise_on = shot_noise_on
 
+        # Placeholders for trap parameters
+        self.ccd = None
+        self.roe = None
+        self.traps = None
+        self.express = None
+        self.offset = None
+        self.window_range = None
+
     @property
     def eperdn(self):
         return self._eperdn
@@ -90,6 +98,36 @@ class EMCCDDetectBase:
             raise EMCCDDetectException('eperdn value must be positve.')
         else:
             self._eperdn = eperdn
+
+    def update_cti(self,
+                   ccd=None,
+                   roe=None,
+                   traps=None,
+                   express=1,
+                   offset=0,
+                   window_range=None):
+        # Update parameters
+        self.ccd = ccd
+        self.roe = roe
+        self.traps = traps
+
+        self.express = express
+        self.offset = offset
+        self.window_range = window_range
+
+        # Instantiate defaults for any class instances not provided
+        if self.ccd is None:
+            self.ccd = CCD()
+        if roe is None:
+            self.roe = ROE()
+        if traps is None:
+            self.traps = [Trap()]
+
+    def unset_cti(self):
+        # Remove cti simulation
+        self.ccd = None
+        self.roe = None
+        self.traps = None
 
     def sim_sub_frame(self, fluxmap, frametime):
         """A fast way of adding noise to a fluxmap.
@@ -151,20 +189,21 @@ class EMCCDDetectBase:
         return actualized_e
 
     def clock_parallel(self, actualized_e):
-        # ROE, CCD, and trap species parameters
-        ccd = CCD(well_fill_power=0.5, full_well_depth=self.full_well_image)
-        roe = ROE()
-        trap = Trap()
 
-        # Add cti
-        parallel_counts = add_cti(
-            actualized_e,
-            parallel_express=0,
-            parallel_roe=roe,
-            parallel_ccd=ccd,
-            parallel_traps=[trap]
-        )
-        # parallel_counts = actualized_e
+        # Only add CTI if update_cti has been called
+        if self.ccd is not None and self.roe is not None and self.traps is not None:
+            parallel_counts = add_cti(
+                actualized_e,
+                parallel_roe=self.roe,
+                parallel_ccd=self.ccd,
+                parallel_traps=self.traps,
+                parallel_express=self.express,
+                parallel_offset=self.offset,
+                parallel_window_range=self.window_range
+            )
+        else:
+            parallel_counts = actualized_e
+
         return parallel_counts
 
     def clock_serial(self, actualized_e_full, empty_element_m):
