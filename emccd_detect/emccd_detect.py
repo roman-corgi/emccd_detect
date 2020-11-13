@@ -12,6 +12,11 @@ from arcticpy.roe import ROE
 from arcticpy.ccd import CCD
 from arcticpy.traps import Trap
 
+
+class EMCCDDetectException(Exception):
+    """Exception class for emccd_detect module."""
+
+
 class EMCCDDetectBase:
     """Base class for EMCCD detector.
 
@@ -69,6 +74,22 @@ class EMCCDDetectBase:
         self.pixel_pitch = pixel_pitch
         self.eperdn = eperdn
         self.shot_noise_on = shot_noise_on
+
+    @property
+    def eperdn(self):
+        return self._eperdn
+
+    @eperdn.setter
+    def eperdn(self, eperdn):
+        try:
+            eperdn = float(eperdn)
+        except Exception:
+            raise EMCCDDetectException('eperdn value must be a float')
+
+        if eperdn <= 0:
+            raise EMCCDDetectException('eperdn value must be positve.')
+        else:
+            self._eperdn = eperdn
 
     def sim_sub_frame(self, fluxmap, frametime):
         """A fast way of adding noise to a fluxmap.
