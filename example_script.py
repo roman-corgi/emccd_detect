@@ -52,7 +52,7 @@ if __name__ == '__main__':
     pixel_pitch = 13e-6  # Distance between pixel centers (m)
     shot_noise_on = True  # Apply shot noise
 
-    # Use class
+    # Instantiate class
     emccd = EMCCDDetect(
         meta_path=Path(here, 'data', 'metadata.yaml'),
         em_gain=em_gain,
