@@ -319,7 +319,7 @@ class EMCCDDetectBase:
         gain_counts = rand_em_gain(serial_counts, self.em_gain)
 
         # Simulate saturation tails
-        gain_counts = sat_tails(gain_counts, self.full_well_serial)
+        # gain_counts = sat_tails(gain_counts, self.full_well_serial)
 
         # Cap at full well capacity of gain register
         gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial

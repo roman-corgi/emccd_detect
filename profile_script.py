@@ -67,4 +67,4 @@ output_file = Path(here, 'callgraph_emccd_detect')
 graphviz = GraphvizOutput(output_type='dot',
                           output_file=str(output_file) + '.dot')
 with PyCallGraph(output=graphviz, config=config):
-    emccd.sim_sub_frame(fluxmap, frametime)
+    emccd.sim_full_frame(image, frametime)
