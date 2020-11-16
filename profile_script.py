@@ -12,12 +12,7 @@ from pycallgraph import GlobbingFilter
 from pycallgraph import PyCallGraph
 from pycallgraph.output import GraphvizOutput
 
-from emccd_detect.emccd_detect_old import emccd_detect_old
-from emccd_detect.emccd_detect import EMCCDDetect, emccd_detect
-from emccd_detect.util.imagesc import imagesc
-from arcticpy.roe import ROE
-from arcticpy.ccd import CCD
-from arcticpy.traps import Trap
+from emccd_detect.emccd_detect import EMCCDDetect
 
 here = os.path.abspath(os.path.dirname(__file__))
 
