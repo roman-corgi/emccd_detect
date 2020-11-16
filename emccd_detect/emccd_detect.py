@@ -155,17 +155,15 @@ class EMCCDDetectBase:
             Detector output counts (e-)
 
         """
-        # No unexposed pixels
-        exposed_pix_m = np.ones_like(fluxmap).astype(bool)
         # Simulate the integration process
+        exposed_pix_m = np.ones_like(fluxmap).astype(bool)  # No unexposed pixels
         actualized_e = self.integrate(fluxmap, frametime, exposed_pix_m)
 
         # Simulate parallel clocking
         parallel_counts = self.clock_parallel(actualized_e)
 
-        # No empty elements
-        empty_element_m = np.zeros_like(parallel_counts).astype(bool)
-        # Simulate serial clocking
+        # Simulate serial clocking  (output will be flattened to 1d)
+        empty_element_m = np.zeros_like(parallel_counts).astype(bool)  # No empty elements
         gain_counts = self.clock_serial(parallel_counts, empty_element_m)
 
         # Simulate amplifier and adc redout
