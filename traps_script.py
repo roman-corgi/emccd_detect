@@ -33,7 +33,7 @@ image = np.zeros((1024, 1024)).astype(float)
 image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
 
 # Simulation inputs
-frametime = 30.  # Frame time (s)
+frametime = 10.  # Frame time (s)
 em_gain = 5000.  # CCD EM gain (e-/photon)
 full_well_image = 50000.  # Image area full well capacity (e-)
 full_well_serial = 90000.  # Serial (gain) register full well capacity (e-)
@@ -66,27 +66,32 @@ emccd = EMCCDDetect(
     shot_noise_on=shot_noise_on
 )
 
+# No traps
 sim_frame_notrap = emccd.sim_sub_frame(fluxmap, frametime)
 
 expected_rate = emccd.mean_expected_rate
 
-nframes = 1000
-sim_frame_notraps = []
-sim_frame_traps = []
-path = r'C:\Users\smiller\CAO1 Dropbox\CAO_Team1\X_Data\Traps'
-for i in range(nframes):
-    sim_frame_notraps = emccd.sim_sub_frame(fluxmap, frametime=10)
-
-    fits.writeto(Path(path, f'sim_frame_notraps_{i}.fits'), sim_frame_notraps.astype(np.int32),
-                 overwrite=True)
-
-
+# Traps
 emccd.update_cti(ccd=ccd, roe=roe, traps=traps, express=1)
-for i in range(nframes):
-    sim_frame_traps = emccd.sim_sub_frame(fluxmap, frametime=30)
+sim_frame_trap = emccd.sim_sub_frame(fluxmap, frametime)
 
-    fits.writeto(Path(path, f'sim_frame_traps_{i}.fits'), sim_frame_traps.astype(np.int32),
-                 overwrite=True)
+# nframes = 1000
+# sim_frame_notraps = []
+# sim_frame_traps = []
+# path = r'C:\Users\smiller\CAO1 Dropbox\CAO_Team1\X_Data\Traps'
+# for i in range(nframes):
+#     sim_frame_notraps = emccd.sim_sub_frame(fluxmap, frametime=10)
+
+#     fits.writeto(Path(path, f'sim_frame_notraps_{i}.fits'), sim_frame_notraps.astype(np.int32),
+#                  overwrite=True)
+
+
+# emccd.update_cti(ccd=ccd, roe=roe, traps=traps, express=1)
+# for i in range(nframes):
+#     sim_frame_traps = emccd.sim_sub_frame(fluxmap, frametime=30)
+
+#     fits.writeto(Path(path, f'sim_frame_traps_{i}.fits'), sim_frame_traps.astype(np.int32),
+#                  overwrite=True)
 
 # write_to_file = False
 # if write_to_file:
@@ -95,18 +100,28 @@ for i in range(nframes):
 #     fits.writeto(Path(path, 'sim.fits'), sim_frame.astype(np.int32),
 #                  overwrite=True)
 
-# # Plot images
-# plot_images = True
-# if plot_images:
-#     imagesc(fluxmap, 'Input Fluxmap')
-#     imagesc(expected_rate, 'Mean Expected Rate')
+# Plot images
+plot_images = True
+if plot_images:
+    imagesc(fluxmap, 'Input Fluxmap (phot/pix/s)')
 
-#     ims = [sim_frame_notrap, sim_frame]
-#     vmin = np.min(ims)
-#     vmax = np.max(ims)
-#     for im in ims:
-#         subtitle = ('Gain: {:.0f}   Read Noise: {:.0f}e-   Frame Time: {:.0f}s'
-#                     .format(em_gain, read_noise, frametime))
-#         imagesc(im, 'Output Image\n' + subtitle)
+    notrap = sim_frame_notrap/emccd.em_gain
+    trap = sim_frame_trap/emccd.em_gain
 
-#     plt.show()
+    vmin = np.min(expected_rate)
+    vmax = np.max(expected_rate)
+
+    subtitle = f'Frametime = {int(frametime)}s'
+
+    imagesc(expected_rate, 'Mean Expected Rate (e-/pix)\n' + subtitle)
+    imagesc(notrap, 'Output Without Traps (e-/pix)\n' + subtitle,
+            vmin=vmin, vmax=vmax)
+    imagesc(trap, 'Output With Traps (e-/pix)\n' + subtitle,
+            vmin=vmin, vmax=vmax)
+
+    # for im in ims:
+    #     subtitle = ('Gain: {:.0f}   Read Noise: {:.0f}e-   Frame Time: {:.0f}s'
+    #                 .format(em_gain, read_noise, frametime))
+    #     imagesc(im, 'Output Image\n' + subtitle)
+
+    plt.show()
