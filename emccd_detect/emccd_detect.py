@@ -418,6 +418,7 @@ class EMCCDDetect(EMCCDDetectBase):
 
         # Override base class value with metadata value
         self.eperdn = self.meta.eperdn
+        self.full_well_serial = self.meta.fwc
 
     def sim_full_frame(self, fluxmap, frametime):
         """Simulate a full detector frame.
