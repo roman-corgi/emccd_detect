@@ -384,14 +384,16 @@ class EMCCDDetect(EMCCDDetectBase):
 
     Parameters
     ----------
+    meta_path : str
+        Full path of metadata yaml.
     em_gain : float
         CCD em_gain (e-/photon). Defaults to 5000.
     full_well_image : float
-        Image area full well capacity (e-). Defaults to 60000.
+        Image area full well capacity (e-). Defaults to 50000.
     full_well_serial : float
-        Serial (gain) register full well capacity (e-). Defaults to 100000.
+        Serial (gain) register full well capacity (e-). Defaults to 90000.
     dark_current: float
-        Dark current rate (e-/pix/s). Defaults to 0.00028.
+        Dark current rate (e-/pix/s). Defaults to 0.0028.
     cic : float
         Clock induced charge (e-/pix/frame). Defaults to 0.01.
     read_noise : float
@@ -406,8 +408,6 @@ class EMCCDDetect(EMCCDDetectBase):
         Distance between pixel centers (m). Defaults to 13e-6.
     shot_noise_on : bool
         Apply shot noise. Defaults to True.
-    meta_path : str
-        Full path of metadata yaml.
 
     """
 
@@ -539,9 +539,9 @@ def emccd_detect(
     fluxmap,
     frametime,
     em_gain,
-    full_well_image=60000.,
-    full_well_serial=100000.,
-    dark_current=0.00028,
+    full_well_image=50000.,
+    full_well_serial=90000.,
+    dark_current=0.0028,
     cic=0.01,
     read_noise=100,
     bias=0.,
@@ -549,7 +549,6 @@ def emccd_detect(
     cr_rate=0.,
     pixel_pitch=13e-6,
     shot_noise_on=True
-
 ):
     """Create an EMCCD-detected image for a given fluxmap.
 
@@ -566,11 +565,11 @@ def emccd_detect(
     em_gain : float
         CCD em_gain (e-/photon).
     full_well_image : float
-        Image area full well capacity (e-). Defaults to 6000.
+        Image area full well capacity (e-). Defaults to 50000.
     full_well_serial : float
-        Serial (gain) register full well capacity (e-). Defaults to 100000.
+        Serial (gain) register full well capacity (e-). Defaults to 90000.
     dark_current: float
-        Dark current rate (e-/pix/s). Defaults to 0.00028.
+        Dark current rate (e-/pix/s). Defaults to 0.0028.
     cic : float
         Clock induced charge (e-/pix/frame). Defaults to 0.01.
     read_noise : float
