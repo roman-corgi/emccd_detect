@@ -23,45 +23,46 @@ class EMCCDDetectBase:
     Parameters
     ----------
     em_gain : float
-        CCD em_gain (e-/photon). Defaults to 5000.
+        CCD em_gain (e-/photon).
     full_well_image : float
-        Image area full well capacity (e-). Defaults to 60000.
+        Image area full well capacity (e-).
     full_well_serial : float
-        Serial (gain) register full well capacity (e-). Defaults to 100000.
+        Serial (gain) register full well capacity (e-).
     dark_current: float
-        Dark current rate (e-/pix/s). Defaults to 0.00028.
+        Dark current rate (e-/pix/s).
     cic : float
-        Clock induced charge (e-/pix/frame). Defaults to 0.01.
+        Clock induced charge (e-/pix/frame).
     read_noise : float
-        Read noise (e-/pix/frame). Defaults to 100.
+        Read noise (e-/pix/frame).
     bias : float
-        Bias offset (e-). Defaults to 0.
+        Bias offset (e-).
     qe : float
-        Quantum efficiency. Defaults to 0.9.
+        Quantum efficiency.
     cr_rate : float
-        Cosmic ray rate (hits/cm^2/s). Defaults to 0.
+        Cosmic ray rate (hits/cm^2/s).
     pixel_pitch : float
-        Distance between pixel centers (m). Defaults to 13e-6.
+        Distance between pixel centers (m).
     eperdn : float
-        Electrons per dn. Defaults to 1.
+        Electrons per dn.
     shot_noise_on : bool
-        Apply shot noise. Defaults to True.
+        Apply shot noise.
 
     """
-    def __init__(self,
-                 em_gain=5000.,
-                 full_well_image=60000.,
-                 full_well_serial=100000.,
-                 dark_current=0.00028,
-                 cic=0.01,
-                 read_noise=100,
-                 bias=0.,
-                 qe=0.9,
-                 cr_rate=0.,
-                 pixel_pitch=13e-6,
-                 shot_noise_on=True,
-                 eperdn=1.
-                 ):
+    def __init__(
+        self,
+        em_gain,
+        full_well_image,
+        full_well_serial,
+        dark_current,
+        cic,
+        read_noise,
+        bias,
+        qe,
+        cr_rate,
+        pixel_pitch,
+        shot_noise_on,
+        eperdn
+    ):
         self.em_gain = em_gain
         self.full_well_image = full_well_image
         self.full_well_serial = full_well_serial
@@ -102,13 +103,15 @@ class EMCCDDetectBase:
         else:
             self._eperdn = eperdn
 
-    def update_cti(self,
-                   ccd=None,
-                   roe=None,
-                   traps=None,
-                   express=1,
-                   offset=0,
-                   window_range=None):
+    def update_cti(
+        self,
+        ccd=None,
+        roe=None,
+        traps=None,
+        express=1,
+        offset=0,
+        window_range=None
+    ):
         # Update parameters
         self.ccd = ccd
         self.roe = roe
@@ -408,17 +411,48 @@ class EMCCDDetect(EMCCDDetectBase):
 
     """
 
-    def __init__(self, meta_path, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    def __init__(
+        self,
+        meta_path,
+        em_gain=5000.,
+        full_well_image=50000.,
+        full_well_serial=None,
+        dark_current=0.0028,
+        cic=0.01,
+        read_noise=100.,
+        bias=0.,
+        qe=0.9,
+        cr_rate=0.,
+        pixel_pitch=13e-6,
+        shot_noise_on=True,
+        eperdn=None
+    ):
+        # Before inheriting base class, must get metadata defaults
         self.meta_path = meta_path
 
         # Initialize metadata
         self.meta = MetadataWrapper(self.meta_path)
 
-        # Override base class value with metadata value
-        self.eperdn = self.meta.eperdn
-        self.full_well_serial = self.meta.fwc
+        # Set defaults from metadata
+        if full_well_serial is None:
+            full_well_serial = self.meta.fwc
+        if eperdn is None:
+            eperdn = self.meta.eperdn
+
+        super().__init__(
+            em_gain=em_gain,
+            full_well_image=full_well_image,
+            full_well_serial=full_well_serial,
+            dark_current=dark_current,
+            cic=cic,
+            read_noise=read_noise,
+            bias=bias,
+            qe=qe,
+            cr_rate=cr_rate,
+            pixel_pitch=pixel_pitch,
+            shot_noise_on=shot_noise_on,
+            eperdn=eperdn
+        )
 
     def sim_full_frame(self, fluxmap, frametime):
         """Simulate a full detector frame.
@@ -501,24 +535,27 @@ class EMCCDDetect(EMCCDDetectBase):
         return self.meta.slice_section(full_frame, 'prescan')
 
 
-def emccd_detect(fluxmap,
-                 frametime,
-                 em_gain,
-                 full_well_image=60000.,
-                 full_well_serial=100000.,
-                 dark_current=0.00028,
-                 cic=0.01,
-                 read_noise=100,
-                 bias=0.,
-                 qe=0.9,
-                 cr_rate=0.,
-                 pixel_pitch=13e-6,
-                 shot_noise_on=True
-                 ):
+def emccd_detect(
+    fluxmap,
+    frametime,
+    em_gain,
+    full_well_image=60000.,
+    full_well_serial=100000.,
+    dark_current=0.00028,
+    cic=0.01,
+    read_noise=100,
+    bias=0.,
+    qe=0.9,
+    cr_rate=0.,
+    pixel_pitch=13e-6,
+    shot_noise_on=True
+
+):
     """Create an EMCCD-detected image for a given fluxmap.
 
     This is a convenience function which wraps the base class implementation
     of the EMCCD simulator. It maintains the API of emccd_detect version 1.0.1.
+    Note that output is in units of electrons, not dn.
 
     Parameters
     ----------
@@ -576,6 +613,6 @@ def emccd_detect(fluxmap,
         pixel_pitch=pixel_pitch,
         shot_noise_on=shot_noise_on,
         eperdn=1.
-        )
+    )
 
     return emccd.sim_sub_frame(fluxmap, frametime)
