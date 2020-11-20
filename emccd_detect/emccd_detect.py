@@ -484,6 +484,22 @@ class EMCCDDetect(EMCCDDetectBase):
         """
         return self.meta.slice_section(full_frame, 'image')
 
+    def slice_prescan(self, full_frame):
+        """Return only the prescan portion of a full frame.
+
+        Parameters
+        ----------
+        full_frame : array_like
+            Simulated full frame.
+
+        Returns
+        -------
+        array_like
+            Prescan area of a full frame.
+
+        """
+        return self.meta.slice_section(full_frame, 'prescan')
+
 
 def emccd_detect(fluxmap,
                  frametime,
