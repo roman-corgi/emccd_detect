@@ -6,6 +6,10 @@ import numpy as np
 from scipy import special
 
 
+class RandEMGainException(Exception):
+    """Exception class for rand_em_gain module."""
+
+
 def rand_em_gain(n_in_array, em_gain):
     """Generate random numbers according to EM gain pdfs.
 
@@ -36,8 +40,8 @@ def rand_em_gain(n_in_array, em_gain):
     B Nemati and S Miller - UAH - 20-March-2020
 
     """
-    if em_gain < 1:  # XXX Add check for n_in_array dimensions
-        raise Exception('EM gain cannot be set to less than 1')
+    if em_gain < 1:
+        raise RandEMGainException('EM gain cannot be set to less than 1')
 
     # Find how many values in a array are equal to 0, 1, 2, or >= 3
     y = np.zeros(n_in_array.size)
@@ -51,20 +55,20 @@ def rand_em_gain(n_in_array, em_gain):
     n0 = len(inds0)
     n1 = len(inds1)
     n2 = len(inds2)
-    y[inds0] = rand_em_exact(0, n0, em_gain)
-    y[inds1] = rand_em_exact(1, n1, em_gain)
-    y[inds2] = rand_em_exact(2, n2, em_gain)
+    y[inds0] = _rand_em_exact(0, n0, em_gain)
+    y[inds1] = _rand_em_exact(1, n1, em_gain)
+    y[inds2] = _rand_em_exact(2, n2, em_gain)
 
     # For n_in of 3 or greater, generate random numbers one by one according to the
     # generalized gain equation
     for i in inds3:
         n_in = n_in_array[i]
-        y[i] = rand_em_approx(n_in, em_gain)
+        y[i] = _rand_em_approx(n_in, em_gain)
 
     return np.reshape(y, n_in_array.shape)
 
 
-def rand_em_exact(n_in, numel, g):
+def _rand_em_exact(n_in, numel, g):
     """Select a gain distribution based on n_in and generate random numbers."""
     x = np.random.random(numel)
 
@@ -78,13 +82,13 @@ def rand_em_exact(n_in, numel, g):
     return np.round(y)
 
 
-def rand_em_approx(n_in, g):
-    """Select a gain distribution based on n_in and generate a single random number."""
+def _rand_em_approx(n_in, g):
+    """Select gain distribution based on n_in and generate single random number."""
     kmax = 5
     xmin = np.finfo(float).eps
     xmax = kmax * n_in * g
     nx = 800
-    x = np.linspace(xmin, xmax, nx)  # XXX Check against old version
+    x = np.linspace(xmin, xmax, nx)
 
     # Basden 2003 probability distribution function is as follows:
     # pdf = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1))
