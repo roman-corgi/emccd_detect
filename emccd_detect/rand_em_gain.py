@@ -52,26 +52,30 @@ def rand_em_gain(n_in_array, em_gain, max_out):
     n_in_unique = np.unique(n_in_array)
     n_in_unique = n_in_unique[n_in_unique > 0]
 
+    # Generate random numbers according to the gain distribution for each n_in
     for n_in in n_in_unique:
         inds = np.where(n_in_array == n_in)[0]
-        n_out_array[inds] = _rand_em_exact(n_in, em_gain, max_out, len(inds))
+        n_out_array[inds] = _rand_pdf(n_in, em_gain, max_out, len(inds))
 
     return n_out_array
 
 
-def _rand_em_exact(n_in, em_gain, x_max, numel):
-    """Select a gain distribution based on n_in and generate random numbers."""
-    x = np.random.random(numel)
+def _rand_pdf(n_in, em_gain, x_max, size):
+    """Draw samples from the EM gain distribution."""
+    x = np.random.random(size)
 
+    # Use exact solutions for n_in == 1 and 2
     if n_in == 1:
         n_out = -em_gain * np.log(1 - x)
     elif n_in == 2:
         n_out = -em_gain * special.lambertw((x-1)/np.exp(1), -1).real - em_gain
     else:
+        # For n > 2 use CDF approximation
         x_axis = np.arange(0, x_max)
         x_axis[0] = np.finfo(float).eps
-
         cdf = _get_cdf(n_in, em_gain, x_axis)
+
+        # Draw random samples from the CDF
         cdf_lookups = (cdf.max() - cdf.min()) * x + cdf.min()
         n_out = x_axis[np.searchsorted(cdf, cdf_lookups)]  # XXX This could be made more accurate
 
@@ -79,10 +83,9 @@ def _rand_em_exact(n_in, em_gain, x_max, numel):
 
 
 def _get_cdf(n_in, em_gain, x):
-    """Select gain distribution based on n_in and generate single random number."""
-
+    """Return an approximate CDF for the EM gain distribution."""
     # Basden 2003 probability distribution function is as follows:
-    # pdf = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1))
+    # pdf = x^(n_in-1) * exp(-x/g) / (g^n_in * factorial(n_in-1))
     # Because of the cancellation of very large numbers, first work in log space
     logpdf = (n_in-1)*np.log(x) - x/em_gain - n_in*np.log(em_gain) - special.gammaln(n_in)
     pdf = np.exp(logpdf)
