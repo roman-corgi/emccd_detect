@@ -71,8 +71,9 @@ def _rand_pdf(n_in, em_gain, x_max, size):
         n_out = -em_gain * special.lambertw((x-1)/np.exp(1), -1).real - em_gain
     else:
         # For n > 2 use CDF approximation
+        # Use x values ranging from 0 to maximum allowable x output
         x_axis = np.arange(0, x_max)
-        x_axis[0] = np.finfo(float).eps
+        x_axis[0] = np.finfo(float).eps  # Use epsilon to avoid divide by 0
         cdf = _get_cdf(n_in, em_gain, x_axis)
 
         # Draw random samples from the CDF
