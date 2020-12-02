@@ -83,9 +83,13 @@ def _rand_pdf(n_in, em_gain, x_max, size):
 
 
 def _get_cdf(n_in, em_gain, x):
-    """Return an approximate CDF for the EM gain distribution."""
-    # Basden 2003 probability distribution function is as follows:
-    # pdf = x^(n_in-1) * exp(-x/g) / (g^n_in * factorial(n_in-1))
+    """Return an approximate CDF for the EM gain distribution.
+
+    Basden 2003 probability distribution function is as follows:
+
+        pdf = x^(n_in-1) * exp(-x/g) / (g^n_in * factorial(n_in-1))
+
+    """
     # Because of the cancellation of very large numbers, first work in log space
     logpdf = (n_in-1)*np.log(x) - x/em_gain - n_in*np.log(em_gain) - special.gammaln(n_in)
     pdf = np.exp(logpdf)
