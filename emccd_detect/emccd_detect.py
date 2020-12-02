@@ -130,7 +130,7 @@ class EMCCDDetectBase:
             self.traps = [Trap()]
 
     def unset_cti(self):
-        # Remove cti simulation
+        # Remove CTI simulation
         self.ccd = None
         self.roe = None
         self.traps = None
@@ -165,7 +165,7 @@ class EMCCDDetectBase:
         # Simulate parallel clocking
         parallel_counts = self.clock_parallel(actualized_e)
 
-        # Simulate serial clocking  (output will be flattened to 1d)
+        # Simulate serial clocking (output will be flattened to 1d)
         empty_element_m = np.zeros_like(parallel_counts).astype(bool)  # No empty elements
         gain_counts = self.clock_serial(parallel_counts, empty_element_m)
 
@@ -218,9 +218,10 @@ class EMCCDDetectBase:
         # Flatten row by row
         actualized_e_full_flat = actualized_e_full.ravel()
 
-        # Pass electrons through serial register elements
+        # Clock electrons through serial register elements
         serial_counts = self._serial_register_elements(actualized_e_full_flat)
 
+        # Clock electrons through gain register elements
         gain_counts = self._gain_register_elements(serial_counts)
 
         return gain_counts
@@ -319,7 +320,8 @@ class EMCCDDetectBase:
 
         """
         # Apply EM gain
-        gain_counts = rand_em_gain(serial_counts, self.em_gain)
+        gain_counts = rand_em_gain(serial_counts, self.em_gain,
+                                   self.full_well_serial)
 
         # Simulate saturation tails
         # gain_counts = sat_tails(gain_counts, self.full_well_serial)
@@ -391,7 +393,7 @@ class EMCCDDetect(EMCCDDetectBase):
     full_well_image : float
         Image area full well capacity (e-). Defaults to 50000.
     full_well_serial : float
-        Serial (gain) register full well capacity (e-). Defaults to 90000.
+        Serial (gain) register full well capacity (e-). Defaults to None.
     dark_current: float
         Dark current rate (e-/pix/s). Defaults to 0.0028.
     cic : float
@@ -408,6 +410,8 @@ class EMCCDDetect(EMCCDDetectBase):
         Distance between pixel centers (m). Defaults to 13e-6.
     shot_noise_on : bool
         Apply shot noise. Defaults to True.
+    eperdn : float
+        Electrons per dn. Defaults to None.
 
     """
 
@@ -427,10 +431,8 @@ class EMCCDDetect(EMCCDDetectBase):
         shot_noise_on=True,
         eperdn=None
     ):
-        # Before inheriting base class, must get metadata defaults
+        # Before inheriting base class, get metadata
         self.meta_path = meta_path
-
-        # Initialize metadata
         self.meta = MetadataWrapper(self.meta_path)
 
         # Set defaults from metadata
