@@ -11,7 +11,7 @@ from arcticpy.main import add_cti
 from arcticpy.roe import ROE
 from arcticpy.ccd import CCD
 from arcticpy.traps import Trap
-
+import matplotlib.pyplot as plt
 
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
@@ -319,9 +319,16 @@ class EMCCDDetectBase:
             Electron counts after passing through gain register elements.
 
         """
+        gain_counts = np.zeros_like(serial_counts)
+        plt.figure()
         # Apply EM gain
-        gain_counts = rand_em_gain(serial_counts, self.em_gain,
-                                   self.full_well_serial)
+        ndiv = 10
+        div_gain = np.arange(1, ndiv+1)
+        for div in div_gain:
+            gain_counts[div-1::ndiv] = rand_em_gain(serial_counts[div-1::ndiv], self.em_gain/div, self.full_well_serial)
+            binwidth = 300
+            data = gain_counts[div-1::ndiv]
+            plt.hist(data, bins=range(int(min(data)), int(max(data) + binwidth), binwidth), log=True)
 
         # Simulate saturation tails
         # gain_counts = sat_tails(gain_counts, self.full_well_serial)

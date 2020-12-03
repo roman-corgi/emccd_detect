@@ -86,4 +86,8 @@ if __name__ == '__main__':
                     .format(em_gain, read_noise, frametime))
         imagesc(sim_frame, 'Output Image\n' + subtitle)
 
+        pre = emccd.slice_prescan(sim_frame)
+        plt.figure()
+        plt.hist(sim_frame.ravel(), bins=200, log=True)
+
         plt.show()
