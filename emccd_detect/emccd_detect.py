@@ -11,7 +11,7 @@ from arcticpy.main import add_cti
 from arcticpy.roe import ROE
 from arcticpy.ccd import CCD
 from arcticpy.traps import Trap
-import matplotlib.pyplot as plt
+
 
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
@@ -319,16 +319,33 @@ class EMCCDDetectBase:
             Electron counts after passing through gain register elements.
 
         """
-        gain_counts = np.zeros_like(serial_counts)
-        plt.figure()
         # Apply EM gain
-        ndiv = 10
-        div_gain = np.arange(1, ndiv+1)
-        for div in div_gain:
-            gain_counts[div-1::ndiv] = rand_em_gain(serial_counts[div-1::ndiv], self.em_gain/div, self.full_well_serial)
-            binwidth = 300
-            data = gain_counts[div-1::ndiv]
-            plt.hist(data, bins=range(int(min(data)), int(max(data) + binwidth), binwidth), log=True)
+        gain_counts = np.zeros_like(serial_counts)
+        gain_counts = rand_em_gain(serial_counts, self.em_gain, self.full_well_serial)
+
+        # Simulate partial CIC for zero elements
+        n_gain_elements = 604
+        gain_cic = self.em_gain**(1/n_gain_elements) - 1
+
+        # Find the zero elements
+        zero_mask = (gain_counts == 0)
+
+        # Apply CIC
+        gain_counts[zero_mask] = np.random.poisson(gain_counts[zero_mask] + gain_cic)
+
+        # Find actualized CIC counts
+        cic_counts_mask = (gain_counts > 0) * zero_mask
+
+        # Choose random starting positions for each CIC count and calculate
+        # the gains based on those starting positions
+        n_new = np.round(np.random.random(gain_counts[cic_counts_mask].size)
+                         * (n_gain_elements-1)).astype(int)
+        gains = (1 + gain_cic)**n_new
+
+        for ind, gain in zip(cic_counts_mask.nonzero()[0], gains):
+            n_in = np.array([gain_counts[ind]])
+            gain_counts[ind] = rand_em_gain(n_in, gain, self.full_well_serial)
+
 
         # Simulate saturation tails
         # gain_counts = sat_tails(gain_counts, self.full_well_serial)
