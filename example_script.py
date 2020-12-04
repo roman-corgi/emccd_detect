@@ -44,7 +44,7 @@ if __name__ == '__main__':
     full_well_image = 50000.  # Image area full well capacity (e-)
     full_well_serial = 90000.  # Serial (gain) register full well capacity (e-)
     dark_current = 0.0028  # Dark current rate (e-/pix/s)
-    cic = 0.01  # Clock induced charge (e-/pix/frame)
+    cic = 0.02  # Clock induced charge (e-/pix/frame)
     read_noise = 100.  # Read noise (e-/pix/frame)
     bias = 0.  # Bias offset (e-)
     qe = 0.9  # Quantum efficiency
@@ -88,6 +88,6 @@ if __name__ == '__main__':
 
         pre = emccd.slice_prescan(sim_frame)
         plt.figure()
-        plt.hist(sim_frame.ravel(), bins=200, log=True)
+        plt.hist(pre.ravel(), bins=200, log=True)
 
         plt.show()

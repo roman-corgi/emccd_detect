@@ -325,12 +325,13 @@ class EMCCDDetectBase:
 
         # Simulate partial CIC for zero elements
         n_gain_elements = 604
-        gain_cic = self.em_gain**(1/n_gain_elements) - 1
+        gain_rate = self.em_gain**(1/n_gain_elements) - 1
 
         # Find the zero elements
         zero_mask = (gain_counts == 0)
 
         # Apply CIC
+        gain_cic = 0.5
         gain_counts[zero_mask] = np.random.poisson(gain_counts[zero_mask] + gain_cic)
 
         # Find actualized CIC counts
@@ -340,11 +341,14 @@ class EMCCDDetectBase:
         # the gains based on those starting positions
         n_new = np.round(np.random.random(gain_counts[cic_counts_mask].size)
                          * (n_gain_elements-1)).astype(int)
-        gains = (1 + gain_cic)**n_new
+        gains = (1 + gain_rate)**n_new
 
-        for ind, gain in zip(cic_counts_mask.nonzero()[0], gains):
-            n_in = np.array([gain_counts[ind]])
-            gain_counts[ind] = rand_em_gain(n_in, gain, self.full_well_serial)
+        ind_array = cic_counts_mask.nonzero()[0]
+
+        for gain in np.unique(gains):
+            gain_inds = np.where(gains == gain)
+            inds = ind_array[gain_inds]
+            gain_counts[inds] = rand_em_gain(gain_counts[inds], gain, self.full_well_serial)
 
 
         # Simulate saturation tails
