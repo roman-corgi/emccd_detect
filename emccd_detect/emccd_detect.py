@@ -46,6 +46,10 @@ class EMCCDDetectBase:
         Electrons per dn.
     shot_noise_on : bool
         Apply shot noise.
+    cic_gain_register : float
+        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
+    n_gr_elements : float
+        Number of gain register elements.
 
     """
     def __init__(
@@ -61,7 +65,9 @@ class EMCCDDetectBase:
         cr_rate,
         pixel_pitch,
         shot_noise_on,
-        eperdn
+        eperdn,
+        cic_gain_register,
+        n_gr_elements,
     ):
         self.em_gain = em_gain
         self.full_well_image = full_well_image
@@ -73,8 +79,10 @@ class EMCCDDetectBase:
         self.qe = qe
         self.cr_rate = cr_rate
         self.pixel_pitch = pixel_pitch
-        self.eperdn = eperdn
         self.shot_noise_on = shot_noise_on
+        self.eperdn = eperdn
+        self.cic_gain_register = cic_gain_register
+        self.n_gr_elements = n_gr_elements
 
         # Placeholders for trap parameters
         self.ccd = None
@@ -321,10 +329,13 @@ class EMCCDDetectBase:
         """
         # Apply EM gain
         gain_counts = np.zeros_like(serial_counts)
-        gain_counts = rand_em_gain(serial_counts, self.em_gain, self.full_well_serial)
-
-        # Simulate partial CIC
-        partial = self._partial_cic(gain_counts.copy(), gain_cic=0.5, n_elements=604)
+        gain_counts = rand_em_gain(
+            n_in_array=serial_counts,
+            em_gain=self.em_gain,
+            max_out=self.full_well_serial,
+            gain_cic=self.cic_gain_register,
+            n_elements=self.n_gr_elements
+        )
 
         # Simulate saturation tails
         # gain_counts = sat_tails(gain_counts, self.full_well_serial)
@@ -334,35 +345,6 @@ class EMCCDDetectBase:
 
         return gain_counts
 
-
-    def _partial_cic(self, gain_counts, gain_cic, n_elements):
-        # Find the elements with zero counts (where partial CIC is relevant)
-        zero_mask = (gain_counts == 0)
-
-        # Actualize CIC electrons
-        gain_counts[zero_mask] = np.random.poisson(gain_counts[zero_mask]
-                                                   + gain_cic)
-
-        # Find the elements where CIC counts were actualized
-        cic_counts_mask = (gain_counts > 0) * zero_mask
-        cic_counts_inds = cic_counts_mask.nonzero()[0]
-
-        # For each CIC count, choose a random starting position between zero
-        # and number of gain elements
-        n_elements_partial = np.round(np.random.random(cic_counts_inds.size)
-                                      * (n_elements-1)).astype(int)
-        # Calculate the gains for each number of elements
-        rate_per_element = self.em_gain**(1/n_elements) - 1
-        gains = (1 + rate_per_element)**n_elements_partial
-
-        # Cycle through different gain values and apply them to their
-        # corresponding elements
-        for gain in np.unique(gains):
-            inds = cic_counts_inds[np.where(gains == gain)]
-            gain_counts[inds] = rand_em_gain(gain_counts[inds], gain,
-                                             self.full_well_serial)
-
-        return gain_counts
 
     def _amp(self, serial_counts):
         """Simulate amp behavior.
@@ -445,9 +427,12 @@ class EMCCDDetect(EMCCDDetectBase):
         Apply shot noise. Defaults to True.
     eperdn : float
         Electrons per dn. Defaults to None.
+    cic_gain_register : float
+        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
+    n_gr_elements : float
+        Number of gain register elements. Defaults to 604.
 
     """
-
     def __init__(
         self,
         meta_path,
@@ -462,7 +447,9 @@ class EMCCDDetect(EMCCDDetectBase):
         cr_rate=0.,
         pixel_pitch=13e-6,
         shot_noise_on=True,
-        eperdn=None
+        eperdn=None,
+        cic_gain_register=0.,
+        n_gr_elements=604,
     ):
         # Before inheriting base class, get metadata
         self.meta_path = meta_path
@@ -486,7 +473,9 @@ class EMCCDDetect(EMCCDDetectBase):
             cr_rate=cr_rate,
             pixel_pitch=pixel_pitch,
             shot_noise_on=shot_noise_on,
-            eperdn=eperdn
+            eperdn=eperdn,
+            cic_gain_register=cic_gain_register,
+            n_gr_elements=n_gr_elements,
         )
 
     def sim_full_frame(self, fluxmap, frametime):
@@ -631,6 +620,8 @@ def emccd_detect(
     legacy purposes, as the version 1.0.1 implementation output electrons
     instead of dn.
 
+    The legacy version also has no gain register CIC, so cic_gain is set to 0.
+
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
@@ -646,7 +637,8 @@ def emccd_detect(
         cr_rate=cr_rate,
         pixel_pitch=pixel_pitch,
         shot_noise_on=shot_noise_on,
-        eperdn=1.
+        eperdn=1.,
+        cic_gain_register=0.
     )
 
     return emccd.sim_sub_frame(fluxmap, frametime)
