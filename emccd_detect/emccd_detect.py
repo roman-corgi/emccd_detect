@@ -11,7 +11,7 @@ from arcticpy.main import add_cti
 from arcticpy.roe import ROE
 from arcticpy.ccd import CCD
 from arcticpy.traps import Trap
-
+import matplotlib.pyplot as plt
 
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
@@ -84,7 +84,7 @@ class EMCCDDetectBase:
         self.offset = None
         self.window_range = None
 
-        # Placeholders for simulation values
+        # Placeholders for derived values
         self.mean_expected_rate = None
 
     @property
@@ -323,39 +323,44 @@ class EMCCDDetectBase:
         gain_counts = np.zeros_like(serial_counts)
         gain_counts = rand_em_gain(serial_counts, self.em_gain, self.full_well_serial)
 
-        # Simulate partial CIC for zero elements
-        n_gain_elements = 604
-        gain_rate = self.em_gain**(1/n_gain_elements) - 1
-
-        # Find the zero elements
-        zero_mask = (gain_counts == 0)
-
-        # Apply CIC
-        gain_cic = 0.5
-        gain_counts[zero_mask] = np.random.poisson(gain_counts[zero_mask] + gain_cic)
-
-        # Find actualized CIC counts
-        cic_counts_mask = (gain_counts > 0) * zero_mask
-
-        # Choose random starting positions for each CIC count and calculate
-        # the gains based on those starting positions
-        n_new = np.round(np.random.random(gain_counts[cic_counts_mask].size)
-                         * (n_gain_elements-1)).astype(int)
-        gains = (1 + gain_rate)**n_new
-
-        ind_array = cic_counts_mask.nonzero()[0]
-
-        for gain in np.unique(gains):
-            gain_inds = np.where(gains == gain)
-            inds = ind_array[gain_inds]
-            gain_counts[inds] = rand_em_gain(gain_counts[inds], gain, self.full_well_serial)
-
+        # Simulate partial CIC
+        partial = self._partial_cic(gain_counts.copy(), gain_cic=0.5, n_elements=604)
 
         # Simulate saturation tails
         # gain_counts = sat_tails(gain_counts, self.full_well_serial)
 
         # Cap at full well capacity of gain register
         gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
+
+        return gain_counts
+
+
+    def _partial_cic(self, gain_counts, gain_cic, n_elements):
+        # Find the elements with zero counts (where partial CIC is relevant)
+        zero_mask = (gain_counts == 0)
+
+        # Actualize CIC electrons
+        gain_counts[zero_mask] = np.random.poisson(gain_counts[zero_mask]
+                                                   + gain_cic)
+
+        # Find the elements where CIC counts were actualized
+        cic_counts_mask = (gain_counts > 0) * zero_mask
+        cic_counts_inds = cic_counts_mask.nonzero()[0]
+
+        # For each CIC count, choose a random starting position between zero
+        # and number of gain elements
+        n_elements_partial = np.round(np.random.random(cic_counts_inds.size)
+                                      * (n_elements-1)).astype(int)
+        # Calculate the gains for each number of elements
+        rate_per_element = self.em_gain**(1/n_elements) - 1
+        gains = (1 + rate_per_element)**n_elements_partial
+
+        # Cycle through different gain values and apply them to their
+        # corresponding elements
+        for gain in np.unique(gains):
+            inds = cic_counts_inds[np.where(gains == gain)]
+            gain_counts[inds] = rand_em_gain(gain_counts[inds], gain,
+                                             self.full_well_serial)
 
         return gain_counts
 
