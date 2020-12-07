@@ -11,7 +11,7 @@ from arcticpy.main import add_cti
 from arcticpy.roe import ROE
 from arcticpy.ccd import CCD
 from arcticpy.traps import Trap
-import matplotlib.pyplot as plt
+
 
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
