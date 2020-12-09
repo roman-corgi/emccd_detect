@@ -48,7 +48,7 @@ class EMCCDDetectBase:
         Apply shot noise.
     cic_gain_register : float
         Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
-    n_gr_elements : float
+    numel_gain_register : float
         Number of gain register elements.
 
     """
@@ -67,7 +67,7 @@ class EMCCDDetectBase:
         shot_noise_on,
         eperdn,
         cic_gain_register,
-        n_gr_elements,
+        numel_gain_register,
     ):
         self.em_gain = em_gain
         self.full_well_image = full_well_image
@@ -82,7 +82,7 @@ class EMCCDDetectBase:
         self.shot_noise_on = shot_noise_on
         self.eperdn = eperdn
         self.cic_gain_register = cic_gain_register
-        self.n_gr_elements = n_gr_elements
+        self.numel_gain_register = numel_gain_register
 
         # Placeholders for trap parameters
         self.ccd = None
@@ -333,8 +333,8 @@ class EMCCDDetectBase:
             n_in_array=serial_counts,
             em_gain=self.em_gain,
             max_out=self.full_well_serial,
-            gain_cic=self.cic_gain_register,
-            n_elements=self.n_gr_elements
+            cic_gain_register=self.cic_gain_register,
+            numel_gain_register=self.numel_gain_register
         )
 
         # Simulate saturation tails
@@ -429,7 +429,7 @@ class EMCCDDetect(EMCCDDetectBase):
         Electrons per dn. Defaults to None.
     cic_gain_register : float
         Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
-    n_gr_elements : float
+    numel_gain_register : float
         Number of gain register elements. Defaults to 604.
 
     """
@@ -449,7 +449,7 @@ class EMCCDDetect(EMCCDDetectBase):
         shot_noise_on=True,
         eperdn=None,
         cic_gain_register=0.,
-        n_gr_elements=604,
+        numel_gain_register=604,
     ):
         # Before inheriting base class, get metadata
         self.meta_path = meta_path
@@ -475,7 +475,7 @@ class EMCCDDetect(EMCCDDetectBase):
             shot_noise_on=shot_noise_on,
             eperdn=eperdn,
             cic_gain_register=cic_gain_register,
-            n_gr_elements=n_gr_elements,
+            numel_gain_register=numel_gain_register,
         )
 
     def sim_full_frame(self, fluxmap, frametime):

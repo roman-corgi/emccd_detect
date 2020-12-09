@@ -10,8 +10,11 @@ class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
 
-def rand_em_gain(n_in_array, em_gain, max_out, gain_cic=0, n_elements=604):
+def rand_em_gain(n_in_array, em_gain, max_out, cic_gain_register=0,
+                 numel_gain_register=604):
     """Generate random numbers according to EM gain pdfs.
+
+    If cic_gain_register is set to 0 (default)
 
     Parameters
     ----------
@@ -21,6 +24,10 @@ def rand_em_gain(n_in_array, em_gain, max_out, gain_cic=0, n_elements=604):
         CCD em_gain (e-/photon).
     max_out : float
         Maximum allowed output, used to set a end bound on distributions (e-).
+    cic_gain_register : float
+        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
+    numel_gain_register : int
+        Number of elements in the gain register. Defaults to 604.
 
     Returns
     -------
@@ -49,9 +56,9 @@ def rand_em_gain(n_in_array, em_gain, max_out, gain_cic=0, n_elements=604):
     n_out_array = _apply_gain(n_in_array, em_gain, max_out)
 
     # If a gain CIC value is nonzero, apply partial CIC for all zero n_in counts
-    if gain_cic != 0:
-        n_out_array = _partial_cic(n_out_array, n_elements, max_out, gain_cic,
-                                   em_gain)
+    if cic_gain_register != 0:
+        n_out_array = _partial_cic(n_out_array, numel_gain_register, max_out,
+                                   cic_gain_register, em_gain)
 
     return n_out_array
 
