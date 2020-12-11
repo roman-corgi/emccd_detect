@@ -30,24 +30,12 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
 if __name__ == '__main__':
     here = os.path.abspath(os.path.dirname(__file__))
 
-    # Input fluxmap
-    fits_name = 'sci_frame.fits'
-    fits_path = Path(here, 'data', fits_name)
-    fluxmap = fits.getdata(fits_path).astype(float)  # Input fluxmap (photons/pix/s)
+    # Specify metadata path
+    meta_path = Path(here, 'data', 'metadata.yaml')
 
-    # Simulation inputs
-    frametime = 100.  # Frame time (s)
-    em_gain = 5000.  # CCD EM gain (e-/photon)
-    full_well_image = 50000.  # Image area full well capacity (e-)
-    full_well_serial = 90000.  # Serial (gain) register full well capacity (e-)
-    dark_current = 0.0028  # Dark current rate (e-/pix/s)
-    cic = 0.01  # Clock induced charge (e-/pix/frame)
-    read_noise = 100.  # Read noise (e-/pix/frame)
-    bias = 0.  # Bias offset (e-)
-    qe = 0.9  # Quantum efficiency
-    cr_rate = 0.  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
-    pixel_pitch = 13e-6  # Distance between pixel centers (m)
-    shot_noise_on = True  # Apply shot noise
+    # Set up input fluxmap
+    fits_path = Path(here, 'data', 'sci_frame.fits')
+    fluxmap = fits.getdata(fits_path).astype(float)  # (photons/pix/s)
 
     # Traps at Hubble launch date
     date = 2452334.5
@@ -55,21 +43,24 @@ if __name__ == '__main__':
 
     # Instantiate class
     emccd = EMCCDDetect(
-        meta_path=Path(here, 'data', 'metadata.yaml'),
-        em_gain=em_gain,
-        full_well_image=full_well_image,
-        full_well_serial=full_well_serial,
-        dark_current=dark_current,
-        cic=cic,
-        read_noise=read_noise,
-        bias=bias,
-        qe=qe,
-        cr_rate=cr_rate,
-        pixel_pitch=pixel_pitch,
-        shot_noise_on=shot_noise_on
+        meta_path=meta_path,
+        em_gain=5000.,
+        full_well_image=60000,  # e-
+        dark_current=0.0028,  # e-/pix/s
+        cic=0.02,  # e-/pix/s
+        read_noise=100,  # e-
+        bias=10000,  # e-
+        qe=0.9,
+        cr_rate=0.,  # hits/cm^2/s
+        pixel_pitch=13e-6,  # m
+        shot_noise_on=True,
+        cic_gain_register=0.,  # e-/pix/s
+        numel_gain_register=604,
+        nbits=14
     )
 
     # No traps
+    frametime = 100  # s
     sim_frame_notrap = emccd.sim_sub_frame(fluxmap, frametime)
 
     # Expected rate for given run
@@ -87,9 +78,9 @@ if __name__ == '__main__':
         vmin = np.min(expected_rate)
         vmax = np.max(expected_rate)
 
-        # Plot gain divided arrays
-        notrap = sim_frame_notrap/emccd.em_gain
-        trap = sim_frame_trap/emccd.em_gain
+        # Convert output arrays from dn to electrons
+        notrap = (sim_frame_notrap*emccd.eperdn - emccd.bias) / emccd.em_gain
+        trap = (sim_frame_trap*emccd.eperdn - emccd.bias) / emccd.em_gain
 
         subtitle = f'Frametime = {int(frametime)}s'
         imagesc(expected_rate, 'Mean Expected Rate (e-/pix)\n' + subtitle)
