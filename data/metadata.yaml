@@ -56,9 +56,10 @@ geom:
       - 1030
       - 1088
 eperdn: 0.88
-fwc: 90000
+fwc: 48440
 sat_thresh: 0.99
 plat_thresh: 0.85
 cosm_filter: 3
 tail_filter: 5
 cic_thresh: 100
+max_em_gain: 10000
