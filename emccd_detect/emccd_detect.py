@@ -23,7 +23,7 @@ class EMCCDDetectBase:
     Parameters
     ----------
     em_gain : float
-        CCD em_gain (e-/photon).
+        Electron multiplying gain (e-/photoelectron).
     full_well_image : float
         Image area full well capacity (e-).
     full_well_serial : float
@@ -417,7 +417,7 @@ class EMCCDDetect(EMCCDDetectBase):
     meta_path : str
         Full path of metadata yaml.
     em_gain : float
-        CCD em_gain (e-/photon). Defaults to 5000.
+        Electron multiplying gain (e-/photoelectron). Defaults to 5000.
     full_well_image : float
         Image area full well capacity (e-). Defaults to 60000.
     full_well_serial : float
@@ -605,7 +605,7 @@ def emccd_detect(
     frametime : float
         Frame time (s).
     em_gain : float
-        CCD em_gain (e-/photon).
+        Electron multiplying gain (e-/photoelectron).
     full_well_image : float
         Image area full well capacity (e-). Defaults to 50000.
     full_well_serial : float
