@@ -51,6 +51,9 @@ if __name__ == '__main__':
     cr_rate = 0.  # Cosmic ray rate (5 for L2) (hits/cm^2/s)
     pixel_pitch = 13e-6  # Distance between pixel centers (m)
     shot_noise_on = True  # Apply shot noise
+    cic_gain_register = 0.  # Apply gain register CIC (e-/pix/frame)
+    numel_gain_register = 604  # Number of gain register elements
+
 
     # Instantiate class
     emccd = EMCCDDetect(
@@ -65,7 +68,9 @@ if __name__ == '__main__':
         qe=qe,
         cr_rate=cr_rate,
         pixel_pitch=pixel_pitch,
-        shot_noise_on=shot_noise_on
+        shot_noise_on=shot_noise_on,
+        cic_gain_register=cic_gain_register,
+        numel_gain_register=numel_gain_register
     )
 
     # Simulate full frame
@@ -88,6 +93,6 @@ if __name__ == '__main__':
 
         pre = emccd.slice_prescan(sim_frame)
         plt.figure()
-        plt.hist(pre.ravel(), bins=200, log=True)
+        plt.hist(pre.ravel(), bins=150, log=True)
 
         plt.show()
