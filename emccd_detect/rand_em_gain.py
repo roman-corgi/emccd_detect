@@ -89,6 +89,9 @@ def _rand_pdf(n_in, em_gain, x_max, size):
         n_out = -em_gain * np.log(1 - x)
     elif n_in == 2:
         n_out = -em_gain * special.lambertw((x-1)/np.exp(1), -1).real - em_gain
+    elif n_in*em_gain > x_max:
+        # XXX Will improve this in the future, but functionally this should work
+        n_out = np.ones_like(x) * n_in*em_gain
     else:
         # For n > 2 use CDF approximation
         # Use x values ranging from 0 to maximum allowable x output
