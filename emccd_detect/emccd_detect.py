@@ -71,12 +71,12 @@ class EMCCDDetectBase:
         eperdn,
         cic_gain_register,
         numel_gain_register,
-        nbits
+        nbits,
     ):
         # Input checks
         if not isinstance(nbits, (int, np.integer)):
             raise EMCCDDetectException('nbits must be an integer')
-        if nbits < 1 or nbits > 2**64:
+        if nbits < 1 or nbits > 64:
             raise EMCCDDetectException('nbits must be between 1 and 64, '
                                        'inclusive')
 
@@ -639,7 +639,12 @@ def emccd_detect(
     instead of dn.
 
     The legacy version also has no gain register CIC, so cic_gain_register is
-    set to 0.
+    set to 0 and numel_gain_register is irrelevant.
+
+    The legacy version also had no ADC (it just output floats), so the number
+    of bits is set as high as possible (64) and the output is converted to
+    floats. This will still be different from the legacy version as there will
+    no longer be negative numbers.
 
     B Nemati and S Miller - UAH - 18-Jan-2019
 
@@ -657,7 +662,9 @@ def emccd_detect(
         pixel_pitch=pixel_pitch,
         shot_noise_on=shot_noise_on,
         eperdn=1.,
-        cic_gain_register=0.
+        cic_gain_register=0.,
+        numel_gain_register=604,
+        nbits=64,
     )
 
-    return emccd.sim_sub_frame(fluxmap, frametime)
+    return emccd.sim_sub_frame(fluxmap, frametime).astype(float)
