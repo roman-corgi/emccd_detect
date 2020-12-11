@@ -55,8 +55,8 @@ geom:
     ul:
       - 1030
       - 1088
-eperdn: 0.88
-fwc: 48440
+eperdn: 7
+fwc: 100000
 sat_thresh: 0.99
 plat_thresh: 0.85
 cosm_filter: 3

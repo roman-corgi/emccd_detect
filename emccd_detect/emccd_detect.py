@@ -77,7 +77,8 @@ class EMCCDDetectBase:
         if not isinstance(nbits, (int, np.integer)):
             raise EMCCDDetectException('nbits must be an integer')
         if nbits < 1 or nbits > 2**64:
-            raise EMCCDDetectException('nbits must be between 0 and 2^64')
+            raise EMCCDDetectException('nbits must be between 1 and 64, '
+                                       'inclusive')
 
         self.em_gain = em_gain
         self.full_well_image = full_well_image
@@ -418,17 +419,17 @@ class EMCCDDetect(EMCCDDetectBase):
     em_gain : float
         CCD em_gain (e-/photon). Defaults to 5000.
     full_well_image : float
-        Image area full well capacity (e-). Defaults to 50000.
+        Image area full well capacity (e-). Defaults to 60000.
     full_well_serial : float
         Serial (gain) register full well capacity (e-). Defaults to None.
     dark_current: float
         Dark current rate (e-/pix/s). Defaults to 0.0028.
     cic : float
-        Clock induced charge (e-/pix/frame). Defaults to 0.01.
+        Clock induced charge (e-/pix/frame). Defaults to 0.02.
     read_noise : float
         Read noise (e-/pix/frame). Defaults to 100.
     bias : float
-        Bias offset (e-). Defaults to 0.
+        Bias offset (e-). Defaults to 10000.
     qe : float
         Quantum efficiency. Defaults to 0.9.
     cr_rate : float
@@ -452,12 +453,12 @@ class EMCCDDetect(EMCCDDetectBase):
         self,
         meta_path,
         em_gain=5000.,
-        full_well_image=50000.,
+        full_well_image=60000.,
         full_well_serial=None,
         dark_current=0.0028,
-        cic=0.01,
+        cic=0.02,
         read_noise=100.,
-        bias=0.,
+        bias=10000.,
         qe=0.9,
         cr_rate=0.,
         pixel_pitch=13e-6,
