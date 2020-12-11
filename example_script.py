@@ -36,8 +36,8 @@ if __name__ == '__main__':
     fits_path = Path(here, 'data', 'sci_frame.fits')
     fluxmap = fits.getdata(fits_path).astype(float)  # (photons/pix/s)
     # Put fluxmap in 1024x1024 image section
-    image = np.zeros((1024, 1024)).astype(float)
-    image[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
+    full_fluxmap = np.zeros((1024, 1024)).astype(float)
+    full_fluxmap[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
 
 
     # Instantiate class
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     # Simulate full frame
     frametime = 100
-    sim_frame = emccd.sim_full_frame(image, frametime)
+    sim_frame = emccd.sim_full_frame(full_fluxmap, frametime)
 
     # Alternatively, add noise just to the input fluxmap
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
@@ -71,6 +71,8 @@ if __name__ == '__main__':
     sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
 
     # Plot images
-    imagesc(fluxmap, 'Input Fluxmap')
-    imagesc(sim_frame, 'Output Image')
+    # Full frame images
+    imagesc(full_fluxmap, 'Input Fluxmap')
+    imagesc(sim_frame, 'Output Frame')
+
     plt.show()
