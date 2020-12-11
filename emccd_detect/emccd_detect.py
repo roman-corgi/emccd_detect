@@ -50,6 +50,9 @@ class EMCCDDetectBase:
         Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
     numel_gain_register : float
         Number of gain register elements.
+    nbits : int
+        Number of bits used by the ADC readout. Must be between 1 and 64,
+        inclusive.
 
     """
     def __init__(
@@ -68,7 +71,14 @@ class EMCCDDetectBase:
         eperdn,
         cic_gain_register,
         numel_gain_register,
+        nbits
     ):
+        # Input checks
+        if not isinstance(nbits, (int, np.integer)):
+            raise EMCCDDetectException('nbits must be an integer')
+        if nbits < 1 or nbits > 2**64:
+            raise EMCCDDetectException('nbits must be between 0 and 2^64')
+
         self.em_gain = em_gain
         self.full_well_image = full_well_image
         self.full_well_serial = full_well_serial
@@ -83,6 +93,7 @@ class EMCCDDetectBase:
         self.eperdn = eperdn
         self.cic_gain_register = cic_gain_register
         self.numel_gain_register = numel_gain_register
+        self.nbits = nbits
 
         # Placeholders for trap parameters
         self.ccd = None
@@ -168,7 +179,7 @@ class EMCCDDetectBase:
         """
         # Simulate the integration process
         exposed_pix_m = np.ones_like(fluxmap).astype(bool)  # No unexposed pixels
-        actualized_e = self.integrate(fluxmap, frametime, exposed_pix_m)
+        actualized_e = self.integrate(fluxmap.copy(), frametime, exposed_pix_m)
 
         # Simulate parallel clocking
         parallel_counts = self.clock_parallel(actualized_e)
@@ -204,7 +215,7 @@ class EMCCDDetectBase:
         # Only add CTI if update_cti has been called
         if self.ccd is not None and self.roe is not None and self.traps is not None:
             parallel_counts = add_cti(
-                actualized_e,
+                actualized_e.copy(),
                 parallel_roe=self.roe,
                 parallel_ccd=self.ccd,
                 parallel_traps=self.traps,
@@ -222,7 +233,7 @@ class EMCCDDetectBase:
         # XXX Another place where we are fudging a little
         actualized_e_full[empty_element_m] = np.random.poisson(actualized_e_full[empty_element_m]
                                                                + self.cic)
-
+        # XXX Call arcticpy here
         # Flatten row by row
         actualized_e_full_flat = actualized_e_full.ravel()
 
@@ -309,7 +320,6 @@ class EMCCDDetectBase:
             Electrons counts after passing through serial register elements.
 
         """
-        # XXX Call arcticpy here
         serial_counts = actualized_e_full_flat
         return serial_counts
 
@@ -388,7 +398,9 @@ class EMCCDDetectBase:
 
         """
         # Convert from electron volts to dn
-        output_dn = amp_ev / self.eperdn
+        dn_min = 0
+        dn_max = 2**self.nbits - 1
+        output_dn = np.clip(amp_ev / self.eperdn, dn_min, dn_max).astype(np.uint64)
 
         return output_dn
 
@@ -431,6 +443,9 @@ class EMCCDDetect(EMCCDDetectBase):
         Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
     numel_gain_register : float
         Number of gain register elements. Defaults to 604.
+    nbits : int
+        Number of bits used by the ADC readout. Must be between 1 and 64,
+        inclusive. Defaults to 14.
 
     """
     def __init__(
@@ -450,6 +465,7 @@ class EMCCDDetect(EMCCDDetectBase):
         eperdn=None,
         cic_gain_register=0.,
         numel_gain_register=604,
+        nbits=14,
     ):
         # Before inheriting base class, get metadata
         self.meta_path = meta_path
@@ -476,6 +492,7 @@ class EMCCDDetect(EMCCDDetectBase):
             eperdn=eperdn,
             cic_gain_register=cic_gain_register,
             numel_gain_register=numel_gain_register,
+            nbits=nbits,
         )
 
     def sim_full_frame(self, fluxmap, frametime):
@@ -503,7 +520,7 @@ class EMCCDDetect(EMCCDDetectBase):
         # Embed the fluxmap within the imaging area. Create a mask for
         # referencing the input fluxmap subsection later
         fluxmap_full = self.meta.embed_im(imaging_area_zeros, 'image',
-                                          fluxmap)
+                                          fluxmap.copy())
         exposed_pix_m = self.meta.imaging_slice(self.meta.mask('image'))
         # Simulate the integration process
         actualized_e = self.integrate(fluxmap_full, frametime, exposed_pix_m)
@@ -620,7 +637,8 @@ def emccd_detect(
     legacy purposes, as the version 1.0.1 implementation output electrons
     instead of dn.
 
-    The legacy version also has no gain register CIC, so cic_gain is set to 0.
+    The legacy version also has no gain register CIC, so cic_gain_register is
+    set to 0.
 
     B Nemati and S Miller - UAH - 18-Jan-2019
 
