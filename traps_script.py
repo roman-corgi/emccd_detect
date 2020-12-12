@@ -46,9 +46,9 @@ if __name__ == '__main__':
         meta_path=meta_path,
         em_gain=5000.,
         full_well_image=60000,  # e-
-        dark_current=0.00,  # e-/pix/s
-        cic=0.0,  # e-/pix/s
-        read_noise=0,  # e-
+        dark_current=0.0028,  # e-/pix/s
+        cic=0.02,  # e-/pix/s
+        read_noise=100,  # e-
         bias=10000,  # e-
         qe=0.9,
         cr_rate=0.,  # hits/cm^2/s
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     )
 
     # Simulate without traps
-    frametime = 1  # s
+    frametime = 100  # s
     sim_frame_notrap = emccd.sim_sub_frame(fluxmap, frametime)
 
     # Get expected rate for given run
