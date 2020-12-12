@@ -10,27 +10,29 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='emccd_detect',
-    version='1.0.1',
+    version='2.0.0-alpha',
     description='EMCCD detector image simulation',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.jpl.nasa.gov/WFIRST-CGI/emccd_detect',
     author='Bijan Nemati, Sam Miller',
-    author_email='bijan.nemati@uah.edu, sm0204@uah.edu',
+    author_email='bijan.nemati@uah.edu, sam.miller@uah.edu',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
     ],
     packages=find_packages(exclude=['tests']),
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     install_requires=[
+        'arcticpy',
         'astropy',
         'matplotlib',
         'numpy',
-        'scipy'
+        'scipy',
+        'pynufft==2020.0.0',
+        'pyyaml'
     ]
 )

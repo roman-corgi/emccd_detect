@@ -1,11 +1,19 @@
 # -*- coding: utf-8 -*-
 """Generate cosmic hits."""
 from __future__ import absolute_import, division, print_function
+
 import numpy as np
 
 
 def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
     """Generate cosmic hits.
+
+    This function does not return the values of the cosmics; instead it returns
+    the electron map which occurs as a result of the photelectric effect when
+    the cosmics strike the detector. This allows the user to ignore the
+    physical properties of the cosmics and focus only on their effect on the
+    detector. This is especially helpful when setting max_val greater than the
+    full well capacity, as it allows the user to create saturated cosmics.
 
     Parameters
     ----------
@@ -67,3 +75,52 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
         image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
 
     return image_frame
+
+
+def sat_tails(serial_frame, full_well_serial):
+    """Simulate tails created by serial register saturation.
+
+    This is most prevalent in cosmic hits.
+
+    Parameters
+    ----------
+    serial_frame : array_like
+        Serial register frame (e-).
+    full_well_serial : float
+        Serial (gain) register full well capacity (e-).
+
+    """
+    overflow = 0.
+    overflow_i = 0.
+    for i, pix in enumerate(serial_frame):
+        serial_frame[i] += _set_tail_val(overflow, overflow_i, i)
+
+        if serial_frame[i] > full_well_serial:
+            overflow = serial_frame[i] - full_well_serial
+            overflow_i = i
+
+    return serial_frame
+
+
+def _set_tail_val(overflow, overflow_i, i):
+    relative_i = i+1 - overflow_i
+    tail_val = overflow * 1 / relative_i
+    if tail_val < 1000:
+        tail_val = 0
+
+    return tail_val
+
+
+if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+
+    full_well_serial = 90000
+
+    row = np.ones(100)
+    row[2] = full_well_serial * 2
+
+    tail_row = sat_tails(row, full_well_serial)
+
+    plt.figure()
+    plt.plot(tail_row)
+    plt.show()

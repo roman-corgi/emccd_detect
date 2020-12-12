@@ -6,8 +6,15 @@ import numpy as np
 from scipy import special
 
 
-def rand_em_gain(n_in_array, em_gain):
+class RandEMGainException(Exception):
+    """Exception class for rand_em_gain module."""
+
+
+def rand_em_gain(n_in_array, em_gain, max_out, cic_gain_register=0,
+                 numel_gain_register=604):
     """Generate random numbers according to EM gain pdfs.
+
+    If cic_gain_register is set to 0 (default)
 
     Parameters
     ----------
@@ -15,11 +22,17 @@ def rand_em_gain(n_in_array, em_gain):
         Array of electron values (e-).
     em_gain : float
         CCD em_gain (e-/photon).
+    max_out : float
+        Maximum allowed output, used to set a end bound on distributions (e-).
+    cic_gain_register : float
+        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
+    numel_gain_register : int
+        Number of elements in the gain register. Defaults to 604.
 
     Returns
     -------
-    out : array_like
-        Electron values multiplied by random EM gain distribution.
+    array_like
+        Electron values multiplied by random EM gain distribution (e-).
 
     Notes
     -----
@@ -36,73 +49,104 @@ def rand_em_gain(n_in_array, em_gain):
     B Nemati and S Miller - UAH - 20-March-2020
 
     """
-    if em_gain < 1:  # XXX Add check for n_in_array dimensions
-        raise Exception('EM gain cannot be set to less than 1')
+    if em_gain < 1:
+        raise RandEMGainException('EM gain cannot be set to less than 1')
 
-    # Find how many values in a array are equal to 0, 1, 2, or >= 3
-    y = np.zeros(n_in_array.size)
-    inds0 = (n_in_array == 0).nonzero()[0]
-    inds1 = (n_in_array == 1).nonzero()[0]
-    inds2 = (n_in_array == 2).nonzero()[0]
-    inds3 = (n_in_array > 2).nonzero()[0]
+    # Apply gain to regular counts
+    n_out_array = _apply_gain(n_in_array, em_gain, max_out)
 
-    # For n_in of 0, 1, or 2, generate arrays of random numbers according to gain
-    # equations specific to each n_in
-    n0 = len(inds0)
-    n1 = len(inds1)
-    n2 = len(inds2)
-    y[inds0] = rand_em_exact(0, n0, em_gain)
-    y[inds1] = rand_em_exact(1, n1, em_gain)
-    y[inds2] = rand_em_exact(2, n2, em_gain)
+    # If a gain CIC value is nonzero, apply partial CIC for all zero n_in counts
+    if cic_gain_register != 0:
+        n_out_array = _partial_cic(n_out_array, numel_gain_register, max_out,
+                                   cic_gain_register, em_gain)
 
-    # For n_in of 3 or greater, generate random numbers one by one according to the
-    # generalized gain equation
-    for i in inds3:
-        n_in = n_in_array[i]
-        y[i] = rand_em_approx(n_in, em_gain)
-
-    return np.reshape(y, n_in_array.shape)
+    return n_out_array
 
 
-def rand_em_exact(n_in, numel, g):
-    """Select a gain distribution based on n_in and generate random numbers."""
-    x = np.random.random(numel)
+def _apply_gain(n_in_array, em_gain, max_out):
+    """Apply a specific em_gain to all nonzero n_in values."""
+    # Initialize output count array
+    n_out_array = np.zeros_like(n_in_array)
 
-    if n_in == 0:
-        y = np.zeros(numel)
-    elif n_in == 1:
-        y = -g * np.log(1 - x)
+    # Get unique nonzero n_in values
+    n_in_unique = np.unique(n_in_array)
+    n_in_unique = n_in_unique[n_in_unique > 0]
+
+    # Generate random numbers according to the gain distribution for each n_in
+    for n_in in n_in_unique:
+        inds = np.where(n_in_array == n_in)[0]
+        n_out_array[inds] = _rand_pdf(n_in, em_gain, max_out, len(inds))
+
+    return n_out_array
+
+
+def _rand_pdf(n_in, em_gain, x_max, size):
+    """Draw samples from the EM gain distribution."""
+    x = np.random.random(size)
+
+    # Use exact solutions for n_in == 1 and 2
+    if n_in == 1:
+        n_out = -em_gain * np.log(1 - x)
     elif n_in == 2:
-        y = -g * special.lambertw((x-1)/np.exp(1), -1).real - g
+        n_out = -em_gain * special.lambertw((x-1)/np.exp(1), -1).real - em_gain
+    elif n_in*em_gain > x_max:
+        # XXX Will improve this in the future, but functionally this should work
+        n_out = np.ones_like(x) * n_in*em_gain
+    else:
+        # For n > 2 use CDF approximation
+        # Use x values ranging from 0 to maximum allowable x output
+        x_axis = np.arange(0, x_max).astype(float)
+        x_axis[0] = np.finfo(float).eps  # Use epsilon to avoid divide by 0
+        cdf = _get_cdf(n_in, em_gain, x_axis)
 
-    return np.round(y)
+        # Draw random samples from the CDF
+        cdf_lookups = (cdf.max() - cdf.min()) * x + cdf.min()
+        n_out = x_axis[np.searchsorted(cdf, cdf_lookups)]  # XXX This could be made more accurate
+
+    return np.round(n_out)
 
 
-def rand_em_approx(n_in, g):
-    """Select a gain distribution based on n_in and generate a single random number."""
-    kmax = 5
-    xmin = np.finfo(float).eps
-    xmax = kmax * n_in * g
-    nx = 800
-    x = np.linspace(xmin, xmax, nx)  # XXX Check against old version
+def _get_cdf(n_in, em_gain, x):
+    """Return an approximate CDF for the EM gain distribution.
 
-    # Basden 2003 probability distribution function is as follows:
-    # pdf = x.^(n_in-1) .* exp(-x/g) / (g^n_in * factorial(n_in-1))
+    Basden 2003 probability distribution function is as follows:
+
+        pdf = x^(n_in-1) * exp(-x/g) / (g^n_in * factorial(n_in-1))
+
+    """
     # Because of the cancellation of very large numbers, first work in log space
-    logpdf = (n_in-1)*np.log(x) - x/g - n_in*np.log(g) - special.gammaln(n_in)
+    logpdf = (n_in-1)*np.log(x) - x/em_gain - n_in*np.log(em_gain) - special.gammaln(n_in)
     pdf = np.exp(logpdf)
     cdf = np.cumsum(pdf / np.sum(pdf))
 
-    # Create a uniformly distributed random number for lookup in CDF
-    cdf_lookup = np.random.uniform(min(cdf), max(cdf))
+    return cdf
 
-    # Map random value to cdf
-    ihi = (cdf > cdf_lookup).nonzero()[0][0]
-    ilo = ihi - 1
-    xlo = x[ilo]
-    xhi = x[ihi]
-    clo = cdf[ilo]
-    chi = cdf[ihi]
-    y = xlo + (cdf_lookup - clo) * (xhi - xlo)/(chi-clo)
 
-    return np.round(y)
+def _partial_cic(n_out_array, n_elements, max_out, gain_cic, em_gain):
+    """Apply partial CIC to all zero elements of n_in_array."""
+    # Find the elements with zero counts (where partial CIC is relevant)
+    zero_mask = (n_out_array == 0)
+
+    # Actualize CIC electrons
+    n_out_array[zero_mask] = np.random.poisson(n_out_array[zero_mask]
+                                               + gain_cic)
+
+    # Find the elements where CIC counts were actualized
+    cic_counts_mask = (n_out_array > 0) * zero_mask
+    cic_counts_inds = cic_counts_mask.nonzero()[0]
+
+    # For each CIC count, choose a random starting position between zero
+    # and number of gain elements
+    n_elements_partial = np.round(np.random.random(cic_counts_inds.size)
+                                  * (n_elements-1)).astype(int)
+    # Calculate the gains for each number of elements
+    rate_per_element = em_gain**(1/n_elements) - 1
+    partial_gain_array = (1 + rate_per_element)**n_elements_partial
+
+    # Cycle through different gain values and apply them to their
+    # corresponding elements
+    for partial_gain in np.unique(partial_gain_array):
+        inds = cic_counts_inds[np.where(partial_gain_array == partial_gain)]
+        n_out_array[inds] = _apply_gain(n_out_array[inds], partial_gain, max_out)
+
+    return n_out_array
