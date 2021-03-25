@@ -54,7 +54,6 @@ if __name__ == '__main__':
         qe=0.9,
         cr_rate=0.,
         pixel_pitch=13e-6,
-        shot_noise_on=True,
         cic_gain_register=0.,
         numel_gain_register=604,
         nbits=14
@@ -68,7 +67,7 @@ if __name__ == '__main__':
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
 
     # For legacy purposes, the class can also be called from a functon wrapper
-    sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
+    sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000., shot_noise_on=True)
 
     # Plot images
     # Full frame images

@@ -2,6 +2,8 @@
 """Simulation for EMCCD detector."""
 from __future__ import absolute_import, division, print_function
 
+import warnings
+
 import numpy as np
 
 from emccd_detect.cosmics import cosmic_hits, sat_tails
@@ -44,8 +46,6 @@ class EMCCDDetectBase:
         Distance between pixel centers (m).
     eperdn : float
         Electrons per dn.
-    shot_noise_on : bool
-        Apply shot noise.
     cic_gain_register : float
         Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
     numel_gain_register : float
@@ -67,7 +67,6 @@ class EMCCDDetectBase:
         qe,
         cr_rate,
         pixel_pitch,
-        shot_noise_on,
         eperdn,
         cic_gain_register,
         numel_gain_register,
@@ -90,7 +89,6 @@ class EMCCDDetectBase:
         self.qe = qe
         self.cr_rate = cr_rate
         self.pixel_pitch = pixel_pitch
-        self.shot_noise_on = shot_noise_on
         self.eperdn = eperdn
         self.cic_gain_register = cic_gain_register
         self.numel_gain_register = numel_gain_register
@@ -291,12 +289,7 @@ class EMCCDDetectBase:
         self.mean_expected_rate = mean_phe_map + mean_noise
 
         # Actualize electrons at the pixels
-        if self.shot_noise_on:
-            actualized_e = np.random.poisson(self.mean_expected_rate).astype(float)
-        else:
-            actualized_e = mean_phe_map + np.random.poisson(mean_noise,
-                                                            mean_phe_map.shape
-                                                            ).astype(float)
+        actualized_e = np.random.poisson(self.mean_expected_rate).astype(float)
 
         # Add cosmic ray effects
         # XXX Maybe change this to units of flux later
@@ -436,8 +429,6 @@ class EMCCDDetect(EMCCDDetectBase):
         Cosmic ray rate (hits/cm^2/s). Defaults to 0.
     pixel_pitch : float
         Distance between pixel centers (m). Defaults to 13e-6.
-    shot_noise_on : bool
-        Apply shot noise. Defaults to True.
     eperdn : float
         Electrons per dn. Defaults to None.
     cic_gain_register : float
@@ -462,7 +453,6 @@ class EMCCDDetect(EMCCDDetectBase):
         qe=0.9,
         cr_rate=0.,
         pixel_pitch=13e-6,
-        shot_noise_on=True,
         eperdn=None,
         cic_gain_register=0.,
         numel_gain_register=604,
@@ -489,7 +479,6 @@ class EMCCDDetect(EMCCDDetectBase):
             qe=qe,
             cr_rate=cr_rate,
             pixel_pitch=pixel_pitch,
-            shot_noise_on=shot_noise_on,
             eperdn=eperdn,
             cic_gain_register=cic_gain_register,
             numel_gain_register=numel_gain_register,
@@ -590,7 +579,7 @@ def emccd_detect(
     qe=0.9,
     cr_rate=0.,
     pixel_pitch=13e-6,
-    shot_noise_on=True
+    shot_noise_on=None
 ):
     """Create an EMCCD-detected image for a given fluxmap.
 
@@ -625,7 +614,8 @@ def emccd_detect(
     pixel_pitch : float
         Distance between pixel centers (m). Defaults to 13e-6.
     shot_noise_on : bool, optional
-        Apply shot noise. Defaults to True.
+        Apply shot noise. Defaults to None. [No longer supported as of v2.1.0.
+        Input will have no effect.]
 
     Returns
     -------
@@ -649,6 +639,10 @@ def emccd_detect(
     B Nemati and S Miller - UAH - 18-Jan-2019
 
     """
+    if shot_noise_on is not None:
+        warnings.warn('Shot noise parameter no longer supported. Input has no '
+                      'effect')
+
     emccd = EMCCDDetectBase(
         em_gain=em_gain,
         full_well_image=full_well_image,
@@ -660,7 +654,6 @@ def emccd_detect(
         qe=qe,
         cr_rate=cr_rate,
         pixel_pitch=pixel_pitch,
-        shot_noise_on=shot_noise_on,
         eperdn=1.,
         cic_gain_register=0.,
         numel_gain_register=604,
