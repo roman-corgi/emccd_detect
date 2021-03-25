@@ -173,7 +173,7 @@ class EMCCDDetectBase:
         Returns
         -------
         output_counts : array_like
-            Detector output counts (e-)
+            Detector output counts (dn)
 
         """
         # Simulate the integration process
