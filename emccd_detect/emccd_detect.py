@@ -154,14 +154,12 @@ class EMCCDDetectBase:
         self.traps = None
 
     def sim_sub_frame(self, fluxmap, frametime):
-        """A fast way of adding noise to a fluxmap.
+        """Simulate a partial detector frame.
 
-        This is a fast way of adding noise to an arbitrarily sized fluxmap.
-        This method is slightly less accurate when cosmics are used, since the
-        tail wrapping will be too strong. In a full frame the cosmic tails wrap
-        into the next row in the prescan and trail off significantly before
-        getting back to the image area, but here we only deal with the image
-        so there is no prescan.
+        This runs the same algorithm as sim_full_frame, but only on the given
+        fluxmap without surrounding it with prescan/overscan. The input fluxmap
+        array may be arbitrary in shape and an image array of the same shape
+        will be returned.
 
         Parameters
         ----------
@@ -173,7 +171,19 @@ class EMCCDDetectBase:
         Returns
         -------
         output_counts : array_like
-            Detector output counts (dn)
+            Detector output counts, same shape as input fluxmap (dn).
+
+        Notes
+        -----
+        This method is just as accurate and will return the same results as if
+        the user ran sim_full_frame and then subsectioned the input fluxmap,
+        with the exception of cosmic tails.
+
+        It is slightly less accurate when cosmics are used, since the tail
+        wrapping will be too strong. In a full frame the cosmic tails wrap into
+        the next row in the prescan and trail off significantly before getting
+        back to the image area, but here there is no prescan so the tails will
+        be immediately wrapped back into the image.
 
         """
         # Simulate the integration process
@@ -489,8 +499,8 @@ class EMCCDDetect(EMCCDDetectBase):
         """Simulate a full detector frame.
 
         Note that the fluxmap provided must be the same size as the exposed
-        detector pixels (labeled 'image' in metadata). A full frame including
-        prescan and overscan regions will be made around the fluxmap.
+        detector pixels (specified in self.meta.geom.image). A full frame
+        including prescan and overscan regions will be made around the fluxmap.
 
         Parameters
         ----------
@@ -502,7 +512,7 @@ class EMCCDDetect(EMCCDDetectBase):
         Returns
         -------
         output_counts : array_like
-            Detector output counts (dn).
+            Detector output counts, including prescan/overscan (dn).
 
         """
         # Initialize the imaging area pixels
