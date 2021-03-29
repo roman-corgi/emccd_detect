@@ -46,8 +46,6 @@ def rand_em_gain(n_in_array, em_gain, max_out, cic_gain_register=0,
     [1] http://matlabtricks.com/post-44/generate-random-numbers-with-a-given-distribution
     [2] https://arxiv.org/pdf/astro-ph/0307305.pdf
 
-    B Nemati and S Miller - UAH - 20-March-2020
-
     """
     if em_gain < 1:
         raise RandEMGainException('EM gain cannot be set to less than 1')

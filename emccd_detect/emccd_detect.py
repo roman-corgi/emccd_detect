@@ -646,8 +646,6 @@ def emccd_detect(
     floats. This will still be different from the legacy version as there will
     no longer be negative numbers.
 
-    B Nemati and S Miller - UAH - 18-Jan-2019
-
     """
     if shot_noise_on is not None:
         warnings.warn('Shot noise parameter no longer supported. Input has no '

@@ -38,8 +38,6 @@ class Metadata(object):
     cic_thresh : float
         Multiplication factor for readnoise that determines beginning of cic.
 
-    B Nemati and S Miller - UAH - 03-Aug-2018
-
     """
 
     def __init__(self, meta_path):

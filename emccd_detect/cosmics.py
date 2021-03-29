@@ -33,8 +33,6 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
     image_frame : array_like
         Image area frame with cosmics added (e-).
 
-    S Miller - UAH - 16-Jan-2019
-
     """
     # Find number of hits/frame
     nr, nc = image_frame.shape
