@@ -23,7 +23,7 @@ def rand_em_gain(n_in_array, em_gain, max_out, cic_gain_register=0,
     em_gain : float
         CCD em_gain (e-/photon).
     max_out : float
-        Maximum allowed output, used to set a end bound on distributions (e-).
+        Maximum allowed output, used to set an end bound on distributions (e-).
     cic_gain_register : float
         Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
     numel_gain_register : int

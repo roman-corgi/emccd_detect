@@ -38,6 +38,8 @@ class Metadata(object):
     cic_thresh : float
         Multiplication factor for readnoise that determines beginning of cic.
 
+    B Nemati and S Miller - UAH - 03-Aug-2018
+
     """
 
     def __init__(self, meta_path):
@@ -54,7 +56,6 @@ class Metadata(object):
         self.cosm_filter = self.data['cosm_filter']
         self.tail_filter = self.data['tail_filter']
         self.cic_thresh = self.data['cic_thresh']
-        self.max_em_gain = self.data['max_em_gain']
 
     def get_data(self):
         """Read yaml data into dictionary."""
@@ -82,7 +83,6 @@ class Metadata(object):
 
     def _unpack_geom(self, key):
         """Safely check format of geom sub-dictionary and return values."""
-        # XXX Need to do key checking later; for now just unpack
         coords = self.geom[key]
         rows = coords['rows']
         cols = coords['cols']

@@ -41,19 +41,21 @@ if __name__ == '__main__':
 
 
     # Instantiate class
-    # Note that full_well_serial and eperdn can be specified upon
-    # instantiation, but if they are not they will be read from metadata
+    # Note that full_well_serial and eperdn will default to the numbers in
+    # metadata.yaml if not specified here
     emccd = EMCCDDetect(
         meta_path=meta_path,
-        em_gain=5000.,
-        full_well_image=60000,
+        em_gain=1.,
+        full_well_image=60000.,
+        full_well_serial=100000.,
         dark_current=0.0028,
         cic=0.02,
-        read_noise=100,
-        bias=10000,
+        read_noise=100.,
+        bias=10000.,
         qe=0.9,
         cr_rate=0.,
         pixel_pitch=13e-6,
+        eperdn=7.,
         cic_gain_register=0.,
         numel_gain_register=604,
         nbits=14
