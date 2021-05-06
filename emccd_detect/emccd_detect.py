@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """Simulation for EMCCD detector."""
 
+import os
 import warnings
+from pathlib import Path
 
 import numpy as np
 
@@ -451,7 +453,7 @@ class EMCCDDetect(EMCCDDetectBase):
     """
     def __init__(
         self,
-        meta_path,
+        meta_path=None,
         em_gain=5000.,
         full_well_image=60000.,
         full_well_serial=None,
@@ -467,6 +469,11 @@ class EMCCDDetect(EMCCDDetectBase):
         numel_gain_register=604,
         nbits=14,
     ):
+        # If no metadata file path specified, default to metadata.yaml in util
+        if meta_path is None:
+            here = os.path.abspath(os.path.dirname(__file__))
+            meta_path = Path(here, 'util', 'metadata.yaml')
+
         # Before inheriting base class, get metadata
         self.meta_path = meta_path
         self.meta = MetadataWrapper(self.meta_path)
