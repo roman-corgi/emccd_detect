@@ -30,7 +30,7 @@ if __name__ == '__main__':
     here = os.path.abspath(os.path.dirname(__file__))
 
     # Specify metadata path
-    meta_path = Path(here, 'data', 'metadata.yaml')
+    meta_path = Path(here, 'emccd_detect', 'util', 'metadata.yaml')
 
     # Set up input fluxmap
     fits_path = Path(here, 'data', 'sci_frame.fits')
