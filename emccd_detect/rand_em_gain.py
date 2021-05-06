@@ -78,9 +78,6 @@ def _rand_pdf(n_in, em_gain, x_max, size):
         n_out = -em_gain * np.log(1 - x)
     elif n_in == 2:
         n_out = -em_gain * special.lambertw((x-1)/np.exp(1), -1).real - em_gain
-    elif n_in*em_gain > x_max:
-        # XXX Will improve this in the future, but functionally this should work
-        n_out = np.ones_like(x) * n_in*em_gain
     else:
         # For n > 2 use CDF approximation
         # Use x values ranging from 0 to maximum allowable x output
@@ -88,9 +85,13 @@ def _rand_pdf(n_in, em_gain, x_max, size):
         x_axis[0] = np.finfo(float).eps  # Use epsilon to avoid divide by 0
         cdf = _get_cdf(n_in, em_gain, x_axis)
 
-        # Draw random samples from the CDF
-        cdf_lookups = (cdf.max() - cdf.min()) * x + cdf.min()
-        n_out = x_axis[np.searchsorted(cdf, cdf_lookups)]  # XXX This could be made more accurate
+        if cdf is None:
+            # If cdf maxes out, return maximum value
+            n_out = np.ones_like(x) * x_max
+        else:
+            # Draw random samples from the CDF
+            cdf_lookups = (cdf.max() - cdf.min()) * x + cdf.min()
+            n_out = x_axis[np.searchsorted(cdf, cdf_lookups)]  # XXX This could be made more accurate
 
     return np.round(n_out)
 
@@ -106,6 +107,12 @@ def _get_cdf(n_in, em_gain, x):
     # Because of the cancellation of very large numbers, first work in log space
     logpdf = (n_in-1)*np.log(x) - x/em_gain - n_in*np.log(em_gain) - special.gammaln(n_in)
     pdf = np.exp(logpdf)
-    cdf = np.cumsum(pdf / np.sum(pdf))
+
+    # XXX This is a rough but safe solution
+    sum_pdf = np.sum(pdf)
+    if sum_pdf == 0:
+        cdf = None
+    else:
+        cdf = np.cumsum(pdf / sum_pdf)
 
     return cdf
