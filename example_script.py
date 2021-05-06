@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Example script for EMCCDDetect calls."""
-from __future__ import absolute_import, division, print_function
 
 import os
 from pathlib import Path

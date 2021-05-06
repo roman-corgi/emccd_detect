@@ -1,4 +1,5 @@
 """Wrapper for read_metadata to allow use in emccd_detect simulator."""
+
 import numpy as np
 
 from emccd_detect.util.read_metadata import Metadata

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Simulation for EMCCD detector."""
-from __future__ import absolute_import, division, print_function
 
 import warnings
 

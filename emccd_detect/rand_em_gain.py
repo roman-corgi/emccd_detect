@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Generate random numbers according to EM gain pdfs."""
-from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from scipy import special
