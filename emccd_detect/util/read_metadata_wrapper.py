@@ -1,4 +1,5 @@
 """Wrapper for read_metadata to allow use in emccd_detect simulator."""
+
 import numpy as np
 
 from emccd_detect.util.read_metadata import Metadata
@@ -36,8 +37,6 @@ class MetadataWrapper(Metadata):
         Moving median filter window size for cosmic tail subtraction.
     cic_thresh : float
         Multiplication factor for readnoise that determines beginning of cic.
-
-    B Nemati and S Miller - UAH - 03-Aug-2018
 
     """
 
