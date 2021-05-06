@@ -2,6 +2,10 @@
 
 Given an input fluxmap, emccd_detect will return a simulated EMCCD detector image. 
 
+This project is managed simultaneously in both Python and Matlab. The Python version is located in emccd\_detect, while the Matlab version is located in emccd\_detect\_m.
+
+***Note:*** This is an alpha release. The current Python package is on version 2.0.0-alpha, but the Matlab package is still on version 1.0.1. With the official 2.0.0 release the Matlab package will be updated to have all the functionality of the Python package.
+
 ## Getting Started - Python
 ### Installing
 
@@ -16,7 +20,7 @@ This will install emccd_detect and its dependencies, which are as follows:
 * matplotlib
 * numpy
 * scipy
-* pynufft==2020.0.0
+* pynufft
 * pyyaml
 
 
@@ -24,6 +28,14 @@ This will install emccd_detect and its dependencies, which are as follows:
 
 For an example of how to use emccd\_detect, see example_script.py.
 
+## Getting Started - Matlab
+### Installing
+
+To use emccd\_detect in one of your matlab projects, either add emccd\_detect\_m to your Matlab path or copy the emccd\_detect\_m directory to your project.
+
+### Usage
+
+For an example of how to use emccd\_detect, see scripts/example_script.m.
 
 ## Authors
 

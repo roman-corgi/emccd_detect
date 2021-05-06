@@ -10,7 +10,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='emccd_detect',
-    version='2.1.0',
+    version='2.0.0-alpha',
     description='EMCCD detector image simulation',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -23,9 +23,8 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
     ],
-    packages=find_packages(),
+    packages=find_packages(exclude=['tests']),
     python_requires='>=3.6',
     install_requires=[
         'arcticpy',

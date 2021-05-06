@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Generate cosmic hits."""
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -31,6 +32,8 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
     -------
     image_frame : array_like
         Image area frame with cosmics added (e-).
+
+    S Miller - UAH - 16-Jan-2019
 
     """
     # Find number of hits/frame
