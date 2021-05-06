@@ -454,7 +454,7 @@ class EMCCDDetect(EMCCDDetectBase):
     def __init__(
         self,
         meta_path=None,
-        em_gain=5000.,
+        em_gain=1.,
         full_well_image=60000.,
         full_well_serial=None,
         dark_current=0.0028,
