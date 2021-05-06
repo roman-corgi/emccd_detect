@@ -581,6 +581,26 @@ class EMCCDDetect(EMCCDDetectBase):
         """
         return self.meta.slice_section(full_frame, 'prescan')
 
+    def get_e_frame(self, frame_dn):
+        """Take a raw frame output from EMCCDDetect and convert to a gain
+        divided, bias subtracted frame in units of electrons.
+
+        This will give the pre-readout image, i.e. the image in units of e- on
+        the imaging plane.
+
+        Parameters
+        ----------
+        frame_dn : array_like
+            Raw output frame from EMCCDDetect, units of dn.
+
+        Returns
+        -------
+        array_like
+            Bias subtracted, gain divided frame in units of e-.
+
+        """
+        return (frame_dn * self.eperdn - self.bias) / self.em_gain
+
 
 def emccd_detect(
     fluxmap,

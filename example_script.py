@@ -51,9 +51,9 @@ if __name__ == '__main__':
     meta_path = Path(here, 'emccd_detect', 'util', 'metadata.yaml')
     # Note that the defaults for full_well_serial and eperdn are specified in
     # the metadata file
-    emccd_spec = EMCCDDetect(
+    emccd = EMCCDDetect(
         meta_path=meta_path,
-        em_gain=1.,
+        em_gain=5000.,
         full_well_image=60000.,  # e-
         full_well_serial=100000.,  # e-
         dark_current=0.0028,  # e-/pix/s
@@ -68,6 +68,20 @@ if __name__ == '__main__':
         numel_gain_register=604,
         nbits=14
     )
+    # Simulate only the fluxmap
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
+    # Simulate the full frame (surround the full fluxmap with prescan, etc.)
+    sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+
+
+    # The class also has some convenience functions to help with inspecting the
+    # simulated frame
+    # Get a gain divided, bias subtracted frame in units of e-
+    frame_e = emccd.get_e_frame(sim_full_frame)
+    # Return just the 1024x1024 region of a full frame
+    image = emccd.slice_fluxmap(sim_full_frame)
+    # Return the prescan region of a full frame
+    prescan = emccd.slice_fluxmap(sim_full_frame)
 
 
     # For legacy purposes, the class can also be called from a functon wrapper
@@ -78,5 +92,4 @@ if __name__ == '__main__':
     imagesc(full_fluxmap, 'Input Fluxmap')
     imagesc(sim_sub_frame, 'Output Sub Frame')
     imagesc(sim_full_frame, 'Output Full Frame')
-
     plt.show()
