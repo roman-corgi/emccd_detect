@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Generate random numbers according to EM gain pdfs."""
-from __future__ import absolute_import, division, print_function
 
 import numpy as np
 from scipy import special
@@ -10,8 +9,7 @@ class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
 
-def rand_em_gain(n_in_array, em_gain, max_out, cic_gain_register=0,
-                 numel_gain_register=604):
+def rand_em_gain(n_in_array, em_gain, max_out):
     """Generate random numbers according to EM gain pdfs.
 
     If cic_gain_register is set to 0 (default)
@@ -23,9 +21,7 @@ def rand_em_gain(n_in_array, em_gain, max_out, cic_gain_register=0,
     em_gain : float
         CCD em_gain (e-/photon).
     max_out : float
-        Maximum allowed output, used to set a end bound on distributions (e-).
-    cic_gain_register : float
-        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
+        Maximum allowed output, used to set an end bound on distributions (e-).
     numel_gain_register : int
         Number of elements in the gain register. Defaults to 604.
 
@@ -46,19 +42,12 @@ def rand_em_gain(n_in_array, em_gain, max_out, cic_gain_register=0,
     [1] http://matlabtricks.com/post-44/generate-random-numbers-with-a-given-distribution
     [2] https://arxiv.org/pdf/astro-ph/0307305.pdf
 
-    B Nemati and S Miller - UAH - 20-March-2020
-
     """
     if em_gain < 1:
         raise RandEMGainException('EM gain cannot be set to less than 1')
 
     # Apply gain to regular counts
     n_out_array = _apply_gain(n_in_array, em_gain, max_out)
-
-    # If a gain CIC value is nonzero, apply partial CIC for all zero n_in counts
-    if cic_gain_register != 0:
-        n_out_array = _partial_cic(n_out_array, numel_gain_register, max_out,
-                                   cic_gain_register, em_gain)
 
     return n_out_array
 
@@ -89,9 +78,6 @@ def _rand_pdf(n_in, em_gain, x_max, size):
         n_out = -em_gain * np.log(1 - x)
     elif n_in == 2:
         n_out = -em_gain * special.lambertw((x-1)/np.exp(1), -1).real - em_gain
-    elif n_in*em_gain > x_max:
-        # XXX Will improve this in the future, but functionally this should work
-        n_out = np.ones_like(x) * n_in*em_gain
     else:
         # For n > 2 use CDF approximation
         # Use x values ranging from 0 to maximum allowable x output
@@ -99,9 +85,13 @@ def _rand_pdf(n_in, em_gain, x_max, size):
         x_axis[0] = np.finfo(float).eps  # Use epsilon to avoid divide by 0
         cdf = _get_cdf(n_in, em_gain, x_axis)
 
-        # Draw random samples from the CDF
-        cdf_lookups = (cdf.max() - cdf.min()) * x + cdf.min()
-        n_out = x_axis[np.searchsorted(cdf, cdf_lookups)]  # XXX This could be made more accurate
+        if cdf is None:
+            # If cdf maxes out, return maximum value
+            n_out = np.ones_like(x) * x_max
+        else:
+            # Draw random samples from the CDF
+            cdf_lookups = (cdf.max() - cdf.min()) * x + cdf.min()
+            n_out = x_axis[np.searchsorted(cdf, cdf_lookups)]  # XXX This could be made more accurate
 
     return np.round(n_out)
 
@@ -117,36 +107,12 @@ def _get_cdf(n_in, em_gain, x):
     # Because of the cancellation of very large numbers, first work in log space
     logpdf = (n_in-1)*np.log(x) - x/em_gain - n_in*np.log(em_gain) - special.gammaln(n_in)
     pdf = np.exp(logpdf)
-    cdf = np.cumsum(pdf / np.sum(pdf))
+
+    # XXX This is a rough but safe solution
+    sum_pdf = np.sum(pdf)
+    if sum_pdf == 0:
+        cdf = None
+    else:
+        cdf = np.cumsum(pdf / sum_pdf)
 
     return cdf
-
-
-def _partial_cic(n_out_array, n_elements, max_out, gain_cic, em_gain):
-    """Apply partial CIC to all zero elements of n_in_array."""
-    # Find the elements with zero counts (where partial CIC is relevant)
-    zero_mask = (n_out_array == 0)
-
-    # Actualize CIC electrons
-    n_out_array[zero_mask] = np.random.poisson(n_out_array[zero_mask]
-                                               + gain_cic)
-
-    # Find the elements where CIC counts were actualized
-    cic_counts_mask = (n_out_array > 0) * zero_mask
-    cic_counts_inds = cic_counts_mask.nonzero()[0]
-
-    # For each CIC count, choose a random starting position between zero
-    # and number of gain elements
-    n_elements_partial = np.round(np.random.random(cic_counts_inds.size)
-                                  * (n_elements-1)).astype(int)
-    # Calculate the gains for each number of elements
-    rate_per_element = em_gain**(1/n_elements) - 1
-    partial_gain_array = (1 + rate_per_element)**n_elements_partial
-
-    # Cycle through different gain values and apply them to their
-    # corresponding elements
-    for partial_gain in np.unique(partial_gain_array):
-        inds = cic_counts_inds[np.where(partial_gain_array == partial_gain)]
-        n_out_array[inds] = _apply_gain(n_out_array[inds], partial_gain, max_out)
-
-    return n_out_array

@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """Simulation for EMCCD detector."""
-from __future__ import absolute_import, division, print_function
+
+import os
+import warnings
+from pathlib import Path
 
 import numpy as np
 
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
-from arcticpy.main import add_cti
-from arcticpy.roe import ROE
-from arcticpy.ccd import CCD
-from arcticpy.traps import Trap
+from arcticpy import add_cti, CCD, ROE, Trap
 
 
 class EMCCDDetectException(Exception):
@@ -44,12 +44,6 @@ class EMCCDDetectBase:
         Distance between pixel centers (m).
     eperdn : float
         Electrons per dn.
-    shot_noise_on : bool
-        Apply shot noise.
-    cic_gain_register : float
-        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
-    numel_gain_register : float
-        Number of gain register elements.
     nbits : int
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive.
@@ -67,10 +61,7 @@ class EMCCDDetectBase:
         qe,
         cr_rate,
         pixel_pitch,
-        shot_noise_on,
         eperdn,
-        cic_gain_register,
-        numel_gain_register,
         nbits,
     ):
         # Input checks
@@ -90,10 +81,7 @@ class EMCCDDetectBase:
         self.qe = qe
         self.cr_rate = cr_rate
         self.pixel_pitch = pixel_pitch
-        self.shot_noise_on = shot_noise_on
         self.eperdn = eperdn
-        self.cic_gain_register = cic_gain_register
-        self.numel_gain_register = numel_gain_register
         self.nbits = nbits
 
         # Placeholders for trap parameters
@@ -156,14 +144,12 @@ class EMCCDDetectBase:
         self.traps = None
 
     def sim_sub_frame(self, fluxmap, frametime):
-        """A fast way of adding noise to a fluxmap.
+        """Simulate a partial detector frame.
 
-        This is a fast way of adding noise to an arbitrarily sized fluxmap.
-        This method is slightly less accurate when cosmics are used, since the
-        tail wrapping will be too strong. In a full frame the cosmic tails wrap
-        into the next row in the prescan and trail off significantly before
-        getting back to the image area, but here we only deal with the image
-        so there is no prescan.
+        This runs the same algorithm as sim_full_frame, but only on the given
+        fluxmap without surrounding it with prescan/overscan. The input fluxmap
+        array may be arbitrary in shape and an image array of the same shape
+        will be returned.
 
         Parameters
         ----------
@@ -175,7 +161,19 @@ class EMCCDDetectBase:
         Returns
         -------
         output_counts : array_like
-            Detector output counts (e-)
+            Detector output counts, same shape as input fluxmap (dn).
+
+        Notes
+        -----
+        This method is just as accurate and will return the same results as if
+        the user ran sim_full_frame and then subsectioned the input fluxmap,
+        with the exception of cosmic tails.
+
+        It is slightly less accurate when cosmics are used, since the tail
+        wrapping will be too strong. In a full frame the cosmic tails wrap into
+        the next row in the prescan and trail off significantly before getting
+        back to the image area, but here there is no prescan so the tails will
+        be immediately wrapped back into the image.
 
         """
         # Simulate the integration process
@@ -291,12 +289,7 @@ class EMCCDDetectBase:
         self.mean_expected_rate = mean_phe_map + mean_noise
 
         # Actualize electrons at the pixels
-        if self.shot_noise_on:
-            actualized_e = np.random.poisson(self.mean_expected_rate).astype(float)
-        else:
-            actualized_e = mean_phe_map + np.random.poisson(mean_noise,
-                                                            mean_phe_map.shape
-                                                            ).astype(float)
+        actualized_e = np.random.poisson(self.mean_expected_rate).astype(float)
 
         # Add cosmic ray effects
         # XXX Maybe change this to units of flux later
@@ -343,9 +336,7 @@ class EMCCDDetectBase:
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
             em_gain=self.em_gain,
-            max_out=self.full_well_serial,
-            cic_gain_register=self.cic_gain_register,
-            numel_gain_register=self.numel_gain_register
+            max_out=self.full_well_serial
         )
 
         # Simulate saturation tails
@@ -436,14 +427,8 @@ class EMCCDDetect(EMCCDDetectBase):
         Cosmic ray rate (hits/cm^2/s). Defaults to 0.
     pixel_pitch : float
         Distance between pixel centers (m). Defaults to 13e-6.
-    shot_noise_on : bool
-        Apply shot noise. Defaults to True.
     eperdn : float
         Electrons per dn. Defaults to None.
-    cic_gain_register : float
-        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
-    numel_gain_register : float
-        Number of gain register elements. Defaults to 604.
     nbits : int
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive. Defaults to 14.
@@ -451,8 +436,8 @@ class EMCCDDetect(EMCCDDetectBase):
     """
     def __init__(
         self,
-        meta_path,
-        em_gain=5000.,
+        meta_path=None,
+        em_gain=1.,
         full_well_image=60000.,
         full_well_serial=None,
         dark_current=0.0028,
@@ -462,12 +447,14 @@ class EMCCDDetect(EMCCDDetectBase):
         qe=0.9,
         cr_rate=0.,
         pixel_pitch=13e-6,
-        shot_noise_on=True,
         eperdn=None,
-        cic_gain_register=0.,
-        numel_gain_register=604,
         nbits=14,
     ):
+        # If no metadata file path specified, default to metadata.yaml in util
+        if meta_path is None:
+            here = os.path.abspath(os.path.dirname(__file__))
+            meta_path = Path(here, 'util', 'metadata.yaml')
+
         # Before inheriting base class, get metadata
         self.meta_path = meta_path
         self.meta = MetadataWrapper(self.meta_path)
@@ -489,10 +476,7 @@ class EMCCDDetect(EMCCDDetectBase):
             qe=qe,
             cr_rate=cr_rate,
             pixel_pitch=pixel_pitch,
-            shot_noise_on=shot_noise_on,
             eperdn=eperdn,
-            cic_gain_register=cic_gain_register,
-            numel_gain_register=numel_gain_register,
             nbits=nbits,
         )
 
@@ -500,8 +484,8 @@ class EMCCDDetect(EMCCDDetectBase):
         """Simulate a full detector frame.
 
         Note that the fluxmap provided must be the same size as the exposed
-        detector pixels (labeled 'image' in metadata). A full frame including
-        prescan and overscan regions will be made around the fluxmap.
+        detector pixels (specified in self.meta.geom.image). A full frame
+        including prescan and overscan regions will be made around the fluxmap.
 
         Parameters
         ----------
@@ -513,7 +497,7 @@ class EMCCDDetect(EMCCDDetectBase):
         Returns
         -------
         output_counts : array_like
-            Detector output counts (dn).
+            Detector output counts, including prescan/overscan (dn).
 
         """
         # Initialize the imaging area pixels
@@ -576,6 +560,26 @@ class EMCCDDetect(EMCCDDetectBase):
         """
         return self.meta.slice_section(full_frame, 'prescan')
 
+    def get_e_frame(self, frame_dn):
+        """Take a raw frame output from EMCCDDetect and convert to a gain
+        divided, bias subtracted frame in units of electrons.
+
+        This will give the pre-readout image, i.e. the image in units of e- on
+        the imaging plane.
+
+        Parameters
+        ----------
+        frame_dn : array_like
+            Raw output frame from EMCCDDetect, units of dn.
+
+        Returns
+        -------
+        array_like
+            Bias subtracted, gain divided frame in units of e-.
+
+        """
+        return (frame_dn * self.eperdn - self.bias) / self.em_gain
+
 
 def emccd_detect(
     fluxmap,
@@ -590,7 +594,7 @@ def emccd_detect(
     qe=0.9,
     cr_rate=0.,
     pixel_pitch=13e-6,
-    shot_noise_on=True
+    shot_noise_on=None
 ):
     """Create an EMCCD-detected image for a given fluxmap.
 
@@ -625,7 +629,8 @@ def emccd_detect(
     pixel_pitch : float
         Distance between pixel centers (m). Defaults to 13e-6.
     shot_noise_on : bool, optional
-        Apply shot noise. Defaults to True.
+        Apply shot noise. Defaults to None. [No longer supported as of v2.1.0.
+        Input will have no effect.]
 
     Returns
     -------
@@ -646,9 +651,11 @@ def emccd_detect(
     floats. This will still be different from the legacy version as there will
     no longer be negative numbers.
 
-    B Nemati and S Miller - UAH - 18-Jan-2019
-
     """
+    if shot_noise_on is not None:
+        warnings.warn('Shot noise parameter no longer supported. Input has no '
+                      'effect')
+
     emccd = EMCCDDetectBase(
         em_gain=em_gain,
         full_well_image=full_well_image,
@@ -660,10 +667,7 @@ def emccd_detect(
         qe=qe,
         cr_rate=cr_rate,
         pixel_pitch=pixel_pitch,
-        shot_noise_on=shot_noise_on,
         eperdn=1.,
-        cic_gain_register=0.,
-        numel_gain_register=604,
         nbits=64,
     )
 
