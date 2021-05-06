@@ -47,10 +47,6 @@ class EMCCDDetectBase:
         Distance between pixel centers (m).
     eperdn : float
         Electrons per dn.
-    cic_gain_register : float
-        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
-    numel_gain_register : float
-        Number of gain register elements.
     nbits : int
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive.
@@ -69,8 +65,6 @@ class EMCCDDetectBase:
         cr_rate,
         pixel_pitch,
         eperdn,
-        cic_gain_register,
-        numel_gain_register,
         nbits,
     ):
         # Input checks
@@ -91,8 +85,6 @@ class EMCCDDetectBase:
         self.cr_rate = cr_rate
         self.pixel_pitch = pixel_pitch
         self.eperdn = eperdn
-        self.cic_gain_register = cic_gain_register
-        self.numel_gain_register = numel_gain_register
         self.nbits = nbits
 
         # Placeholders for trap parameters
@@ -347,9 +339,7 @@ class EMCCDDetectBase:
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
             em_gain=self.em_gain,
-            max_out=self.full_well_serial,
-            cic_gain_register=self.cic_gain_register,
-            numel_gain_register=self.numel_gain_register
+            max_out=self.full_well_serial
         )
 
         # Simulate saturation tails
@@ -442,10 +432,6 @@ class EMCCDDetect(EMCCDDetectBase):
         Distance between pixel centers (m). Defaults to 13e-6.
     eperdn : float
         Electrons per dn. Defaults to None.
-    cic_gain_register : float
-        Clock induced charge, gain register (e-/pix/frame). Defaults to 0.
-    numel_gain_register : float
-        Number of gain register elements. Defaults to 604.
     nbits : int
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive. Defaults to 14.
@@ -465,8 +451,6 @@ class EMCCDDetect(EMCCDDetectBase):
         cr_rate=0.,
         pixel_pitch=13e-6,
         eperdn=None,
-        cic_gain_register=0.,
-        numel_gain_register=604,
         nbits=14,
     ):
         # If no metadata file path specified, default to metadata.yaml in util
@@ -496,8 +480,6 @@ class EMCCDDetect(EMCCDDetectBase):
             cr_rate=cr_rate,
             pixel_pitch=pixel_pitch,
             eperdn=eperdn,
-            cic_gain_register=cic_gain_register,
-            numel_gain_register=numel_gain_register,
             nbits=nbits,
         )
 
@@ -689,8 +671,6 @@ def emccd_detect(
         cr_rate=cr_rate,
         pixel_pitch=pixel_pitch,
         eperdn=1.,
-        cic_gain_register=0.,
-        numel_gain_register=604,
         nbits=64,
     )
 

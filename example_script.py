@@ -64,8 +64,6 @@ if __name__ == '__main__':
         cr_rate=0.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=7.,
-        cic_gain_register=0.,  # e-/pix/frame
-        numel_gain_register=604,
         nbits=14
     )
     # Simulate only the fluxmap
