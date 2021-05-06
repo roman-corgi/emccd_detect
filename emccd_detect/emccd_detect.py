@@ -10,10 +10,7 @@ import numpy as np
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
-from arcticpy.main import add_cti
-from arcticpy.roe import ROE
-from arcticpy.ccd import CCD
-from arcticpy.traps import Trap
+from arcticpy import add_cti, CCD, ROE, Trap
 
 
 class EMCCDDetectException(Exception):
