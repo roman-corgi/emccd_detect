@@ -47,6 +47,8 @@ class EMCCDDetectBase:
     nbits : int
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive.
+    numel_gain_register : int
+        Number of gain register elements. For modeling partial CIC.
 
     """
     def __init__(
@@ -63,6 +65,7 @@ class EMCCDDetectBase:
         pixel_pitch,
         eperdn,
         nbits,
+        numel_gain_register
     ):
         # Input checks
         if not isinstance(nbits, (int, np.integer)):
@@ -83,6 +86,7 @@ class EMCCDDetectBase:
         self.pixel_pitch = pixel_pitch
         self.eperdn = eperdn
         self.nbits = nbits
+        self.numel_gain_register = numel_gain_register
 
         # Placeholders for trap parameters
         self.ccd = None
@@ -432,6 +436,10 @@ class EMCCDDetect(EMCCDDetectBase):
     nbits : int
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive. Defaults to 14.
+    numel_gain_register : int
+        Number of gain register elements. For modeling partial CIC. Defaults to
+        604.
+
 
     """
     def __init__(
@@ -449,6 +457,7 @@ class EMCCDDetect(EMCCDDetectBase):
         pixel_pitch=13e-6,
         eperdn=None,
         nbits=14,
+        numel_gain_register=604
     ):
         # If no metadata file path specified, default to metadata.yaml in util
         if meta_path is None:
@@ -478,6 +487,7 @@ class EMCCDDetect(EMCCDDetectBase):
             pixel_pitch=pixel_pitch,
             eperdn=eperdn,
             nbits=nbits,
+            numel_gain_register=numel_gain_register
         )
 
     def sim_full_frame(self, fluxmap, frametime):
@@ -669,6 +679,7 @@ def emccd_detect(
         pixel_pitch=pixel_pitch,
         eperdn=1.,
         nbits=64,
+        numel_gain_register=604
     )
 
     return emccd.sim_sub_frame(fluxmap, frametime).astype(float)

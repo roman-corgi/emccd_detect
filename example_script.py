@@ -64,7 +64,8 @@ if __name__ == '__main__':
         cr_rate=0.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=7.,
-        nbits=14
+        nbits=14,
+        numel_gain_register=604
     )
     # Simulate only the fluxmap
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
