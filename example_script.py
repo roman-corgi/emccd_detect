@@ -52,7 +52,6 @@ if __name__ == '__main__':
     # Note that the defaults for full_well_serial and eperdn are specified in
     # the metadata file
     emccd = EMCCDDetect(
-        meta_path=meta_path,
         em_gain=5000.,
         full_well_image=60000.,  # e-
         full_well_serial=100000.,  # e-
@@ -65,7 +64,8 @@ if __name__ == '__main__':
         pixel_pitch=13e-6,  # m
         eperdn=7.,
         nbits=14,
-        numel_gain_register=604
+        numel_gain_register=604,
+        meta_path=meta_path
     )
     # Simulate only the fluxmap
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)

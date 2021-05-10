@@ -409,8 +409,6 @@ class EMCCDDetect(EMCCDDetectBase):
 
     Parameters
     ----------
-    meta_path : str
-        Full path of metadata yaml.
     em_gain : float
         Electron multiplying gain (e-/photoelectron). Defaults to 5000.
     full_well_image : float
@@ -439,12 +437,12 @@ class EMCCDDetect(EMCCDDetectBase):
     numel_gain_register : int
         Number of gain register elements. For modeling partial CIC. Defaults to
         604.
-
+    meta_path : str
+        Full path of metadata yaml.
 
     """
     def __init__(
         self,
-        meta_path=None,
         em_gain=1.,
         full_well_image=60000.,
         full_well_serial=None,
@@ -457,7 +455,8 @@ class EMCCDDetect(EMCCDDetectBase):
         pixel_pitch=13e-6,
         eperdn=None,
         nbits=14,
-        numel_gain_register=604
+        numel_gain_register=604,
+        meta_path=None
     ):
         # If no metadata file path specified, default to metadata.yaml in util
         if meta_path is None:
