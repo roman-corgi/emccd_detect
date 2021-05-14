@@ -26,6 +26,8 @@ setup(
         'Programming Language :: Python :: 3.8',
     ],
     packages=find_packages(),
+    package_data={'': ['metadata.yaml']},
+    include_package_data=True,
     python_requires='>=3.6',
     install_requires=[
         'arcticpy',
