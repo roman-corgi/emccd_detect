@@ -12,7 +12,7 @@ fits_path = fullfile(fileparts(fileparts(current_path)), 'data', fits_name);
 fluxmap = fitsread(fits_path);  % Input fluxmap (photons/pix/s)
 
 % Simulation inputs
-frametime = 100.;  % Frame time (s)
+frametime = 1.;  % Frame time (s)
 em_gain = 5000.;  % CCD EM gain (e-/photon)
 full_well_image = 50000.;  % Image area full well capacity (e-)
 full_well_serial = 90000.;  % Serial (gain) register full well capacity (e-)
@@ -21,7 +21,7 @@ cic = 0.01;  % Clock induced charge (e-/pix/frame)
 read_noise = 100.;  % Read noise (e-/pix/frame)
 bias = 0.;  % Bias offset (e-)
 qe = 0.9;  % Quantum efficiency
-cr_rate = 5.;  % Cosmic ray rate (5 for L2) (hits/cm^2/s)
+cr_rate = 0.;  % Cosmic ray rate (5 for L2) (hits/cm^2/s)
 pixel_pitch = 13e-6;  % Distance between pixel centers (m)
 shot_noise_on = true;  % Apply shot noise
 
