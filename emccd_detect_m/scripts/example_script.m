@@ -12,7 +12,7 @@ fits_path = fullfile(fileparts(fileparts(current_path)), 'data', fits_name);
 fluxmap = fitsread(fits_path);  % Input fluxmap (photons/pix/s)
 
 % Simulation inputs
-frametime = 1.;  % Frame time (s)
+frametime = 10.;  % Frame time (s)
 em_gain = 5000.;  % CCD EM gain (e-/photon)
 full_well_image = 50000.;  % Image area full well capacity (e-)
 full_well_serial = 90000.;  % Serial (gain) register full well capacity (e-)
