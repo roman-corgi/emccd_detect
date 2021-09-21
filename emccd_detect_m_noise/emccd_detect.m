@@ -151,8 +151,11 @@ enh = @(x,slope) x.^(slope-.5) ;
 %deviation from the mean, where the mean is n*gain
 deviations = gainFrame - serial_frame*em_gain;
 enhfactor = enh(gainFrame, fitSlope(em_gain));
-%here are the new variates:
-serial_frame = deviations.*enhfactor+serial_frame*em_gain;
+serial_frame_slope = deviations.*enhfactor+serial_frame*em_gain;
+
+%account for non-linearity by shifting the mean
+serial_frame = serial_frame_slope+serial_frame_slope.*percent_NL(serial_frame,em_gain)./100;
+
 
 %throw away data but ensure no negative #s of electrons:
 %serial_frame(serial_frame < 0) = 0;
@@ -184,4 +187,28 @@ end
 function out = make_read_noise(serial_frame, read_noise)
 %Simulate EMCCD read noise.
 out = read_noise * randn(size(serial_frame));
+end
+
+function out = percent_NL(signal,em_gain)
+%hv as function of g:
+%hv = -(210*log(2) + 5*log(log(10))...
+%    - 5*log(76451918253118239*log(g)))/(2*log(2));
+sig = 500:100:98000;
+%imported data from Excel spreadsheet from Nathan Bush
+percent_nl_30 = table2array(readtable('residual_non_linearity.xlsx','range','C5:C980'));
+percent_nl_39 = table2array(readtable('residual_non_linearity.xlsx','range','L5:L980'));
+Nl_30 = interp1(sig,percent_nl_30,signal,'pchip');
+Nl_39 = interp1(sig,percent_nl_39,signal,'pchip');
+m = (Nl_39 - Nl_30)/(39-30);
+b = Nl_39 - m*39;
+hv = -(210*log(2) + 5*log(log(10))- 5*log(76451918253118239.*log(em_gain)))./(2*log(2));
+if em_gain < 1.0608  %corresponding to hv<22; hv 22 to 30 identical
+    out = Nl_30;
+end
+if (em_gain <= 719.7664) && ( em_gain >= 1.0608) %between hv 30 and 39
+    out = m*hv+b;
+end
+if em_gain > 719.7664  %hv above 39: use hv 39 
+    out = Nl_39;
+end
 end
