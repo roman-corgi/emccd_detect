@@ -153,12 +153,12 @@ deviations = gainFrame - serial_frame*em_gain;
 enhfactor = enh(gainFrame, fitSlope(em_gain));
 serial_frame_slope = deviations.*enhfactor+serial_frame*em_gain;
 
-%account for non-linearity by shifting the mean
-serial_frame = serial_frame_slope+serial_frame_slope.*percent_NL(serial_frame,em_gain)./100;
+%account for non-linearity 
+serial_frame = serial_frame_slope+serial_frame_slope.*percent_NL(serial_frame_slope,em_gain)./100;
+%serial_frame = gainFrame + gainFrame.*percent_NL(serial_frame,em_gain)./100;
+%serial_frame = gainFrame;
 
 
-%throw away data but ensure no negative #s of electrons:
-%serial_frame(serial_frame < 0) = 0;
 
 %FWC as function of HV
 %fitFWC  = 6e4*1.5.^(-hv0/2)/1.5.^(-hv0(1)/2)+40000;
@@ -174,6 +174,9 @@ serial_frame(serial_frame > fitFWCg(em_gain)) = fitFWCg(em_gain);
 % Apply fixed pattern, read noise, and bias
 serial_frame = serial_frame + make_fixed_pattern(serial_frame);
 serial_frame = serial_frame + make_read_noise(serial_frame, read_noise) + bias;
+
+%throw away data but ensure no negative #s of electrons:
+%serial_frame(serial_frame < 0) = 0;
 
 % Reshape for viewing
 serial_frame = reshape(serial_frame, size(image_frame, 2), size(image_frame, 1)).';
