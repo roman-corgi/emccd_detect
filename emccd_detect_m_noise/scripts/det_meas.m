@@ -64,7 +64,7 @@ figure(fgNum+4), clf,plot(emG0, fitFWCg)
 hold on, plot(emG,fwc,'b*-','linewidth',1.5),grid on
 print('-dpng','FWC_vs_em_gain')
 
-figure(fgNum+5), clf, plot(sig, Nl_30)
+figure(fgNum+5), clf, plot(sig, Nl_39)
 %hold on, plot(sig,percent_nl_30), grid on
 %legend('fitted','data')
 xlabel('signal (e-)'), ylabel('percent non-lin'), title('percent non-lin vs signal')

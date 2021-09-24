@@ -12,13 +12,13 @@ fits_path = fullfile(fileparts(fileparts(current_path)), 'data', fits_name);
 fluxmap = fitsread(fits_path);  % Input fluxmap (photons/pix/s)
 
 % Simulation inputs
-frametime = 10.;  % Frame time (s)
-em_gain = 5000.;  % CCD EM gain (e-/photon)
+frametime = 70.;  % Frame time (s)
+em_gain = 300.;  % CCD EM gain (e-/photon)
 full_well_image = 50000.;  % Image area full well capacity (e-)
 full_well_serial = 90000.;  % Serial (gain) register full well capacity (e-)
 dark_current = 0.0028;  % Dark current rate (e-/pix/s)
 cic = 0.01;  % Clock induced charge (e-/pix/frame)
-read_noise = 100.;  % Read noise (e-/pix/frame)
+read_noise = 40.;  % Read noise (e-/pix/frame)
 bias = 0.;  % Bias offset (e-)
 qe = 0.9;  % Quantum efficiency
 cr_rate = 0.;  % Cosmic ray rate (5 for L2) (hits/cm^2/s)
@@ -47,3 +47,43 @@ end
 if plot_images
     autoArrangeFigures;
 end
+
+sim_im2 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+sim_im3 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+sim_im4 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+sim_im5 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+sim_im6 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+sim_im7 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+sim_im8 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+sim_im9 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+sim_im10 = emccd_detect(fluxmap, frametime, em_gain, full_well_image,...
+                      full_well_serial, dark_current, cic, read_noise, bias,...
+                      qe, cr_rate, pixel_pitch, shot_noise_on);
+
+mean_counts = mean([sim_im(:)';sim_im2(:)';sim_im3(:)';sim_im4(:)';sim_im5(:)';sim_im6(:)';sim_im7(:)';sim_im8(:)';sim_im9(:)';sim_im10(:)']);
+variance_counts = var([sim_im(:)';sim_im2(:)';sim_im3(:)';sim_im4(:)';sim_im5(:)';sim_im6(:)';sim_im7(:)';sim_im8(:)';sim_im9(:)';sim_im10(:)']);
+                  
+N_m = linspace(0,10^5,65*65);   %pretend K is 1
+figure, plot(N_m, sqrt(N_m + read_noise^2)); set(gca,'xscale','log','yscale','log');
+%interp1(N_m, N_m + read_noise^2,
+%figure, scatter(mean_counts, sqrt(variance_counts)); set(gca,'xscale','log','yscale','log');
+x = interp1(mean_counts,sqrt(variance_counts),[10^2:max(mean_counts)],'pchip');
+hold on, scatter([10^2:max(mean_counts)],x); set(gca,'xscale','log','yscale','log');
+%figure, loglog(N_m, sqrt(N_m. + read_noise^2));
+%hold on; loglog(mean_counts/8, variance_counts); 
