@@ -28,13 +28,13 @@ hv1= hv; hv1(isnan(fwc))=[];
 fwc1= fwc; fwc1(isnan(fwc))=[];
 fitFWC2 = interp1(hv1, fwc1, hv0,'linear');
 
-sig = 500:100:98000;
-%imported data from Excel spreadsheet from Nathan Bush
-percent_nl_30 = table2array(readtable('residual_non_linearity.xlsx','range','C5:C980'));
-percent_nl_39 = table2array(readtable('residual_non_linearity.xlsx','range','L5:L980'));
-Nl_30 = interp1(sig,percent_nl_30,sig,'pchip');
-Nl_39 = interp1(sig,percent_nl_39,sig,'pchip');
-%hv3 = 30:39;
+% sig = 500:100:98000;
+% %imported data from Excel spreadsheet from Nathan Bush
+% percent_nl_30 = table2array(readtable('residual_non_linearity.xlsx','range','C5:C980'));
+% percent_nl_39 = table2array(readtable('residual_non_linearity.xlsx','range','L5:L980'));
+% Nl_30 = interp1(sig,percent_nl_30,sig,'pchip');
+% Nl_39 = interp1(sig,percent_nl_39,sig,'pchip');
+% %hv3 = 30:39;
 
 fgNum =30;
 figure(fgNum), clf,semilogy(hv0, fitG,'ro-', 'linewidth', 1.5)
