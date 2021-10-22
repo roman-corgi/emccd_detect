@@ -683,3 +683,4 @@ def emccd_detect(
     )
 
     return emccd.sim_sub_frame(fluxmap, frametime).astype(float)
+
