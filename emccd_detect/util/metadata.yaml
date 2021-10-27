@@ -7,7 +7,7 @@ geom:
     rows: 1032
     cols: 1021
     ul:
-      - 4
+      - 164
       - 1088
   prescan:
     rows: 1200
@@ -19,11 +19,11 @@ geom:
     rows: 164
     cols: 1056
     ul:
-      - 1037
+      - 0
       - 1088
   serial_overscan:
     rows: 1200
-    cols: 58
+    cols: 56
     ul:
       - 0
       - 2144

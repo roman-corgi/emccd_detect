@@ -122,7 +122,7 @@ class MetadataWrapper(Metadata):
 
         rows_im = self.frame_rows - rows_ovr
         cols_im = self.frame_cols - cols_pre - cols_serial_ovr
-        ul_im = (ul_prescan[0], ul_image[1])
+        ul_im = ul_image.copy()
 
         return rows_im, cols_im, ul_im
 
