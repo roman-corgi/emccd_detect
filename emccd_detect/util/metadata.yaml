@@ -1,60 +1,32 @@
-frame_rows: 1137
-frame_cols: 2144
+# Any regions not specified are assumed to be unused shielded imaging regions
+# Note that ul coordinates are in the format (row, col)
+frame_rows: 1200
+frame_cols: 2200
 geom:
   image:
-    rows: 1024
-    cols: 1024
+    rows: 1032
+    cols: 1021
     ul:
-      - 6
-      - 1104
+      - 4
+      - 1088
   prescan:
-    rows: 1137
+    rows: 1200
     cols: 1088
     ul:
       - 0
       - 0
   overscan:
-    rows: 100
+    rows: 164
     cols: 1056
     ul:
       - 1037
       - 1088
-  dark_ref_top:
-    rows: 5
-    cols: 1056
+  serial_overscan:
+    rows: 1200
+    cols: 58
     ul:
       - 0
-      - 1088
-  dark_ref_left:
-    rows: 1024
-    cols: 16
-    ul:
-      - 6
-      - 1088
-  dark_ref_right:
-    rows: 1024
-    cols: 16
-    ul:
-      - 6
-      - 2128
-  dark_ref_bottom:
-    rows: 5
-    cols: 1056
-    ul:
-      - 1032
-      - 1088
-  transition_top:
-    rows: 1
-    cols: 1056
-    ul:
-      - 5
-      - 1088
-  transition_bottom:
-    rows: 2
-    cols: 1056
-    ul:
-      - 1030
-      - 1088
+      - 2144
 eperdn: 7
 fwc: 100000
 sat_thresh: 0.99
