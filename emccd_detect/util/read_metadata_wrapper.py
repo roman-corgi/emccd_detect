@@ -93,6 +93,13 @@ class MetadataWrapper(Metadata):
         frame[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = im_area
         return frame
 
+    def _unpack_geom_corners(self, key):
+        """Returns corners corresponding to geometry."""
+        rows, cols, ul = self._unpack_geom(key)
+        lr = (ul[0]+rows-1, ul[1]+cols-1)
+
+        return ul, lr
+
     def _unpack_geom_im(self, key):
         """Wrapper for _unpack_geom, transforms ul locations from full frame
         coords to imaging area coords.
@@ -101,7 +108,7 @@ class MetadataWrapper(Metadata):
         # Unpack geomotry of requested section
         rows, cols, ul_original = self._unpack_geom(key)
         # Unpack geometry of imaging area
-        rows_im, cols_im, ul_im = self._imaging_area_geom()
+        _, _, ul_im = self._imaging_area_geom()
 
         # Shift upper left locations by the upper left of the imaging area
         ul = ul_original.copy()
@@ -157,6 +164,21 @@ if __name__ == '__main__':
     from matplotlib.ticker import MaxNLocator
 
 
+    def plot_corner(ax, x, y, ha, va, xytext):
+        """Plot marker with coordinates label."""
+        ax.scatter(x, y, s=2, c='r', marker='s')
+        ax.annotate(f'({x}, {y})', (x, y), size=7, ha=ha, va=va, xytext=xytext,
+                    textcoords='offset pixels')
+
+    class Formatter(object):
+        """Round cursor coordinates to integers."""
+        def __init__(self, im):
+            self.im = im
+
+        def __call__(self, x, y):
+            return 'x=%i, y=%i' % (np.round(x), np.round(y))
+
+
     here = os.path.abspath(os.path.dirname(__file__))
     meta_path = Path(here, 'metadata.yaml')
     meta = MetadataWrapper(meta_path)
@@ -184,8 +206,8 @@ if __name__ == '__main__':
         + serial_overscan_m*values['serial_overscan']
     )
 
-    # Choose to invert y axis
-    inverted = True
+    inverted = False
+    plot_corners = True
 
     # Plot
     fig, ax = plt.subplots()
@@ -195,18 +217,18 @@ if __name__ == '__main__':
     else:
         im = ax.imshow(mask)
 
-    # Format plot
-    class Formatter(object):
-        """Round cursor coordinates to integers."""
-        def __init__(self, im):
-            self.im = im
+    # Plot corners of image area
+    if plot_corners:
+        image_ul, image_lr = meta._unpack_geom_corners('image')
+        plot_corner(ax, image_ul[1], image_ul[0], 'left', 'top', (5, -5))
+        plot_corner(ax, image_ul[1], image_lr[0], 'left', 'bottom', (5, 5))
+        plot_corner(ax, image_lr[1], image_lr[0], 'right', 'bottom', (-5, 5))
+        plot_corner(ax, image_lr[1], image_ul[0], 'right', 'top', (-5, -5))
 
-        def __call__(self, x, y):
-            return 'x=%i, y=%i' % (np.round(x), np.round(y))
+    # Format plot
     ax.format_coord = Formatter(im)
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-
 
     # Make legend
     colors = {region: im.cmap(im.norm(value))
