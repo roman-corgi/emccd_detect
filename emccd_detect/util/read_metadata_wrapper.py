@@ -206,7 +206,7 @@ if __name__ == '__main__':
         + serial_overscan_m*values['serial_overscan']
     )
 
-    inverted = False
+    inverted = True
     plot_corners = True
 
     # Plot
@@ -214,16 +214,20 @@ if __name__ == '__main__':
     ax.set_title('Science Frame Geometry')
     if inverted:
         im = ax.imshow(np.flipud(mask), origin='lower')
+        if plot_corners:
+            image_ul, image_lr = meta._unpack_geom_corners('image')
+            plot_corner(ax, image_ul[1], meta.frame_rows-1 - image_ul[0], 'left', 'top', (5, -5))
+            plot_corner(ax, image_ul[1], meta.frame_rows-1 - image_lr[0], 'left', 'bottom', (5, 5))
+            plot_corner(ax, image_lr[1], meta.frame_rows-1 - image_lr[0], 'right', 'bottom', (-5, 5))
+            plot_corner(ax, image_lr[1], meta.frame_rows-1 - image_ul[0], 'right', 'top', (-5, -5))
     else:
         im = ax.imshow(mask)
-
-    # Plot corners of image area
-    if plot_corners:
-        image_ul, image_lr = meta._unpack_geom_corners('image')
-        plot_corner(ax, image_ul[1], image_ul[0], 'left', 'top', (5, -5))
-        plot_corner(ax, image_ul[1], image_lr[0], 'left', 'bottom', (5, 5))
-        plot_corner(ax, image_lr[1], image_lr[0], 'right', 'bottom', (-5, 5))
-        plot_corner(ax, image_lr[1], image_ul[0], 'right', 'top', (-5, -5))
+        if plot_corners:
+            image_ul, image_lr = meta._unpack_geom_corners('image')
+            plot_corner(ax, image_ul[1], image_ul[0], 'left', 'top', (5, -5))
+            plot_corner(ax, image_ul[1], image_lr[0], 'left', 'bottom', (5, 5))
+            plot_corner(ax, image_lr[1], image_lr[0], 'right', 'bottom', (-5, 5))
+            plot_corner(ax, image_lr[1], image_ul[0], 'right', 'top', (-5, -5))
 
     # Format plot
     ax.format_coord = Formatter(im)
