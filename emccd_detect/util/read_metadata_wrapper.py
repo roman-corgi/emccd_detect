@@ -146,3 +146,73 @@ class MetadataWrapper(Metadata):
         if section.size == 0:
             raise ReadMetadataWrapperException('Corners invalid')
         return section
+
+
+if __name__ == '__main__':
+    import os
+    from pathlib import Path
+
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    from matplotlib.ticker import MaxNLocator
+
+
+    here = os.path.abspath(os.path.dirname(__file__))
+    meta_path = Path(here, 'metadata.yaml')
+    meta = MetadataWrapper(meta_path)
+
+    # Get masks of all regions
+    image_m = meta.mask('image')
+    prescan_m = meta.mask('prescan')
+    overscan_m = meta.mask('overscan')
+    serial_overscan_m = meta.mask('serial_overscan')
+
+    # Assign values to each region
+    values = {
+        'image': 1,
+        'prescan': 0.75,
+        'parallel_overscan': 0.5,
+        'serial_overscan': 0.25,
+        'shielded': 0.
+    }
+
+    # Stack masks
+    mask = (
+        image_m*values['image']
+        + prescan_m*values['prescan']
+        + overscan_m*values['parallel_overscan']
+        + serial_overscan_m*values['serial_overscan']
+    )
+
+    # Choose to invert y axis
+    inverted = True
+
+    # Plot
+    fig, ax = plt.subplots()
+    ax.set_title('Science Frame Geometry')
+    if inverted:
+        im = ax.imshow(np.flipud(mask), origin='lower')
+    else:
+        im = ax.imshow(mask)
+
+    # Format plot
+    class Formatter(object):
+        """Round cursor coordinates to integers."""
+        def __init__(self, im):
+            self.im = im
+
+        def __call__(self, x, y):
+            return 'x=%i, y=%i' % (np.round(x), np.round(y))
+    ax.format_coord = Formatter(im)
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+
+    # Make legend
+    colors = {region: im.cmap(im.norm(value))
+              for region, value in values.items()}
+    patches = {mpatches.Patch(color=color, label=f'{region}')
+               for region, color in colors.items()}
+    plt.legend(handles=patches, loc='lower left')
+
+    plt.show()
