@@ -4,10 +4,10 @@ frame_rows: 1200
 frame_cols: 2200
 geom:
   image:
-    rows: 1032
-    cols: 1021
+    rows: 1033
+    cols: 1022
     ul:
-      - 164
+      - 163
       - 1088
   prescan:
     rows: 1200
@@ -16,7 +16,7 @@ geom:
       - 0
       - 0
   overscan:
-    rows: 164
+    rows: 163
     cols: 1056
     ul:
       - 0
