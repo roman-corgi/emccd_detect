@@ -529,7 +529,7 @@ class EMCCDDetect(EMCCDDetectBase):
         # referencing the prescan and overscan subsections later
         parallel_counts_full = self.meta.imaging_embed(full_frame_zeros, parallel_counts)
         empty_element_m = (self.meta.mask('prescan')
-                           + self.meta.mask('overscan')
+                           + self.meta.mask('parallel_overscan')
                            + self.meta.mask('serial_overscan'))
         # Simulate serial clocking
         gain_counts = self.clock_serial(parallel_counts_full, empty_element_m)

@@ -33,7 +33,7 @@ if __name__ == '__main__':
     # Get masks of all regions
     image_m = meta.mask('image')
     prescan_m = meta.mask('prescan')
-    overscan_m = meta.mask('overscan')
+    parallel_overscan_m = meta.mask('parallel_overscan')
     serial_overscan_m = meta.mask('serial_overscan')
 
     # Assign values to each region
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     mask = (
         image_m*values['image']
         + prescan_m*values['prescan']
-        + overscan_m*values['parallel_overscan']
+        + parallel_overscan_m*values['parallel_overscan']
         + serial_overscan_m*values['serial_overscan']
     )
 

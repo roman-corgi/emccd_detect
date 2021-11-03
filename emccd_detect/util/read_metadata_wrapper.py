@@ -124,10 +124,10 @@ class MetadataWrapper(Metadata):
         """Return geometry of imaging area in reference to full frame."""
         _, cols_pre, ul_prescan = self._unpack_geom('prescan')
         _, cols_serial_ovr, _ = self._unpack_geom('serial_overscan')
-        rows_ovr, _, _ = self._unpack_geom('overscan')
+        rows_parallel_ovr, _, _ = self._unpack_geom('parallel_overscan')
         _, _, ul_image = self._unpack_geom('image')
 
-        rows_im = self.frame_rows - rows_ovr
+        rows_im = self.frame_rows - rows_parallel_ovr
         cols_im = self.frame_cols - cols_pre - cols_serial_ovr
         ul_im = ul_image.copy()
 
