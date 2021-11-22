@@ -4,8 +4,8 @@ frame_rows: 1200
 frame_cols: 2200
 geom:
   image:
-    rows: 1033
-    cols: 1022
+    rows: 1024
+    cols: 1024
     ul:
       - 163
       - 1088

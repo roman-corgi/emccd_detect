@@ -352,7 +352,6 @@ class EMCCDDetectBase:
 
         return gain_counts
 
-
     def _amp(self, serial_counts):
         """Simulate amp behavior.
 

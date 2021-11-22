@@ -54,7 +54,7 @@ if __name__ == '__main__':
     )
 
     # Plot options
-    inverted = True  # invert y axis
+    inverted = False  # invert y axis
     plot_corners = True
 
     # Plot

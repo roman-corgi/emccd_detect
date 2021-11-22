@@ -32,7 +32,7 @@ if __name__ == '__main__':
     fits_path = Path(here, 'data', 'sci_frame.fits')
     fluxmap = fits.getdata(fits_path).astype(float)  # (photons/pix/s)
     # Put fluxmap in 1024x1024 image section
-    full_fluxmap = np.zeros((1033, 1022)).astype(float)
+    full_fluxmap = np.zeros((1024, 1024)).astype(float)
     full_fluxmap[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
     # Specify frametime
     frametime = 100  # s
