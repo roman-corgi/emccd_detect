@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Example script for EMCCDDetect calls."""
+"""Get histograms of noise."""
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -22,8 +22,8 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
 
 if __name__ == '__main__':
     full_fluxmap = np.ones((1024, 1024))
-    frametime = 1.  # s
-    em_gain = 1.
+    frametime = 2.  # s (adjust lambda by adjust this)
+    em_gain = 10.
 
     emccd = EMCCDDetect(
         em_gain=em_gain,
@@ -33,17 +33,18 @@ if __name__ == '__main__':
         cic=0.0,  # e-/pix/frame
         read_noise=0.,  # e-/pix/frame
         bias=10000.,  # e-
-        qe=1.,
+        qe=1.,  # set this to 1 so it doesn't affect lambda
         cr_rate=0.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
-        eperdn=1.,
+        eperdn=1.,  # set this to 1 so there's no data loss when converting back to e-
         nbits=14,
         numel_gain_register=604
         )
 
-    # Simulate the full frame (surround the full fluxmap with prescan, etc.)
+    # Simulate several full frames
     frames_l = []
-    for i in range(2):
+    nframes = 1
+    for i in range(nframes):
         sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
         frames_l.append(sim_full_frame)
     frames = np.stack(frames_l)
