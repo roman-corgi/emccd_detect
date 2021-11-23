@@ -22,8 +22,8 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
 
 if __name__ == '__main__':
     full_fluxmap = np.ones((1024, 1024))
-    frametime = 2.  # s (adjust lambda by adjust this)
-    em_gain = 10.
+    frametime = 1.  # s (adjust lambda by adjust this)
+    em_gain = 1.
 
     emccd = EMCCDDetect(
         em_gain=em_gain,
