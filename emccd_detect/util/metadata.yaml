@@ -1,13 +1,14 @@
 # Any regions not specified are assumed to be unused shielded imaging regions
-# Note that ul coordinates are in the format (row, col)
+# Note that ul coordinates are in the format (row, col), where (0, 0) is the
+# top left of the array
 frame_rows: 1200
 frame_cols: 2200
 geom:
   image:
-    rows: 1032
-    cols: 1021
+    rows: 1024
+    cols: 1024
     ul:
-      - 164
+      - 13
       - 1088
   prescan:
     rows: 1200
@@ -15,11 +16,11 @@ geom:
     ul:
       - 0
       - 0
-  overscan:
-    rows: 164
+  parallel_overscan:
+    rows: 163
     cols: 1056
     ul:
-      - 0
+      - 1037
       - 1088
   serial_overscan:
     rows: 1200

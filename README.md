@@ -2,7 +2,7 @@
 
 Given an input fluxmap, emccd_detect will return a simulated EMCCD detector image. 
 
-## Getting Started - Python
+## Getting Started
 ### Installing
 
 This package requires Python 3.6 or higher. To install emccd\_detect, navigate to the emccd\_detect directory where setup.py is located and use
