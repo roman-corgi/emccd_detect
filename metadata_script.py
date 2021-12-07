@@ -58,11 +58,11 @@ if __name__ == '__main__':
     ax.set_title('Science Frame Geometry')
     im = ax.imshow(mask, origin='lower')
     # Plot corners
-    image_ul, image_lr = meta._unpack_geom_corners('image')
-    plot_corner(ax, image_ul[1], image_ul[0], 'left', 'bottom', (5, 5))
-    plot_corner(ax, image_ul[1], image_lr[0], 'left', 'top', (5, -5))
-    plot_corner(ax, image_lr[1], image_lr[0], 'right', 'top', (-5, -5))
-    plot_corner(ax, image_lr[1], image_ul[0], 'right', 'bottom', (-5, 5))
+    image_r0c0, image_r1c1 = meta._unpack_geom_corners('image')
+    plot_corner(ax, image_r0c0[1], image_r0c0[0], 'left', 'bottom', (5, 5))
+    plot_corner(ax, image_r0c0[1], image_r1c1[0], 'left', 'top', (5, -5))
+    plot_corner(ax, image_r1c1[1], image_r1c1[0], 'right', 'top', (-5, -5))
+    plot_corner(ax, image_r1c1[1], image_r0c0[0], 'right', 'bottom', (-5, 5))
 
     # Format plot
     ax.format_coord = Formatter(im)
