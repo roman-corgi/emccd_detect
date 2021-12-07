@@ -15,7 +15,8 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
             aspect='equal', colorbar=True):
     """Plot a scaled colormap."""
     fig, ax = plt.subplots()
-    im = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=cmap, aspect=aspect)
+    im = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=cmap, aspect=aspect,
+                   origin='lower')
 
     if title:
         ax.set_title(title)
