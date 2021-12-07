@@ -73,9 +73,9 @@ class Metadata(object):
             Keyword referencing section to be sliced; must exist in geom.
 
         """
-        rows, cols, ul = self._unpack_geom(key)
+        rows, cols, r0c0 = self._unpack_geom(key)
 
-        section = frame[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols]
+        section = frame[r0c0[0]:r0c0[0]+rows, r0c0[1]:r0c0[1]+cols]
         if section.size == 0:
             raise ReadMetadataException('Corners invalid')
         return section
@@ -85,6 +85,6 @@ class Metadata(object):
         coords = self.geom[key]
         rows = coords['rows']
         cols = coords['cols']
-        ul = coords['ul']
+        r0c0 = coords['r0c0']
 
-        return rows, cols, ul
+        return rows, cols, r0c0
