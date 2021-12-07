@@ -93,6 +93,13 @@ class MetadataWrapper(Metadata):
         frame[ul[0]:ul[0]+rows, ul[1]:ul[1]+cols] = im_area
         return frame
 
+    def _unpack_geom_corners(self, key):
+        """Returns corners corresponding to geometry."""
+        rows, cols, ul = self._unpack_geom(key)
+        lr = (ul[0]+rows-1, ul[1]+cols-1)
+
+        return ul, lr
+
     def _unpack_geom_im(self, key):
         """Wrapper for _unpack_geom, transforms ul locations from full frame
         coords to imaging area coords.
@@ -101,7 +108,7 @@ class MetadataWrapper(Metadata):
         # Unpack geomotry of requested section
         rows, cols, ul_original = self._unpack_geom(key)
         # Unpack geometry of imaging area
-        rows_im, cols_im, ul_im = self._imaging_area_geom()
+        _, _, ul_im = self._imaging_area_geom()
 
         # Shift upper left locations by the upper left of the imaging area
         ul = ul_original.copy()
@@ -117,10 +124,10 @@ class MetadataWrapper(Metadata):
         """Return geometry of imaging area in reference to full frame."""
         _, cols_pre, ul_prescan = self._unpack_geom('prescan')
         _, cols_serial_ovr, _ = self._unpack_geom('serial_overscan')
-        rows_ovr, _, _ = self._unpack_geom('overscan')
+        rows_parallel_ovr, _, _ = self._unpack_geom('parallel_overscan')
         _, _, ul_image = self._unpack_geom('image')
 
-        rows_im = self.frame_rows - rows_ovr
+        rows_im = self.frame_rows - rows_parallel_ovr
         cols_im = self.frame_cols - cols_pre - cols_serial_ovr
         ul_im = ul_image.copy()
 

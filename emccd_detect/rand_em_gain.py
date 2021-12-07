@@ -45,11 +45,11 @@ def rand_em_gain(n_in_array, em_gain, max_out):
     """
     if em_gain < 1:
         raise RandEMGainException('EM gain cannot be set to less than 1')
-
-    # Apply gain to regular counts
-    n_out_array = _apply_gain(n_in_array, em_gain, max_out)
-
-    return n_out_array
+    elif em_gain == 1:
+        return n_in_array
+    else:
+        # Apply gain to regular counts
+        return _apply_gain(n_in_array, em_gain, max_out)
 
 
 def _apply_gain(n_in_array, em_gain, max_out):
