@@ -86,7 +86,6 @@ if __name__ == '__main__':
     # For legacy purposes, the class can also be called from a functon wrapper
     sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
 
-
     # Plot images
     imagesc(full_fluxmap, 'Input Fluxmap')
     imagesc(sim_sub_frame, 'Output Sub Frame')
