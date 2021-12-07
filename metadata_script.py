@@ -52,7 +52,7 @@ if __name__ == '__main__':
         'prescan': 0.75,
         'parallel_overscan': 0.5,
         'serial_overscan': 0.25,
-        'shielded': 0.
+        'shielded/unused': 0.
     }
 
     # Stack masks
