@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # Set up some inputs here
     here = os.path.abspath(os.path.dirname(__file__))
     # Get fluxmap
-    fits_path = Path(here, 'data', 'sci_frame.fits')
+    fits_path = Path(here, 'data', 'sci_fluxmap.fits')
     fluxmap = fits.getdata(fits_path).astype(float)  # (photons/pix/s)
     # Put fluxmap in 1024x1024 image section
     full_fluxmap = np.zeros((1024, 1024)).astype(float)

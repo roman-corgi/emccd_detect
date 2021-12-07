@@ -1,4 +1,4 @@
-# Any regions not specified are assumed to be unused shielded imaging regions.
+# Any regions not specified are assumed to be shielded or unused pixels.
 #
 # Geometry regions are defined as:
 #   rows: number of region rows
