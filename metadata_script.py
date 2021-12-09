@@ -4,6 +4,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from astropy.io import fits
 from matplotlib.ticker import MaxNLocator
 
 from emccd_detect.emccd_detect import MetadataWrapper
@@ -14,6 +15,15 @@ def plot_corner(ax, x, y, ha, va, xytext):
     ax.scatter(x, y, s=2, c='r', marker='s')
     ax.annotate(f'({x}, {y})', (x, y), size=7, ha=ha, va=va, xytext=xytext,
                 textcoords='offset pixels')
+
+
+def plot_im_corners(ax):
+    """Plot corners of image region"""
+    image_r0c0, image_r1c1 = meta._unpack_geom_corners('image')
+    plot_corner(ax, image_r0c0[1], image_r0c0[0], 'left', 'bottom', (5, 5))
+    plot_corner(ax, image_r0c0[1], image_r1c1[0], 'left', 'top', (5, -5))
+    plot_corner(ax, image_r1c1[1], image_r1c1[0], 'right', 'top', (-5, -5))
+    plot_corner(ax, image_r1c1[1], image_r0c0[0], 'right', 'bottom', (-5, 5))
 
 
 class Formatter(object):
@@ -42,7 +52,7 @@ if __name__ == '__main__':
         'prescan': 0.75,
         'parallel_overscan': 0.5,
         'serial_overscan': 0.25,
-        'shielded': 0.
+        'shielded/unused': 0.
     }
 
     # Stack masks
@@ -53,29 +63,25 @@ if __name__ == '__main__':
         + serial_overscan_m*values['serial_overscan']
     )
 
-    # Plot options
-    inverted = False  # invert y axis
-    plot_corners = True
-
     # Plot
+    origin = 'lower'  # Use origin = 'lower' to put (0, 0) at the bottom left
+
+    # Plot image file (optional)
+    plot_fits = True
+    if plot_fits:
+        fits_im = fits.getdata(Path('data', 'sci_frame.fits'))
+        fig_fits, ax_fits = plt.subplots()
+        ax_fits.imshow(np.log(fits_im+10), origin=origin, cmap='Greys')
+        ax_fits.set_title('SCI Frame')
+        # Plot corners
+        plot_im_corners(ax_fits)
+
+    # Plot masks
     fig, ax = plt.subplots()
-    ax.set_title('Science Frame Geometry')
-    if inverted:
-        im = ax.imshow(np.flipud(mask), origin='lower')
-        if plot_corners:
-            image_ul, image_lr = meta._unpack_geom_corners('image')
-            plot_corner(ax, image_ul[1], meta.frame_rows-1 - image_ul[0], 'left', 'top', (5, -5))
-            plot_corner(ax, image_ul[1], meta.frame_rows-1 - image_lr[0], 'left', 'bottom', (5, 5))
-            plot_corner(ax, image_lr[1], meta.frame_rows-1 - image_lr[0], 'right', 'bottom', (-5, 5))
-            plot_corner(ax, image_lr[1], meta.frame_rows-1 - image_ul[0], 'right', 'top', (-5, -5))
-    else:
-        im = ax.imshow(mask)
-        if plot_corners:
-            image_ul, image_lr = meta._unpack_geom_corners('image')
-            plot_corner(ax, image_ul[1], image_ul[0], 'left', 'top', (5, -5))
-            plot_corner(ax, image_ul[1], image_lr[0], 'left', 'bottom', (5, 5))
-            plot_corner(ax, image_lr[1], image_lr[0], 'right', 'bottom', (-5, 5))
-            plot_corner(ax, image_lr[1], image_ul[0], 'right', 'top', (-5, -5))
+    ax.set_title('SCI Frame Geometry')
+    im = ax.imshow(mask, origin=origin)
+    # Plot corners
+    plot_im_corners(ax)
 
     # Format plot
     ax.format_coord = Formatter(im)
