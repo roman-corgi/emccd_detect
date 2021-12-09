@@ -203,7 +203,7 @@ def _calc_func(nobs, nfr, t, g, lam):
     )
 
     e_coinloss = (1 - np.exp(-lam)) / lam
-
+    # XXX if nobs is too large it will make func negative
     func = lam * nfr * e_thresh * e_coinloss - nobs
 
     return func

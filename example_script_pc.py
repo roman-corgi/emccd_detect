@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
 """Example photon counting script."""
+import os
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 from emccd_detect.emccd_detect import EMCCDDetect
 from photon_count.corr_photon_count import get_count_rate
+
+
+here = Path(os.path.abspath(os.path.dirname(__file__)))
 
 
 def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
@@ -22,31 +28,32 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
 
 
 if __name__ == '__main__':
-    # Specify relevant detector properties (leave the other inputs at their
-    # defaults)
+    # Specify relevant detector properties
     emccd = EMCCDDetect(
         em_gain=5000.,
         full_well_image=60000.,  # e-
         full_well_serial=100000.,  # e-
-        dark_current=0.0028,  # e-/pix/s
-        cic=0.02,  # e-/pix/frame
-        read_noise=100.,  # e-/pix/frame
+        dark_current=3e-5,  # e-/pix/s
+        cic=1.3e-3,  # e-/pix/frame
+        read_noise=0.,  # e-/pix/frame
         bias=10000.,  # e-
-        qe=0.9,
+        qe=0.9*0.75,
         cr_rate=0.,  # hits/cm^2/s
-        eperdn=7.
+        pixel_pitch=13e-6,
+        eperdn=7.,
+        nbits=14,
+        numel_gain_register=604
     )
 
-    # Set up incoming fluxmap
-    rate = 0.1  # phot/pix/s
-    fluxmap = np.ones((1024, 1024)) * rate  # Flat field
+    fluxmap = np.load(Path(here, 'fluxmap.npy'))
 
     # Simulate frames
     # Set frametime to get an output of 1 phot/pix
-    frametime = 1/rate  # s
+    frametime = 100 # s
     frame_e_list = []
     frame_e_dark_list = []
-    for i in range(10):
+    nframes = 100
+    for i in range(nframes):
         # Simulate bright
         frame_dn = emccd.sim_sub_frame(fluxmap, frametime)
         # Simulate dark
@@ -60,16 +67,14 @@ if __name__ == '__main__':
         frame_e_dark_list.append(frame_e_dark)
 
     frame_e_cube = np.stack(frame_e_list)
-    frame_e_dark_cube = np.stack(frame_e_dark_list)
 
     # Photon count, co-add, and correct for photometric error
     thresh = 5000.  # Use a high threshold to avoid undercount
     mean_rate = get_count_rate(frame_e_cube, thresh, emccd.em_gain)
-    mean_rate_dark = get_count_rate(frame_e_dark_cube, thresh, emccd.em_gain)
-
-    # Dark subtract
-    mean_rate_ds = mean_rate - mean_rate_dark
 
     # Plot images
-    imagesc(mean_rate_ds, f'Output Sub Frame\nMean: {np.mean(mean_rate_ds)}')
+    imagesc(fluxmap, 'input flux map')
+    imagesc(np.max(frame_e_cube, axis=0), 'max frame (pixel-by-pixel)')
+    imagesc(frame_e_cube[0], 'random frame')
+    imagesc(mean_rate, 'get_count_rate')
     plt.show()
