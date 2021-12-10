@@ -2,6 +2,8 @@
 with photometric corrections.
 
 """
+import warnings
+
 import numpy as np
 
 from photon_count.photon_count import photon_count
@@ -204,6 +206,9 @@ def _calc_func(nobs, nfr, t, g, lam):
 
     e_coinloss = (1 - np.exp(-lam)) / lam
     # XXX if nobs is too large it will make func negative
+    if (lam * nfr * e_thresh * e_coinloss).any() > nobs.any():
+        warnings.warn('Input rate is too high; decrease frametime')
+
     func = lam * nfr * e_thresh * e_coinloss - nobs
 
     return func
