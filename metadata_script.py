@@ -76,6 +76,11 @@ if __name__ == '__main__':
         # Plot corners
         plot_im_corners(ax_fits)
 
+        # Format plot
+        ax_fits.format_coord = Formatter(fits_im)
+        ax_fits.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax_fits.yaxis.set_major_locator(MaxNLocator(integer=True))
+
     # Plot masks
     fig, ax = plt.subplots()
     ax.set_title('SCI Frame Geometry')
