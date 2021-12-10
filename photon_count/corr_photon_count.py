@@ -65,6 +65,7 @@ def get_count_rate(frames, thresh, em_gain, niter=2):
     if not isinstance(niter, (int, np.integer)) or niter < 1:
         raise CorrPhotonCountException('niter must be an integer greater than '
                                        '0')
+    # TODO should we raise eception if thresh > em_gain?
 
     # Photon count stack of frames
     nframes = len(frames)
@@ -136,7 +137,7 @@ def calc_lam_approx(nobs, nfr, t, g):
 
     """
     # First step of equation (before taking log)
-    init = 1 - (nobs/nfr) * np.exp(t/g)
+    init = 1 - (nobs/nfr) * np.exp(t/g)  # TODO less strict place to raise thresh > em_gain exception
     # Mask out all values less than or equal to 0
     lam_m = np.zeros_like(init).astype(bool)
     lam_m[init > 0] = True
