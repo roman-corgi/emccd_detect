@@ -2,6 +2,7 @@
 """Example photon counting script."""
 import os
 from pathlib import Path
+import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,7 +36,7 @@ if __name__ == '__main__':
         full_well_serial=100000.,  # e-
         dark_current=3e-5,  # e-/pix/s
         cic=1.3e-3,  # e-/pix/frame
-        read_noise=0.,  # e-/pix/frame
+        read_noise=100.,  # e-/pix/frame
         bias=10000.,  # e-
         qe=0.9*0.75,
         cr_rate=0.,  # hits/cm^2/s
@@ -49,7 +50,7 @@ if __name__ == '__main__':
 
     # Simulate frames
     # Set frametime to get an output of 1 phot/pix
-    frametime = 100 # s
+    frametime = 10 # s
     frame_e_list = []
     frame_e_dark_list = []
     nframes = 100
@@ -69,7 +70,13 @@ if __name__ == '__main__':
     frame_e_cube = np.stack(frame_e_list)
 
     # Photon count, co-add, and correct for photometric error
-    thresh = 5000.  # Use a high threshold to avoid undercount
+    thresh = 500.  # see warnings below
+    if emccd.read_noise <=0:
+       warnings.warn('read noise should be greater than 0 for effective '
+       'photon counting')
+    if thresh < 4*emccd.read_noise:
+       warnings.warn('thresh should be at least 4 or 5 times read_noise for '
+       'accurate photon counting')
     mean_rate = get_count_rate(frame_e_cube, thresh, emccd.em_gain)
 
     # Plot images

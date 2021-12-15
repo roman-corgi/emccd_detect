@@ -65,7 +65,9 @@ def get_count_rate(frames, thresh, em_gain, niter=2):
     if not isinstance(niter, (int, np.integer)) or niter < 1:
         raise CorrPhotonCountException('niter must be an integer greater than '
                                        '0')
-    # TODO should we raise eception if thresh > em_gain?
+    if thresh >= em_gain:
+        warnings.warn('thresh should be less than em_gain for effective '
+        'photon counting')
 
     # Photon count stack of frames
     nframes = len(frames)
@@ -137,7 +139,7 @@ def calc_lam_approx(nobs, nfr, t, g):
 
     """
     # First step of equation (before taking log)
-    init = 1 - (nobs/nfr) * np.exp(t/g)  # TODO less strict place to raise thresh > em_gain exception
+    init = 1 - (nobs/nfr) * np.exp(t/g)
     # Mask out all values less than or equal to 0
     lam_m = np.zeros_like(init).astype(bool)
     lam_m[init > 0] = True
@@ -187,6 +189,10 @@ def lam_newton_fit(nobs, nfr, t, g, lam0, niter):
         dfunc = _calc_dfunc(nfr, t, g, lam_est_m)
         lam_est_m -= func / dfunc
 
+    if lam_est_m.min() < 0:
+        raise CorrPhotonCountException('negative number of photon counts; '
+        'try decreasing the frametime')
+
     # Fill zero values back in
     lam = lam_est_m.filled(0)
 
@@ -206,10 +212,11 @@ def _calc_func(nobs, nfr, t, g, lam):
     )
 
     e_coinloss = (1 - np.exp(-lam)) / lam
-    # XXX if nobs is too large it will make func negative
-    if (lam * nfr * e_thresh * e_coinloss).any() > nobs.any():
-        warnings.warn('Input rate is too high; decrease frametime')
 
+    #if (lam * nfr * e_thresh * e_coinloss).any() > nobs.any():
+    #    warnings.warn('Input photon flux is too high; decrease frametime')
+    # This warning isn't necessary; could have a negative func but still
+    # close enough to 0 for Newton's method
     func = lam * nfr * e_thresh * e_coinloss - nobs
 
     return func
