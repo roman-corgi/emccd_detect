@@ -36,6 +36,7 @@ setup(
         'numpy',
         'scipy',
         'pynufft==2020.0.0',
-        'pyyaml'
+        'pyyaml',
+        'openpyxl'
     ]
 )

@@ -6,6 +6,8 @@ import warnings
 from pathlib import Path
 
 import numpy as np
+import scipy as sci
+import openpyxl as xl
 
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
@@ -26,8 +28,9 @@ class EMCCDDetectBase:
         Electron multiplying gain (e-/photoelectron).
     full_well_image : float
         Image area full well capacity (e-).
-    full_well_serial : float
-        Serial (gain) register full well capacity (e-).
+    status:  {0,1}
+        0 if you want to ignore the effect on the y-intercept in PTC curves.
+        1 if you want to include the effect.
     dark_current: float
         Dark current rate (e-/pix/s).
     cic : float
@@ -55,7 +58,8 @@ class EMCCDDetectBase:
         self,
         em_gain,
         full_well_image,
-        full_well_serial,
+        #full_well_serial,
+        status,
         dark_current,
         cic,
         read_noise,
@@ -76,7 +80,8 @@ class EMCCDDetectBase:
 
         self.em_gain = em_gain
         self.full_well_image = full_well_image
-        self.full_well_serial = full_well_serial
+        #self.full_well_serial = full_well_serial
+        self.status = status
         self.dark_current = dark_current
         self.cic = cic
         self.read_noise = read_noise
@@ -196,6 +201,73 @@ class EMCCDDetectBase:
 
         # Reshape from 1d to 2d
         return output_dn.reshape(actualized_e.shape)
+
+    def full_well_serial_func(self):
+        """
+        Returns fwc_em.  Dependence was derived from an interpolation.
+        """
+        if self.em_gain <=1.06082:  #corresponding to hv = 22 (1.0608 in fit function, but we know it to be 1 hv=22)
+            return 100000
+        if self.em_gain > 1.06082:
+            return int(np.floor((6917529027641081856000*(3/2)**(337164395852765312/6243314768165359- (11258999068426240*np.log(76451918253118240*np.log(self.em_gain)))/6243314768165359))/1332894850849759 + 40000))
+
+    def _slope(self):
+        """
+        Fitted function for slope as it differs from 0.5 (shot noise).
+        """
+            #fitSlope=  0.5 +2.^(hv/2.3)/2.^(22/2.3)/750;
+            #fitG = 10.^(2.^(hv0/2.5)/2.^(22/2.5)/39);
+            #invert the function to get gain(hv):
+            #hv = -(210*log(2) + 5*log(log(10))...
+            #    - 5*log(76451918253118239*log(g)))/(2*log(2));
+        if self.em_gain <=1:
+            return 0.5
+        if self.em_gain > 1:
+            return (4398046511104*2**((225179981368524800*np.log(76451918253118240*np.log(self.em_gain)))/143596239667803257 - 6743287917055306240/143596239667803257))/2498839895518397625 + 1/2
+
+    def _ypow(self):
+        """
+        Fitted function for the power to which the factor representing the
+        y-intercept of PTC curves should be raised.  Linear interpolation for
+        the y-intercepts was good enough for this process.
+
+        status:  {0, 1}
+            0 if you don't want to use the y-intercept constraint (assume regular form in the noise), 1 if you want to use it.
+        """
+        if self.status == 0:
+            return 0.5
+        if self.status == 1:
+            if self.em_gain <=1.495:  #g corresponding to hv=30 (exactly, not from fitted function, but doesn't matter too much either way
+                return -0.0972
+            if self.em_gain > 1.495:
+                hv =  -(210*np.log(2) + 5*np.log(np.log(10))- 5*np.log(76451918253118239*np.log(self.em_gain)))/(2*np.log(2))
+                b = (hv-30)*(0.1253 + 0.4836)/9 - 0.4836
+                #return (b-(_slope(g)-1)*np.log10(8))/(np.log10((_ENF(g,604))**2*g))
+                #replace _slope(g) with ((1.07882-.789911)/(719.766-1.495)*
+                # (g-1.495)+0.789911), which essentially breaks up _slope(g)
+                # into as many steps as there are in g between HV=30 and 39;
+                # need to do this b/c I originally assumed linear fit for y-int,
+                # and it really isn't linear
+                return (b-(((1.07882-.789911)/(719.766-1.495)*(self.em_gain-1.495)+0.789911)-1)*np.log10(8))/(np.log10((self._ENF())**2*self.em_gain)) #specific to 604 EMCCD
+
+    #wrong and not needed
+    # def _z(self,counts):
+    #     """_z is the effective slope after taking into account the difference
+    #     in y-intercept on the PTC curves."""
+    #     g = self.em_gain
+    #     # counts is the number of counts after gain ("gain_counts")
+
+    #     return self._ypow()*np.emath.logn(counts,g*self._ENF()**2)+self._slope()
+
+    def _ENF(self):
+        """
+        Returns the ENF.
+        """
+        Nem = self.numel_gain_register
+        g = self.em_gain
+        return np.sqrt(2*(g-1)*g**(-(Nem +1)/Nem) + 1/g)
+
+
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
         # Add cosmic ray effects
@@ -322,7 +394,7 @@ class EMCCDDetectBase:
         return serial_counts
 
     def _gain_register_elements(self, serial_counts):
-        """Simulate gain register element behavior.
+        """Simulate gain register element behavior and the degraded noise.
 
         Parameters
         ----------
@@ -336,21 +408,59 @@ class EMCCDDetectBase:
 
         """
         # Apply EM gain
+        full_well_serial = self.full_well_serial_func()
         gain_counts = np.zeros_like(serial_counts)
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
             em_gain=self.em_gain,
-            max_out=self.full_well_serial
+            max_out=full_well_serial
         )
 
         # Simulate saturation tails
         if self.cr_rate != 0:
-            gain_counts = sat_tails(gain_counts, self.full_well_serial)
+            gain_counts = sat_tails(gain_counts, full_well_serial)
+
+        # apply degraded noise (slope (s) and s')
+        # mean is n*g
+        g = self.em_gain
+        mean = serial_counts*g
+        deviation = gain_counts - mean
+        #old and wrong:  enhfactor = gain_counts**(self._z(gain_counts)-0.5)
+        F = self._ENF()
+        enhfactor = (g*F**2)**(self._ypow()-.5)*mean**(self._slope()-.5)
+        gain_counts_enh = deviation*enhfactor + mean
+
+        # apply non-linearity
+        # old and wrong: added gain_counts_enh*self.percent_NL(gain_counts_slope)/100
+        gain_counts = gain_counts_enh + mean*self.percent_NL(mean)/100
 
         # Cap at full well capacity of gain register
-        gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
+        gain_counts[gain_counts > full_well_serial] = full_well_serial
 
         return gain_counts
+
+    def percent_NL(self,counts):
+        loc = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        #imported data from Excel spreadsheet from Nathan Bush
+        nl_path = Path(loc, 'data', 'residual_non_linearity.xlsx')
+        wb = xl.load_workbook(filename=nl_path)
+        sheet = wb['Sheet1']
+        # C5:C980 for nl_30, L5:L980 for nl_39
+        percent_nl_30 = np.array([sheet.cell(i,3).value for i in range(5,981)])
+        percent_nl_39 = np.array([sheet.cell(i,12).value for i in range(5,981)])
+        sig = np.arange(500,98100,step=100)
+        Nl_30 = sci.interpolate.PchipInterpolator(sig,percent_nl_30)
+        Nl_39 = sci.interpolate.PchipInterpolator(sig,percent_nl_39)
+        g = self.em_gain
+        m = (Nl_39(counts) - Nl_30(counts))/(39-30)
+        b = Nl_39(counts) - m*39
+        hv = -(210*np.log(2) + 5*np.log(np.log(10))- 5*np.log(76451918253118239.*np.log(g)))/(2*np.log(2))
+        if g < 1.0608:  #corresponding to hv<22; hv 22 to 30 identical
+            return Nl_30(counts)
+        if (g <= 719.7664) and ( g >= 1.0608): #between hv 30 and 39
+            return m*hv+b
+        if (g > 719.7664):  #hv above 39: use hv 39
+            return Nl_39(counts)
 
     def _amp(self, serial_counts):
         """Simulate amp behavior.
@@ -413,8 +523,6 @@ class EMCCDDetect(EMCCDDetectBase):
         Electron multiplying gain (e-/photoelectron). Defaults to 5000.
     full_well_image : float
         Image area full well capacity (e-). Defaults to 60000.
-    full_well_serial : float
-        Serial (gain) register full well capacity (e-). Defaults to None.
     dark_current: float
         Dark current rate (e-/pix/s). Defaults to 0.0028.
     cic : float
@@ -445,7 +553,8 @@ class EMCCDDetect(EMCCDDetectBase):
         self,
         em_gain=1.,
         full_well_image=60000.,
-        full_well_serial=None,
+        #full_well_serial=None,
+        status=1,
         dark_current=0.0028,
         cic=0.02,
         read_noise=100.,
@@ -468,15 +577,16 @@ class EMCCDDetect(EMCCDDetectBase):
         self.meta = MetadataWrapper(self.meta_path)
 
         # Set defaults from metadata
-        if full_well_serial is None:
-            full_well_serial = self.meta.fwc
+        #if full_well_serial is None:
+        #    full_well_serial = self.meta.fwc
         if eperdn is None:
             eperdn = self.meta.eperdn
 
         super().__init__(
             em_gain=em_gain,
             full_well_image=full_well_image,
-            full_well_serial=full_well_serial,
+            #full_well_serial=full_well_serial,
+            status=status,
             dark_current=dark_current,
             cic=cic,
             read_noise=read_noise,
@@ -597,7 +707,8 @@ def emccd_detect(
     frametime,
     em_gain,
     full_well_image=50000.,
-    full_well_serial=90000.,
+    #full_well_serial=90000.,
+    status=1,
     dark_current=0.0028,
     cic=0.01,
     read_noise=100,
@@ -623,8 +734,6 @@ def emccd_detect(
         Electron multiplying gain (e-/photoelectron).
     full_well_image : float
         Image area full well capacity (e-). Defaults to 50000.
-    full_well_serial : float
-        Serial (gain) register full well capacity (e-). Defaults to 90000.
     dark_current: float
         Dark current rate (e-/pix/s). Defaults to 0.0028.
     cic : float
@@ -670,7 +779,8 @@ def emccd_detect(
     emccd = EMCCDDetectBase(
         em_gain=em_gain,
         full_well_image=full_well_image,
-        full_well_serial=full_well_serial,
+        #full_well_serial=full_well_serial,
+        status=status,
         dark_current=dark_current,
         cic=cic,
         read_noise=read_noise,

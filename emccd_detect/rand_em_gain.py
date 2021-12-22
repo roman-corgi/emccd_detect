@@ -8,7 +8,6 @@ from scipy import special
 class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
-
 def rand_em_gain(n_in_array, em_gain, max_out):
     """Generate random numbers according to EM gain pdfs.
 
@@ -43,6 +42,8 @@ def rand_em_gain(n_in_array, em_gain, max_out):
     [2] https://arxiv.org/pdf/astro-ph/0307305.pdf
 
     """
+    #if n_in_array.min() < 0:
+    #    print('negative counts')
     if em_gain < 1:
         raise RandEMGainException('EM gain cannot be set to less than 1')
     elif em_gain == 1:
