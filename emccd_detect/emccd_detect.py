@@ -452,11 +452,12 @@ class EMCCDDetectBase:
         Nl_30 = sci.interpolate.PchipInterpolator(sig,percent_nl_30)
         Nl_39 = sci.interpolate.PchipInterpolator(sig,percent_nl_39)
         g = self.em_gain
+
+        if g < 1.0608:  #corresponding to hv<22; hv 22 to 30 identical
+            return Nl_30(counts)
         m = (Nl_39(counts) - Nl_30(counts))/(39-30)
         b = Nl_39(counts) - m*39
         hv = -(210*np.log(2) + 5*np.log(np.log(10))- 5*np.log(76451918253118239.*np.log(g)))/(2*np.log(2))
-        if g < 1.0608:  #corresponding to hv<22; hv 22 to 30 identical
-            return Nl_30(counts)
         if (g <= 719.7664) and ( g >= 1.0608): #between hv 30 and 39
             return m*hv+b
         if (g > 719.7664):  #hv above 39: use hv 39

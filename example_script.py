@@ -15,7 +15,8 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
             aspect='equal', colorbar=True):
     """Plot a scaled colormap."""
     fig, ax = plt.subplots()
-    im = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=cmap, aspect=aspect)
+    im = ax.imshow(data, vmin=vmin, vmax=vmax, cmap=cmap, aspect=aspect,
+                   origin='lower')
 
     if title:
         ax.set_title(title)
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     # Set up some inputs here
     here = os.path.abspath(os.path.dirname(__file__))
     # Get fluxmap
-    fits_path = Path(here, 'data', 'sci_frame.fits')
+    fits_path = Path(here, 'data', 'sci_fluxmap.fits')
     fluxmap = fits.getdata(fits_path).astype(float)  # (photons/pix/s)
     # Put fluxmap in 1024x1024 image section
     full_fluxmap = np.zeros((1024, 1024)).astype(float)
@@ -39,11 +40,11 @@ if __name__ == '__main__':
 
 
     # For the simplest possible use of EMCCDDetect, use its defaults
-    #emccd = EMCCDDetect()
+    emccd = EMCCDDetect()
     # Simulate only the fluxmap
-    #sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
     # Simulate the full frame (surround the full fluxmap with prescan, etc.)
-    #sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+    sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
 
 
     # For more control, each of the following parameters can be specified
@@ -52,9 +53,10 @@ if __name__ == '__main__':
     # Note that the defaults for full_well_serial and eperdn are specified in
     # the metadata file
     emccd = EMCCDDetect(
-        em_gain=1.1,
+        em_gain=5000.,
         full_well_image=60000.,  # e-
         #full_well_serial=100000.,  # e-
+        status=1,
         dark_current=0.0028,  # e-/pix/s
         cic=0.02,  # e-/pix/frame
         read_noise=100.,  # e-/pix/frame
@@ -78,13 +80,13 @@ if __name__ == '__main__':
     # Get a gain divided, bias subtracted frame in units of e-
     frame_e = emccd.get_e_frame(sim_full_frame)
     # Return just the 1024x1024 region of a full frame
-    #image = emccd.slice_fluxmap(sim_full_frame)
+    image = emccd.slice_fluxmap(sim_full_frame)
     # Return the prescan region of a full frame
-    #prescan = emccd.slice_prescan(sim_full_frame)
+    prescan = emccd.slice_prescan(sim_full_frame)
 
 
     # For legacy purposes, the class can also be called from a functon wrapper
-    #sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
+    sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
 
     # Plot images
     imagesc(full_fluxmap, 'Input Fluxmap')
