@@ -2,6 +2,7 @@
 """Example script for EMCCDDetect calls."""
 
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -29,6 +30,7 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
 here = os.path.abspath(os.path.dirname(__file__))
 # Get fluxmap
 fits_path_py = Path(here, 'data', 'sci_fluxmap.fits')
+#fits_path_py = Path(here, 'data', 'ref_frame.fits')
 
 def read_func(fits_path=fits_path_py,frametime=100, em_gain=5000.,
         full_well_image=60000.,  # e-
@@ -87,6 +89,8 @@ def read_func(fits_path=fits_path_py,frametime=100, em_gain=5000.,
         )
         # Simulate only the fluxmap
         sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
+        #np. set_printoptions(threshold=np. inf)
+        #print(np.array(sim_sub_frame))
         return sim_sub_frame
         # Simulate the full frame (surround the full fluxmap with prescan, etc.)
         #sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
@@ -117,6 +121,8 @@ def read_func(fits_path=fits_path_py,frametime=100, em_gain=5000.,
             cr_rate=cr_rate,
             pixel_pitch=pixel_pitch,
             shot_noise_on=None)
+        #np. set_printoptions(threshold=np. inf)
+        #print(np.array(sim_old_style))
         return sim_old_style
 
     # Plot images
@@ -124,6 +130,19 @@ def read_func(fits_path=fits_path_py,frametime=100, em_gain=5000.,
     #imagesc(sim_sub_frame, 'Output Sub Frame')
     #imagesc(sim_full_frame, 'Output Full Frame')
     #plt.show()
-imagesc(read_func(choice='latest'), 'Latest')
-imagesc(read_func(choice='legacy'),'Legacy')
-plt.show()
+#print(read_func())
+#imagesc(read_func(choice='latest'), 'Latest')
+#imagesc(read_func(choice='legacy'),'Legacy')
+#plt.show()
+if __name__ == '__main__':
+
+    imagesc(read_func(choice='latest'), 'Latest')
+    imagesc(read_func(choice='legacy'),'Legacy')
+    plt.show()
+    #args = sys.argv
+    # args[0] = current file
+    # args[1] = function name
+    # args[2:] = function args : (*unpacked)
+    #globals()[args[1]](*args[2:])
+    #imagesc(np.array([[1,0],[1,1]]))
+    #plt.show()
