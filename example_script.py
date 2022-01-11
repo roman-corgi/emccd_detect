@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # Return just the 1024x1024 region of a full frame
     image = emccd.slice_fluxmap(sim_full_frame)
     # Return the prescan region of a full frame
-    prescan = emccd.slice_fluxmap(sim_full_frame)
+    prescan = emccd.slice_prescan(sim_full_frame)
 
 
     # For legacy purposes, the class can also be called from a functon wrapper
