@@ -23,8 +23,8 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
 if __name__ == '__main__':
     #full_fluxmap = np.ones((1024, 1024))
     fluxmap = np.ones((100,100))
-    frametime = 100.  # s (adjust lambda by adjust this)
-    em_gain = 1.
+    frametime = 0.1  # s (adjust lambda by adjust this)
+    em_gain = 5000.
 
     emccd = EMCCDDetect(
         em_gain=em_gain,
@@ -33,18 +33,18 @@ if __name__ == '__main__':
         dark_current=0.00,  # e-/pix/s
         cic=0.0,  # e-/pix/frame
         read_noise=0.,  # e-/pix/frame
-        bias=10000, # 10000.,  # e-
+        bias=0, # 10000.,  # e-
         qe=1,  # set this to 1 so it doesn't affect lambda
         cr_rate=0.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=1.,  # set this to 1 so there's no data loss when converting back to e-
-        nbits=14,
+        nbits=64,
         numel_gain_register=604
         )
 
     # Simulate several full frames
     frames_l = []
-    nframes = 100
+    nframes = 500
     for i in range(nframes):
         #sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
         sim_sub_frame = emccd.sim_sub_frame(fluxmap,frametime)
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     frames = np.stack(frames_l)
 
     # Plot images
-    imagesc(emccd.get_e_frame(frames[0]), 'Output Full Frame')
+    #imagesc(emccd.get_e_frame(frames[0]), 'Output Full Frame')
 
     f, ax = plt.subplots(1,2)
     ax[0].hist(np.mean(frames,axis=0).flatten(), bins=20)
@@ -61,6 +61,7 @@ if __name__ == '__main__':
     ax[0].set_title('Pixel mean')
     ax[1].hist(np.std(frames,axis=0).flatten(), bins=20)
     ax[1].axvline(np.sqrt(np.mean(fluxmap)*frametime),color='black')
+    ax[1].axvline(np.sqrt(2*np.mean(fluxmap)*frametime),color='red')
     ax[1].set_title('Pixel sdev')
     plt.tight_layout()
     plt.show()
