@@ -1,31 +1,51 @@
-# Any regions not specified are assumed to be unused shielded imaging regions
-# Note that ul coordinates are in the format (row, col), where (0, 0) is the
-# top left of the array
+# Any regions not specified are assumed to be shielded or unused pixels.
+#
+# Geometry regions are defined as:
+#   rows: number of region rows
+#   cols: number of region columns
+#   r0c0: coordinates (row, col) of the corner closest to (0, 0) of the array
+#
+# For example, in a 5x5 array, the following geometry would look as follows:
+#   rows: 2
+#   cols: 3
+#   r0c0:
+#     - 2
+#     - 1
+#
+# [
+#     [0, 0, 0, 0, 0],
+#     [0, 0, 0, 0, 0],
+#     [0, 1, 1, 1, 0],
+#     [0, 1, 1, 1, 0],
+#     [0, 0, 0, 0, 0]
+# ]
+#
+# where (0, 0) is defined as the top left of this array.
 frame_rows: 1200
 frame_cols: 2200
 geom:
   image:
     rows: 1024
     cols: 1024
-    ul:
+    r0c0:
       - 13
       - 1088
   prescan:
     rows: 1200
     cols: 1088
-    ul:
+    r0c0:
       - 0
       - 0
   parallel_overscan:
     rows: 163
     cols: 1056
-    ul:
+    r0c0:
       - 1037
       - 1088
   serial_overscan:
     rows: 1200
     cols: 56
-    ul:
+    r0c0:
       - 0
       - 2144
 eperdn: 7
