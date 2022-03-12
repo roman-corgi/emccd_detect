@@ -17,7 +17,7 @@ if count(py.sys.path,PYpath) == 0
 end
 
 % Input fluxmap of your choosing (photons/pix/s)
-fits_name = 'ref_frame.fits';
+fits_name = 'sci_fluxmap.fits';
 
 %inputs for calling Python
 fits_path = fullfile(pwd, 'data', fits_name);
@@ -33,9 +33,9 @@ qe=0.9;
 cr_rate=0.;
 pixel_pitch=13e-6;
 eperdn=1.;
-nbits=64;
+nbits=int16(64);
 numel_gain_register=604;
-choice='legacy';
+choice='latest';
 
 pyOut = double(py.example_script_m.read_func(fits_path, frametime, em_gain,...
          full_well_image,status,dark_current, cic,... 

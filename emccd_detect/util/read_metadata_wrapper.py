@@ -126,10 +126,13 @@ class MetadataWrapper(Metadata):
         _, cols_serial_ovr, _ = self._unpack_geom('serial_overscan')
         rows_parallel_ovr, _, _ = self._unpack_geom('parallel_overscan')
         _, _, r0c0_image = self._unpack_geom('image')
+        #_, _, r0c0_image = self._unpack_geom('image')
+        fluxmap_rows, _, r0c0_image = self._unpack_geom('image')
 
         rows_im = self.frame_rows - rows_parallel_ovr
         cols_im = self.frame_cols - cols_pre - cols_serial_ovr
         r0c0_im = r0c0_image.copy()
+        r0c0_im[0] = r0c0_im[0] - (rows_im - fluxmap_rows)
 
         return rows_im, cols_im, r0c0_im
 
