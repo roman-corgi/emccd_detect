@@ -116,3 +116,7 @@ def _get_cdf(n_in, em_gain, x):
         cdf = np.cumsum(pdf / sum_pdf)
 
     return cdf
+
+if __name__ == '__main__':
+    n_in_array = [30, 30, 40, 100, 100, 100]
+    print(rand_em_gain(n_in_array, 2000, 60000))
