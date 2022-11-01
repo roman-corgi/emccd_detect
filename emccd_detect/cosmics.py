@@ -33,43 +33,44 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
         Image area frame with cosmics added (e-).
 
     """
-    # Find number of hits/frame
-    nr, nc = image_frame.shape
-    framesize = (nr*pixel_pitch * nc*pixel_pitch) / 10**-4  # cm^2
-    hits_per_second = cr_rate * framesize
-    hits_per_frame = int(round(hits_per_second * frametime))  # XXX zero case
+    if cr_rate > 0:
+        # Find number of hits/frame
+        nr, nc = image_frame.shape
+        framesize = (nr*pixel_pitch * nc*pixel_pitch) / 10**-4  # cm^2
+        hits_per_second = cr_rate * framesize
+        hits_per_frame = int(round(hits_per_second * frametime))
 
-    # Generate hit locations
-    # Describe each hit as a gaussian centered at (hit_row, hit_col) and having
-    # an radius of hit_rad chosen between cr_min_radius and cr_max_radius
-    cr_min_radius = 0
-    cr_max_radius = 2
-    hit_row = np.random.uniform(low=0, high=nr-1, size=hits_per_frame)
-    hit_col = np.random.uniform(low=0, high=nc-1, size=hits_per_frame)
-    hit_rad = np.random.uniform(low=cr_min_radius, high=cr_max_radius,
-                                size=hits_per_frame)
+        # Generate hit locations
+        # Describe each hit as a gaussian centered at (hit_row, hit_col) and having
+        # a radius of hit_rad chosen between cr_min_radius and cr_max_radius
+        cr_min_radius = 0
+        cr_max_radius = 2
+        hit_row = np.random.uniform(low=0, high=nr-1, size=hits_per_frame)
+        hit_col = np.random.uniform(low=0, high=nc-1, size=hits_per_frame)
+        hit_rad = np.random.uniform(low=cr_min_radius, high=cr_max_radius,
+                                    size=hits_per_frame)
 
-    # Create hits
-    for i in range(hits_per_frame):
-        # Get pixels where cosmic lands
-        min_row = max(np.floor(hit_row[i] - hit_rad[i]).astype(int), 0)
-        max_row = min(np.ceil(hit_row[i] + hit_rad[i]).astype(int), nr-1)
-        min_col = max(np.floor(hit_col[i] - hit_rad[i]).astype(int), 0)
-        max_col = min(np.ceil(hit_col[i] + hit_rad[i]).astype(int), nc-1)
-        cols, rows = np.meshgrid(np.arange(min_col, max_col+1),
-                                 np.arange(min_row, max_row+1))
+        # Create hits
+        for i in range(hits_per_frame):
+            # Get pixels where cosmic lands
+            min_row = max(np.floor(hit_row[i] - hit_rad[i]).astype(int), 0)
+            max_row = min(np.ceil(hit_row[i] + hit_rad[i]).astype(int), nr-1)
+            min_col = max(np.floor(hit_col[i] - hit_rad[i]).astype(int), 0)
+            max_col = min(np.ceil(hit_col[i] + hit_rad[i]).astype(int), nc-1)
+            cols, rows = np.meshgrid(np.arange(min_col, max_col+1),
+                                    np.arange(min_row, max_row+1))
 
-        # Create gaussian
-        sigma = 0.5
-        a = 1 / (np.sqrt(2*np.pi) * sigma)
-        b = 2 * sigma**2
-        cosm_section = a * np.exp(-((rows-hit_row[i])**2 + (cols-hit_col[i])**2) / b)
+            # Create gaussian
+            sigma = 0.5
+            a = 1 / (np.sqrt(2*np.pi) * sigma)
+            b = 2 * sigma**2
+            cosm_section = a * np.exp(-((rows-hit_row[i])**2 + (cols-hit_col[i])**2) / b)
 
-        # Scale by maximum value
-        cosm_section = cosm_section / np.max(cosm_section) * max_val
+            # Scale by maximum value
+            cosm_section = cosm_section / np.max(cosm_section) * max_val
 
-        # Add cosmic to frame
-        image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
+            # Add cosmic to frame
+            image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
 
     return image_frame
 
