@@ -59,22 +59,18 @@ def _apply_gain(n_in_array, em_gain, max_out):
     n_out_array = np.zeros_like(n_in_array)
 
     # Get unique nonzero n_in values
-    n_in_unique = np.unique(n_in_array)
-    n_in_unique = n_in_unique[n_in_unique > 0]
+    # n_in_unique = np.unique(n_in_array)
+    # n_in_unique = n_in_unique[n_in_unique > 0]
 
     # Generate random numbers according to the gain distribution for each n_in
-    #init_t = time.time()
     # for n_in in n_in_unique:
     #     inds = np.where(n_in_array == n_in)[0]
     #     n_out_array[inds] = _rand_pdf(n_in, em_gain, max_out, len(inds))
+
     n_out_array = np.random.gamma(n_in_array, em_gain)
     n_out_array = np.round(n_out_array)
-    #print('time for EM gain application:  ', time.time() - init_t)
+
     return n_out_array
-    #XXX options:
-    #-- use current scheme, but don't break up into "unique" pieces; NO, have to break up into individual elements
-    #-- use random.gamma (don't break into pieces)
-    #-- use actual distribution CDF, using a nonlinear solver (don't break into pieces)
 
 
 def _rand_pdf(n_in, em_gain, x_max, size):
@@ -126,10 +122,11 @@ def _get_cdf(n_in, em_gain, x):
     return cdf
 
 if __name__ == '__main__':
-    n_in_array = np.array([1, 1.4, 400, 1000, 1000, 1000])
-    print(rand_em_gain(n_in_array, 2000, 60000))
-    init_t = time.time()
-    x = np.random.gamma(n_in_array, 2000)
-    x[x>60000] = 60000
+    n_in_array = np.array([1, 2, 400, 1000, 1000, 1000])
+    #n_in_array = np.array([1]*20)
+    print(rand_em_gain(n_in_array, 20, 200000))
+
+    x = np.round(np.random.gamma(n_in_array, 20))
     print(x)
-    print(time.time() - init_t)
+
+    print('on average, should be ', 20*n_in_array)
