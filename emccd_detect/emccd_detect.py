@@ -337,16 +337,10 @@ class EMCCDDetectBase:
         """
         # Apply EM gain
         gain_counts = np.zeros_like(serial_counts)
-        # let max_out be the mean + 4*std dev from gamma dist for the max value
-        # from serial_counts (using ENF ~ sqrt(2), which is fine even for low
-        # gain since we just want an upper limit)
-        max_out = self.em_gain*np.max(serial_counts) + \
-            4*self.em_gain*np.sqrt(2*np.max(serial_counts))
+
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
-            em_gain=self.em_gain,
-            max_out=max_out
-        )
+            em_gain=self.em_gain)
 
         # Simulate saturation tails
         if self.cr_rate != 0:

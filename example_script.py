@@ -61,7 +61,7 @@ if __name__ == '__main__':
         read_noise=100.,  # e-/pix/frame
         bias=10000.,  # e-
         qe=0.9,
-        cr_rate=0.,  # hits/cm^2/s
+        cr_rate=5.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=7.,
         nbits=14,
