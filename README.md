@@ -34,7 +34,7 @@ For an example of how to use emccd\_detect, see example_script.py.
 
 ## Authors
 
-* Bijan Nemati (<bijan.nemati@uah.edu>)
+* Bijan Nemati (<bijan.nemati@tellus1.com>)
 * Sam Miller (<sam.miller@uah.edu>)
 * Kevin Ludwick (<kevin.ludwick@uah.edu>)
 
