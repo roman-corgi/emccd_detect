@@ -1,6 +1,13 @@
 # EMCCD Detect
 
-Given an input fluxmap, emccd_detect will return a simulated EMCCD detector image. 
+Given an input fluxmap, emccd_detect will return a simulated EMCCD detector image.
+
+
+# Version
+
+The latest version of emccd\_detect is 2.2.5.
+
+
 
 ## Getting Started
 ### Installing
@@ -29,4 +36,5 @@ For an example of how to use emccd\_detect, see example_script.py.
 
 * Bijan Nemati (<bijan.nemati@uah.edu>)
 * Sam Miller (<sam.miller@uah.edu>)
+* Kevin Ludwick (<kevin.ludwick@uah.edu>)
 
