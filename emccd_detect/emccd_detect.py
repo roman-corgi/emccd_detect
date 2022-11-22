@@ -11,7 +11,13 @@ from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 from arcticpy import add_cti, CCD, ROE
-from arcticpy import TrapInstantCapture as Trap
+try:
+    from arcticpy import Trap
+except ImportError:
+    try:
+        from arcticpy import TrapInstantCapture as Trap
+    except Exception:
+        raise Exception("Failed to import articpy trap class.")
 
 
 class EMCCDDetectException(Exception):
