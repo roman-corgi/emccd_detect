@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from io import open
 from os import path
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, find_namespace_packages
 
 here = path.abspath(path.dirname(__file__))
 
@@ -25,17 +25,22 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
+    #packages=find_namespace_packages('arcticpy.src', 'arcticpy.include'),
     packages=find_packages(),
+    #packages=find_namespace_packages(),
+    #packages=['arcticpy'],
     package_data={'': ['metadata.yaml']},
     include_package_data=True,
-    python_requires='>=3.6',
+    python_requires= '<=3.8',#'>=3.6',
     install_requires=[
         'arcticpy',
+        #'arcticpy @ git+https://github.com/jkeger/arctic.git',
         'astropy',
         'matplotlib',
         'numpy',
         'scipy',
         'pynufft==2020.0.0',
-        'pyyaml'
+        'pyyaml',
+        #'arcticpy @ git+https://github.com/jkeger/arcticpy.git'
     ]
 )
