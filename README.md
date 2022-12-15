@@ -18,7 +18,7 @@ This package requires Python between versions 3.6 and 3.8, inclusive.  (emccd\_d
 
 This will install emccd\_detect and its dependencies, which are as follows:
 
-* arcticpy
+* arcticpy==1.0
 * astropy
 * matplotlib
 * numpy
