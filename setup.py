@@ -33,14 +33,13 @@ setup(
     include_package_data=True,
     python_requires= '<=3.8',#'>=3.6',
     install_requires=[
-        'arcticpy',
-        #'arcticpy @ git+https://github.com/jkeger/arctic.git',
+        #'arcticpy',
+        'arcticpy @ git+https://github.com/jkeger/arcticpy.git',
         'astropy',
         'matplotlib',
         'numpy',
         'scipy',
         'pynufft==2020.0.0',
-        'pyyaml',
-        #'arcticpy @ git+https://github.com/jkeger/arcticpy.git'
+        'pyyaml'
     ]
 )
