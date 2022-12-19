@@ -31,7 +31,7 @@ setup(
     #packages=['arcticpy'],
     package_data={'': ['metadata.yaml']},
     include_package_data=True,
-    python_requires= '<=3.8',#'>=3.6',
+    python_requires= '>=3.6',
     install_requires=[
         #'arcticpy',
         'arcticpy @ git+https://github.com/jkeger/arcticpy.git',
