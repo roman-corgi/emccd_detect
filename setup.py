@@ -33,8 +33,8 @@ setup(
     include_package_data=True,
     python_requires= '>=3.6',
     install_requires=[
-        #'arcticpy',
-        'arcticpy @ git+https://github.com/jkeger/arcticpy.git',
+        'arcticpy @ git+https://github.com/jkeger/arcticpy@row_wise#egg=arcticpy',
+        #'arcticpy @ git+https://github.com/jkeger/arcticpy.git',
         #'arcticpy @ git+https://github.com/jkeger/arctic.git',
         #'arctic',
         'astropy',

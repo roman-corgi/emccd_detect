@@ -18,7 +18,7 @@ This package requires Python version 3.6 or higher.  To install emccd\_detect, n
 
 This will install emccd\_detect and its dependencies, which are as follows:
 
-* arcticpy==1.1
+* arcticpy==1.0
 * astropy
 * matplotlib
 * numpy
@@ -26,7 +26,6 @@ This will install emccd\_detect and its dependencies, which are as follows:
 * pynufft==2020.0.0
 * pyyaml
 
-If your installation fails, pay attention to what the output says.  It may require an update of C++ tools, and it will probably tell you how to update.
 
 ### Usage
 
