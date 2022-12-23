@@ -2,6 +2,7 @@
 from io import open
 from os import path
 from setuptools import setup, find_packages, find_namespace_packages
+import emccd_detect
 
 here = path.abspath(path.dirname(__file__))
 
@@ -10,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='emccd_detect',
-    version='2.2.5',
+    version=emccd_detect.__version__,
     description='EMCCD detector image simulation',
     long_description=long_description,
     long_description_content_type='text/markdown',
