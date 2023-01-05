@@ -1,0 +1,6 @@
+autoconf
+autoarray
+colorcet>=2.0.2
+numpy>=1.18.0
+scipy>=1.5.1
+astropy>=3.0.0

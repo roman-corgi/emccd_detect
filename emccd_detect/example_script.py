@@ -41,6 +41,18 @@ if __name__ == '__main__':
 
     # For the simplest possible use of EMCCDDetect, use its defaults
     emccd = EMCCDDetect()
+    # If you are using Python<=3.9, you can also apply CTI to the frame.  If
+    # you have Python>3.9, this will not work if you are using the arcticpy
+    # installation that was included with this emccd_detect package. Below is
+    # how you could apply CTI.
+    # See (<https://github.com/jkeger/arcticpy/tree/row_wise/arcticpy>) for
+    # details on the optional inputs to add_cti().
+    # (using "try" so that this script still runs in the case that arcticpy
+    # is not viable)
+    try:
+        emccd.add_cti()
+    except:
+        pass
     # Simulate only the fluxmap
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
     # Simulate the full frame (surround the full fluxmap with prescan, etc.)

@@ -10,7 +10,11 @@ import numpy as np
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
-from arcticpy import add_cti, CCD, ROE, Trap
+try:
+    from arcticpy import add_cti, CCD, ROE, Trap
+except:
+    pass
+
 
 
 class EMCCDDetectException(Exception):
@@ -115,37 +119,40 @@ class EMCCDDetectBase:
         else:
             self._eperdn = eperdn
 
-    def update_cti(
-        self,
-        ccd=None,
-        roe=None,
-        traps=None,
-        express=1,
-        offset=0,
-        window_range=None
-    ):
-        # Update parameters
-        self.ccd = ccd
-        self.roe = roe
-        self.traps = traps
+    try:
+        def update_cti(
+            self,
+            ccd=None,
+            roe=None,
+            traps=None,
+            express=1,
+            offset=0,
+            window_range=None
+        ):
+            # Update parameters
+            self.ccd = ccd
+            self.roe = roe
+            self.traps = traps
 
-        self.express = express
-        self.offset = offset
-        self.window_range = window_range
+            self.express = express
+            self.offset = offset
+            self.window_range = window_range
 
-        # Instantiate defaults for any class instances not provided
-        if self.ccd is None:
-            self.ccd = CCD()
-        if roe is None:
-            self.roe = ROE()
-        if traps is None:
-            self.traps = [Trap()]
+            # Instantiate defaults for any class instances not provided
+            if self.ccd is None:
+                self.ccd = CCD()
+            if roe is None:
+                self.roe = ROE()
+            if traps is None:
+                self.traps = [Trap()]
 
-    def unset_cti(self):
-        # Remove CTI simulation
-        self.ccd = None
-        self.roe = None
-        self.traps = None
+        def unset_cti(self):
+            # Remove CTI simulation
+            self.ccd = None
+            self.roe = None
+            self.traps = None
+    except:
+        pass
 
     def sim_sub_frame(self, fluxmap, frametime):
         """Simulate a partial detector frame.
