@@ -1,5 +1,5 @@
-autoconf
-autoarray
+autoconf==0.6.1
+autoarray==0.13.4
 colorcet>=2.0.2
 numpy>=1.18.0
 scipy>=1.5.1

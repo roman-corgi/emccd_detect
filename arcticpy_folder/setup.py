@@ -8,7 +8,7 @@ with open("requirements.txt", "r") as f:
 
 setuptools.setup(
     name="arcticpy",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=['emccd_detect.*', 'emccd_detect']),
     version="1.0",
     description="AlgoRithm for Charge Transfer Inefficiency Correction",
     long_description=long_description,

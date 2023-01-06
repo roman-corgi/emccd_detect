@@ -41,22 +41,32 @@ if __name__ == '__main__':
 
     # For the simplest possible use of EMCCDDetect, use its defaults
     emccd = EMCCDDetect()
+
     # If you are using Python<=3.9, you can also apply CTI to the frame.  If
     # you have Python>3.9, this will not work if you are using the arcticpy
     # installation that was included with this emccd_detect package. Below is
     # how you could apply CTI.
     # See (<https://github.com/jkeger/arcticpy/tree/row_wise/arcticpy>) for
-    # details on the optional inputs to add_cti().
+    # details on the optional inputs to add_cti() so that you can specify
+    # something meaningful for the EMCCD you have in mind.
     # (using "try" so that this script still runs in the case that arcticpy
-    # is not viable)
+    # is not viable.  In that case, running this method update_cti()
+    # will not work.)
     try:
-        emccd.add_cti()
+        emccd.update_cti()
     except:
         pass
     # Simulate only the fluxmap
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
     # Simulate the full frame (surround the full fluxmap with prescan, etc.)
     sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+    # to turn off CTI application to future frames made with the same class
+    # instance (If arcticpy not viable, trying to run unset_cti() will not
+    # work):
+    try:
+        emccd.unset_cti()
+    except:
+        pass
 
 
     # For more control, each of the following parameters can be specified
@@ -96,7 +106,7 @@ if __name__ == '__main__':
     prescan = emccd.slice_prescan(sim_full_frame)
 
 
-    # For legacy purposes, the class can also be called from a functon wrapper
+    # For legacy purposes, the class can also be called from a function wrapper
     sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
 
     # Plot images

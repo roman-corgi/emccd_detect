@@ -1,8 +1,8 @@
-""" 
-Correct CTI in an image from the Hubble Space Telescope (HST) Advanced Camera 
+"""
+Correct CTI in an image from the Hubble Space Telescope (HST) Advanced Camera
 for Surveys (ACS) instrument.
 
-It takes a while to correct a full image, so a small patch far from the readout 
+It takes a while to correct a full image, so a small patch far from the readout
 register (where CTI has the most effect) is used for this example.
 """
 

@@ -1,4 +1,4 @@
-""" Profile the code to test and debug/optimise the performance. 
+""" Profile the code to test and debug/optimise the performance.
 
 Usage
 -----
@@ -8,11 +8,11 @@ Args
 ----
 express : int
     ArCTIC express parameter.
-    
+
 output_name : str (opt.)
-    Saves the profiling output to `test_arcticpy/output_name.txt`, and the image 
-    to `test_arcticpy/output_name.png`. Defaults to "test_<express>". 
-    
+    Saves the profiling output to `test_arcticpy/output_name.txt`, and the image
+    to `test_arcticpy/output_name.png`. Defaults to "test_<express>".
+
 do_plot : bool (opt.)
     If True then plot the output, default False.
 """

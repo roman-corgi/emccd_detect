@@ -1,4 +1,4 @@
-""" 
+"""
 ArCTIC python
 =============
 
@@ -8,14 +8,14 @@ AlgoRithm for Charge Transfer Inefficiency (CTI) Correction
 Add or remove image trails due to charge transfer inefficiency in CCD detectors
 by modelling the trapping, releasing, and moving of charge along pixels.
 
-See the README.md for general information, and see the docstrings and comments 
+See the README.md for general information, and see the docstrings and comments
 throughout the code for further details.
 
 https://github.com/jkeger/arcticpy
 
-Jacob Kegerreis: jacob.kegerreis@durham.ac.uk  
-Richard Massey: r.j.massey@durham.ac.uk  
-James Nightingale  
+Jacob Kegerreis: jacob.kegerreis@durham.ac.uk
+Richard Massey: r.j.massey@durham.ac.uk
+James Nightingale
 """
 
 import numpy as np

@@ -11,7 +11,7 @@ from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 try:
-    from arcticpy import add_cti, CCD, ROE, Trap
+    from arcticpy import add_cti, CCD, ROE, Trap, TrapInstantCapture
 except:
     pass
 
@@ -115,7 +115,7 @@ class EMCCDDetectBase:
             raise EMCCDDetectException('eperdn value must be a float')
 
         if eperdn <= 0:
-            raise EMCCDDetectException('eperdn value must be positve.')
+            raise EMCCDDetectException('eperdn values must be positve.')
         else:
             self._eperdn = eperdn
 
@@ -144,7 +144,8 @@ class EMCCDDetectBase:
             if roe is None:
                 self.roe = ROE()
             if traps is None:
-                self.traps = [Trap()]
+                #self.traps = [Trap()]
+                self.traps = [TrapInstantCapture()]
 
         def unset_cti(self):
             # Remove CTI simulation
