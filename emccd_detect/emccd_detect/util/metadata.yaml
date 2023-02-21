@@ -33,6 +33,9 @@ geom:
   prescan:
     rows: 1200
     cols: 1088
+    # good, reliable cols used for getting row-by-row bias, relative to r0c0
+    col_start: 800
+    col_end: 1000
     r0c0:
       - 0
       - 0

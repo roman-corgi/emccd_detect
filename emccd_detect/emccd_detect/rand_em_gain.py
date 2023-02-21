@@ -12,18 +12,12 @@ class RandEMGainException(Exception):
 def rand_em_gain(n_in_array, em_gain):
     """Generate random numbers according to EM gain pdfs.
 
-    If cic_gain_register is set to 0 (default)
-
     Parameters
     ----------
     n_in_array : array_like
         Array of electron values (e-).
     em_gain : float
         CCD em_gain (e-/photon).
-    max_out : float
-        Maximum allowed output, used to set an end bound on distributions (e-).
-    numel_gain_register : int
-        Number of elements in the gain register. Defaults to 604.
 
     Returns
     -------
@@ -62,6 +56,7 @@ if __name__ == '__main__':
 
     # Generally, the agreement b/w the old and new methods is good.  The new
     # method just speeds up the code a lot, especially when cosmics are present.
+    # Old method functions below:
 
     def _apply_gain(n_in_array, em_gain, max_out):
         """Apply a specific em_gain to all nonzero n_in values."""
