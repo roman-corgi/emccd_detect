@@ -52,7 +52,7 @@ class EMCCDDetectBase:
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive.
     numel_gain_register : int
-        Number of gain register elements. For modeling partial CIC.
+        Number of gain register elements. For eventually modeling partial CIC.
 
     """
     def __init__(
@@ -442,8 +442,8 @@ class EMCCDDetect(EMCCDDetectBase):
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive. Defaults to 14.
     numel_gain_register : int
-        Number of gain register elements. For modeling partial CIC. Defaults to
-        604.
+        Number of gain register elements. For eventually modeling partial CIC.
+        Defaults to 604.
     meta_path : str
         Full path of metadata yaml.
 
@@ -500,13 +500,13 @@ class EMCCDDetect(EMCCDDetectBase):
         """Simulate a full detector frame.
 
         Note that the fluxmap provided must be the same size as the exposed
-        detector pixels (specified in self.meta.geom.image). A full frame
+        detector pixels (specified in self.meta.geom['image']). A full frame
         including prescan and overscan regions will be made around the fluxmap.
 
         Parameters
         ----------
         fluxmap : array_like
-            Input fluxmap of same shape as self.meta.geom.image (phot/pix/s).
+            Input fluxmap, same shape as self.meta.geom['image'] (phot/pix/s).
         frametime : float
             Frame exposure time (s).
 
@@ -661,8 +661,8 @@ def emccd_detect(
     legacy purposes, as the version 1.0.1 implementation output electrons
     instead of dn.
 
-    The legacy version also has no gain register CIC, so cic_gain_register is
-    set to 0 and numel_gain_register is irrelevant.
+    The legacy version also has no gain register CIC, so
+    numel_gain_register is irrelevant.
 
     The legacy version also had no ADC (it just output floats), so the number
     of bits is set as high as possible (64) and the output is converted to
