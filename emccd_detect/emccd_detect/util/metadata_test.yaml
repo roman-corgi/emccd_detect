@@ -37,8 +37,10 @@ geom:
     rows: 120
     cols: 108
     # good, reliable cols used for getting row-by-row bias, relative to r0c0
-    col_start: 80
-    col_end: 100
+    #For such a small test frame, we need enough columns to get an accurate
+    # bias subtraction, so we choose all of them.
+    col_start: 0 #10
+    col_end: 108 #100
     r0c0:
       - 0
       - 0
