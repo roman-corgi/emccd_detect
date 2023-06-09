@@ -56,8 +56,8 @@ geom:
     r0c0:
       - 0
       - 215
-eperdn: #7
-fwc: #100000
+eperdn: 8.2
+fwc: 105000 #serial
 sat_thresh: 0.99
 plat_thresh: 0.85
 cosm_filter: 2
