@@ -73,19 +73,19 @@ if __name__ == '__main__':
     # Custom metadata path, if the user wants to use a different metadata file
     meta_path = Path(here, 'emccd_detect', 'util', 'metadata.yaml')
     # Note that the defaults for full_well_serial and eperdn are specified in
-    # the metadata file
+    # the metadata file.
     emccd = EMCCDDetect(
         em_gain=5000.,
-        full_well_image=60000.,  # e-
-        full_well_serial=100000.,  # e-
-        dark_current=0.0028,  # e-/pix/s
-        cic=0.02,  # e-/pix/frame
-        read_noise=100.,  # e-/pix/frame
-        bias=10000.,  # e-
+        full_well_image=78000.,  # e-
+        full_well_serial=105000.,  # e-
+        dark_current=0.00031,  # e-/pix/s
+        cic=0.016,  # e-/pix/frame
+        read_noise=110.,  # e-/pix/frame
+        bias=1500.,  # e-
         qe=0.9,
         cr_rate=5.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
-        eperdn=7.,
+        eperdn=8.2,
         nbits=14,
         numel_gain_register=604,
         meta_path=meta_path

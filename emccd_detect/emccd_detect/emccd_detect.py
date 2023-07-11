@@ -419,17 +419,17 @@ class EMCCDDetect(EMCCDDetectBase):
     em_gain : float
         Electron multiplying gain (e-/photoelectron). Defaults to 5000.
     full_well_image : float
-        Image area full well capacity (e-). Defaults to 60000.
+        Image area full well capacity (e-). Defaults to 78000.
     full_well_serial : float
         Serial (gain) register full well capacity (e-). Defaults to None.
     dark_current: float
-        Dark current rate (e-/pix/s). Defaults to 0.0028.
+        Dark current rate (e-/pix/s). Defaults to 0.00031.
     cic : float
-        Clock induced charge (e-/pix/frame). Defaults to 0.02.
+        Clock induced charge (e-/pix/frame). Defaults to 0.016.
     read_noise : float
-        Read noise (e-/pix/frame). Defaults to 100.
+        Read noise (e-/pix/frame). Defaults to 110.
     bias : float
-        Bias offset (e-). Defaults to 10000.
+        Bias offset (e-). Defaults to 1500.
     qe : float
         Quantum efficiency. Defaults to 0.9.
     cr_rate : float
@@ -445,18 +445,18 @@ class EMCCDDetect(EMCCDDetectBase):
         Number of gain register elements. For eventually modeling partial CIC.
         Defaults to 604.
     meta_path : str
-        Full path of metadata yaml.
+        Full path of metadata.yaml.
 
     """
     def __init__(
         self,
         em_gain=1.,
-        full_well_image=60000.,
+        full_well_image=78000.,
         full_well_serial=None,
-        dark_current=0.0028,
-        cic=0.02,
-        read_noise=100.,
-        bias=10000.,
+        dark_current=0.00031,
+        cic=0.016,
+        read_noise=110.,
+        bias=1500.,
         qe=0.9,
         cr_rate=0.,
         pixel_pitch=13e-6,
@@ -648,7 +648,7 @@ def emccd_detect(
         Distance between pixel centers (m). Defaults to 13e-6.
     shot_noise_on : bool, optional
         Apply shot noise. Defaults to None. [No longer supported as of v2.1.0.
-        Input will have no effect.]
+        Input will have no effect.
 
     Returns
     -------
