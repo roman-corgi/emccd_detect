@@ -223,6 +223,9 @@ class EMCCDDetectBase:
         return actualized_e
 
     def clock_parallel(self, actualized_e):
+
+        print("Peter is making changes on his branch")
+
         # Only add CTI if update_cti has been called
         if self.ccd is not None and self.roe is not None and self.traps is not None:
             parallel_counts = add_cti(
