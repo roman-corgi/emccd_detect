@@ -1,11 +1,11 @@
 # EMCCD Detect
 
-Given an input fluxmap, emccd_detect will return a simulated EMCCD detector image.
+Given an input fluxmap, emccd_detect will return a simulated EMCCD detector image.  Website:  (<https://github.com/roman-corgi/emccd_detect/tree/master/emccd_detect>)
 
 
 # Version
 
-The latest version of emccd\_detect is 2.2.5.
+The latest version of emccd\_detect is 2.3.0.
 
 
 ## Getting Started
