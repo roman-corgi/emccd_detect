@@ -9,6 +9,7 @@ import numpy as np
 
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
+from emccd_detect.nonlinearity import apply_relgains
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 try:
     from arcticpy import add_cti, CCD, ROE, Trap, TrapInstantCapture
@@ -260,7 +261,8 @@ class EMCCDDetectBase:
         # Pass electrons through amplifier
         amp_ev = self._amp(gain_counts)
 
-        # Pass amp electron volt counts through analog to digital converter
+        # Pass amp electron volt counts through analog to digital converter,
+        # applying nonlinearity if applicable
         output_dn = self._adc(amp_ev)
 
         return output_dn
@@ -400,10 +402,16 @@ class EMCCDDetectBase:
             Analog to digital converter output (dn).
 
         """
-        # Convert from electron volts to dn
+        # Convert from electron volts to dn and apply nonlin if applicable
+        dn = amp_ev / self.eperdn
+        if hasattr(self, 'nonlin_path'):
+            if self.nonlin_path is not None:
+                nonlin_factors = apply_relgains(dn, self.em_gain, 
+                                                self.nonlin_path)
+                dn *= nonlin_factors
         dn_min = 0
         dn_max = 2**self.nbits - 1
-        output_dn = np.clip(amp_ev / self.eperdn, dn_min, dn_max).astype(np.uint64)
+        output_dn = np.clip(dn, dn_min, dn_max).astype(np.uint64)
 
         return output_dn
 
@@ -445,7 +453,13 @@ class EMCCDDetect(EMCCDDetectBase):
         Number of gain register elements. For eventually modeling partial CIC.
         Defaults to 604.
     meta_path : str
-        Full path of metadata.yaml.
+        Full path of metadata.yaml.  If None, defaults to metadata.yaml in util
+        folder.
+    nonlin_path : str
+        Path of nonlinearity correction file.  See doc string of 
+        nonlinearity.apply_relgains for details on the required 
+        format of the file.  If None, defaults to no application of 
+        nonlinearity.
 
     """
     def __init__(
@@ -463,7 +477,8 @@ class EMCCDDetect(EMCCDDetectBase):
         eperdn=None,
         nbits=14,
         numel_gain_register=604,
-        meta_path=None
+        meta_path=None,
+        nonlin_path=None
     ):
         # If no metadata file path specified, default to metadata.yaml in util
         if meta_path is None:
@@ -479,6 +494,8 @@ class EMCCDDetect(EMCCDDetectBase):
             full_well_serial = self.meta.fwc
         if eperdn is None:
             eperdn = self.meta.eperdn
+
+        self.nonlin_path = nonlin_path
 
         super().__init__(
             em_gain=em_gain,

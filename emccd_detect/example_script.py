@@ -37,6 +37,7 @@ if __name__ == '__main__':
     full_fluxmap[0:fluxmap.shape[0], 0:fluxmap.shape[1]] = fluxmap
     # Specify frametime
     frametime = 100  # s
+    nonlin_sample = Path(here, 'emccd_detect', 'util', 'nonlin_sample.csv')
 
 
     # For the simplest possible use of EMCCDDetect, use its defaults
@@ -83,16 +84,22 @@ if __name__ == '__main__':
         read_noise=110.,  # e-/pix/frame
         bias=1500.,  # e-
         qe=0.9,
-        cr_rate=5.,  # hits/cm^2/s
+        cr_rate=0 ,#5.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=8.2,
         nbits=14,
         numel_gain_register=604,
-        meta_path=meta_path
+        meta_path=meta_path,
+        nonlin_path=nonlin_sample
     )
+    # To retain the same output for multiple runs using the same class 
+    # instance, one can specify the same seed before each instance of creating 
+    # a frame
     # Simulate only the fluxmap
+    np.random.seed(123)
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
     # Simulate the full frame (surround the full fluxmap with prescan, etc.)
+    np.random.seed(123)
     sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
 
 
