@@ -26,7 +26,7 @@ This will install emccd\_detect and its dependencies, which are as follows:
 * pynufft==2020.0.0
 * pyyaml
 
-To optionally implement CTI capabilities, navigate to the arcticpy directory, and there will be a file called setup.py in that directory.  Use
+To optionally implement CTI capabilities, navigate to the arcticpy directory (<https://github.com/roman-corgi/emccd_detect/tree/master/arcticpy_folder>), and there will be a file called setup.py in that directory.  Use
 
 	pip install .
 
