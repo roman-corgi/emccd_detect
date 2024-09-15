@@ -265,15 +265,25 @@ class EMCCDDetectBase:
     def clock_parallel(self, actualized_e):
         # Only add CTI if update_cti has been called
         if self.parallel_ccd is not None and self.parallel_roe is not None and self.parallel_traps is not None:
-            parallel_counts = add_cti(
-                actualized_e.copy(),
-                parallel_roe=self.parallel_roe,
-                parallel_ccd=self.parallel_ccd,
-                parallel_traps=self.parallel_traps,
-                parallel_express=self.parallel_express,
-                serial_traps=None, # no serial right now
-                **self.kwargs
-            )
+            try:
+                parallel_counts = add_cti(
+                    actualized_e.copy(),
+                    parallel_roe=self.parallel_roe,
+                    parallel_ccd=self.parallel_ccd,
+                    parallel_traps=self.parallel_traps,
+                    parallel_express=self.parallel_express,
+                    **self.kwargs
+                )
+            except:
+                parallel_counts = add_cti(
+                    actualized_e.copy(),
+                    parallel_roe=self.parallel_roe,
+                    parallel_ccd=self.parallel_ccd,
+                    parallel_traps=self.parallel_traps,
+                    parallel_express=self.parallel_express,
+                    parallel_window_range=0,
+                    **self.kwargs
+                )
         else:
             parallel_counts = actualized_e
 
@@ -288,15 +298,25 @@ class EMCCDDetectBase:
         # add serial CTI; the addition of CIC (serial and parallel) is really 
         # *during* the addition of CTI, but this corrective effect would not be very significant 
         if self.serial_ccd is not None and self.serial_roe is not None and self.serial_traps is not None:
-            cti_actualized_e_full = add_cti(
-                    actualized_e_full.copy(),
-                    serial_roe=self.serial_roe,
-                    serial_ccd=self.serial_ccd,
-                    serial_traps=self.serial_traps,
-                    serial_express=self.serial_express,
-                    parallel_traps=None, # no parallel right now
-                    **self.kwargs
-                )
+            try:
+                cti_actualized_e_full = add_cti(
+                        actualized_e_full.copy(),
+                        serial_roe=self.serial_roe,
+                        serial_ccd=self.serial_ccd,
+                        serial_traps=self.serial_traps,
+                        serial_express=self.serial_express,
+                        **self.kwargs
+                    )
+            except:
+                cti_actualized_e_full = add_cti(
+                        actualized_e_full.copy(),
+                        serial_roe=self.serial_roe,
+                        serial_ccd=self.serial_ccd,
+                        serial_traps=self.serial_traps,
+                        serial_express=self.serial_express,
+                        serial_window_range=0,
+                        **self.kwargs
+                    )
         else:
             cti_actualized_e_full = actualized_e_full
 
