@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 
 from emccd_detect.emccd_detect import EMCCDDetect, emccd_detect
+try:
+    import arcticpy as ap
+except:
+    pass
 
 
 def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
@@ -43,13 +47,19 @@ if __name__ == '__main__':
     # For the simplest possible use of EMCCDDetect, use its defaults
     emccd = EMCCDDetect()
 
-    # If you are using Python<=3.9, you can also apply CTI to the frame.  If
-    # you have Python>3.9, this will not work if you are using the arcticpy
-    # installation that was included with this emccd_detect package. Below is
-    # how you could apply CTI.
-    # See (<https://github.com/jkeger/arcticpy/tree/row_wise/arcticpy>) for
+    # If you are using Python<=3.9, you can also apply CTI to the frame using the 
+    # pure-Python, older version of arcticpy that was included with this emccd_detect package
+    # in its own separate folder.  
+    # If you have Python>3.9, this older version will not work. If you have the 
+    # current vesion of articpy (which is a wrapper for C++ code), you can have 
+    # any version of Python.  See (<https://github.com/jkeger/arctic>) for installation of the 
+    # newest version of arcticpy.
+
+    # Below is how you could apply CTI.
+    # For the old version of arcticpy, see (<https://github.com/jkeger/arcticpy/tree/row_wise/arcticpy>) for
     # details on the optional inputs to add_cti() so that you can specify
-    # something meaningful for the EMCCD you have in mind.
+    # something meaningful for the EMCCD you have in mind. For the newer version, 
+    # see (<https://github.com/jkeger/arctic>).
     # (using "try" so that this script still runs in the case that arcticpy
     # is not viable.  In that case, running this method update_cti()
     # will not work.)
@@ -69,12 +79,13 @@ if __name__ == '__main__':
     except:
         pass
 
-
-    # For more control, each of the following parameters can be specified
+    np.random.seed(123)
+    # For more control, each of the following parameters can be specified.
     # Custom metadata path, if the user wants to use a different metadata file
     meta_path = Path(here, 'emccd_detect', 'util', 'metadata.yaml')
     # Note that the defaults for full_well_serial and eperdn are specified in
-    # the metadata file.
+    # the metadata file.  Nonlinearity during readout can be applied.  See 
+    # nonlinearity.py for details.
     emccd = EMCCDDetect(
         em_gain=5000.,
         full_well_image=78000.,  # e-
@@ -92,6 +103,7 @@ if __name__ == '__main__':
         meta_path=meta_path,
         nonlin_path=nonlin_sample
     )
+
     # To retain the same output for multiple runs using the same class 
     # instance, one can specify the same seed before each instance of creating 
     # a frame
@@ -116,8 +128,22 @@ if __name__ == '__main__':
     # For legacy purposes, the class can also be called from a function wrapper
     sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
 
+    ########### example with arcitcpy-specific inputs 
+    # There are 2 inputs for update_cti() which are specific to how emccd_detect implements
+    # arcticpy:  serial=True turns on serial CTI, and parallel=True turns on parallel CTI. 
+    # Both are True by default.
+    fluxmap2 = np.zeros((70,70)) # toy fluxmap
+    fluxmap2[30:40,30:40] = 200
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime)
+    imagesc(sim_sub_frame, 'Output Sub Frame Before CTI')
+    try: 
+        emccd.update_cti(parallel_traps=[ap.TrapInstantCapture(density=1,release_timescale=1)], serial=False)
+    except:
+        pass
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime)
+    imagesc(sim_sub_frame, 'Output Sub Frame After CTI')
+
     # Plot images
     imagesc(full_fluxmap, 'Input Fluxmap')
-    imagesc(sim_sub_frame, 'Output Sub Frame')
     imagesc(sim_full_frame, 'Output Full Frame')
     plt.show()

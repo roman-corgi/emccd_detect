@@ -12,7 +12,7 @@ from emccd_detect.rand_em_gain import rand_em_gain
 from emccd_detect.nonlinearity import apply_relgains
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 try:
-    from arcticpy import add_cti, CCD, ROE, Trap, TrapInstantCapture
+    from arcticpy import add_cti, CCD, ROE, TrapInstantCapture
 except:
     pass
 
@@ -94,12 +94,15 @@ class EMCCDDetectBase:
         self.numel_gain_register = numel_gain_register
 
         # Placeholders for trap parameters
-        self.ccd = None
-        self.roe = None
-        self.traps = None
-        self.express = None
-        self.offset = None
-        self.window_range = None
+        self.parallel_ccd = None
+        self.parallel_roe = None
+        self.parallel_traps = None
+        self.parallel_express = None
+        self.serial_ccd = None
+        self.serial_roe = None
+        self.serial_traps = None
+        self.serial_express = None
+     
 
         # Placeholders for derived values
         self.mean_expected_rate = None
@@ -123,36 +126,72 @@ class EMCCDDetectBase:
     try:
         def update_cti(
             self,
-            ccd=None,
-            roe=None,
-            traps=None,
-            express=1,
-            offset=0,
-            window_range=None
+            parallel_ccd=None,
+            parallel_roe=None,
+            parallel_traps=None,
+            parallel_express=1,
+            serial_ccd=None,
+            serial_roe=None,
+            serial_traps=None,
+            serial_express=1,
+            parallel=True, 
+            serial=True,
+            **kwargs # any other arguments that arcticpy.add_cti() might accept
         ):
+            '''See arcticpy documentation for details on parameters. Any arguments 
+            not explicitly listed here can be handed to arcticpy.add_cti() via
+            kwargs.  
+            
+            Parallel and serial CTI can each be switched on or off via the 
+            "parallel" and "serial" arguments of this function.  True means that 
+            type of CTI is simulated.  Both are True by default.'''
             # Update parameters
-            self.ccd = ccd
-            self.roe = roe
-            self.traps = traps
-
-            self.express = express
-            self.offset = offset
-            self.window_range = window_range
+            self.parallel_ccd = parallel_ccd
+            self.parallel_roe = parallel_roe
+            self.parallel_traps = parallel_traps
+            self.parallel_express = parallel_express
+            self.serial_ccd = serial_ccd
+            self.serial_roe = serial_roe
+            self.serial_traps = serial_traps
+            self.serial_express = serial_express
+            self.kwargs = kwargs
+            self.parallel = parallel
+            self.serial = serial
 
             # Instantiate defaults for any class instances not provided
-            if self.ccd is None:
-                self.ccd = CCD()
-            if roe is None:
-                self.roe = ROE()
-            if traps is None:
+
+            if parallel_ccd is None:
+                self.parallel_ccd = CCD()
+            if parallel_roe is None:
+                self.parallel_roe = ROE()
+            if parallel_traps is None:
                 #self.traps = [Trap()]
-                self.traps = [TrapInstantCapture()]
+                self.parallel_traps = [TrapInstantCapture()]
+            if self.parallel is False: # overrides
+                self.parallel_ccd = None
+                self.parallel_roe = None
+                self.parallel_traps = None
+
+            if serial_ccd is None:
+                self.serial_ccd = CCD()
+            if serial_roe is None:
+                self.serial_roe = ROE()
+            if serial_traps is None:
+                self.serial_traps = [TrapInstantCapture()]
+            if self.serial is False: #overrides
+                self.serial_ccd = None
+                self.serial_roe = None
+                self.serial_traps = None
 
         def unset_cti(self):
+            '''This turns off all CTI implementation.'''
             # Remove CTI simulation
-            self.ccd = None
-            self.roe = None
-            self.traps = None
+            self.parallel_ccd = None
+            self.parallel_roe = None
+            self.parallel_traps = None
+            self.serial_ccd = None
+            self.serial_roe = None
+            self.serial_traps = None
     except:
         pass
 
@@ -225,15 +264,15 @@ class EMCCDDetectBase:
 
     def clock_parallel(self, actualized_e):
         # Only add CTI if update_cti has been called
-        if self.ccd is not None and self.roe is not None and self.traps is not None:
+        if self.parallel_ccd is not None and self.parallel_roe is not None and self.parallel_traps is not None:
             parallel_counts = add_cti(
                 actualized_e.copy(),
-                parallel_roe=self.roe,
-                parallel_ccd=self.ccd,
-                parallel_traps=self.traps,
-                parallel_express=self.express,
-                parallel_offset=self.offset,
-                parallel_window_range=self.window_range
+                parallel_roe=self.parallel_roe,
+                parallel_ccd=self.parallel_ccd,
+                parallel_traps=self.parallel_traps,
+                parallel_express=self.parallel_express,
+                serial_traps=None, # no serial right now
+                **self.kwargs
             )
         else:
             parallel_counts = actualized_e
@@ -242,12 +281,27 @@ class EMCCDDetectBase:
 
     def clock_serial(self, actualized_e_full, empty_element_m):
         # Actualize cic electrons in prescan and overscan pixels
-        # XXX Another place where we are fudging a little
+        # XXX Another place where we are fudging a little as far as the order of operations(?)
         actualized_e_full[empty_element_m] = np.random.poisson(actualized_e_full[empty_element_m]
                                                                + self.cic)
-        # XXX Call arcticpy here
+        
+        # add serial CTI; the addition of CIC (serial and parallel) is really 
+        # *during* the addition of CTI, but this corrective effect would not be very significant 
+        if self.serial_ccd is not None and self.serial_roe is not None and self.serial_traps is not None:
+            cti_actualized_e_full = add_cti(
+                    actualized_e_full.copy(),
+                    serial_roe=self.serial_roe,
+                    serial_ccd=self.serial_ccd,
+                    serial_traps=self.serial_traps,
+                    serial_express=self.serial_express,
+                    parallel_traps=None, # no parallel right now
+                    **self.kwargs
+                )
+        else:
+            cti_actualized_e_full = actualized_e_full
+
         # Flatten row by row
-        actualized_e_full_flat = actualized_e_full.ravel()
+        actualized_e_full_flat = cti_actualized_e_full.ravel()
 
         # Clock electrons through serial register elements
         serial_counts = self._serial_register_elements(actualized_e_full_flat)

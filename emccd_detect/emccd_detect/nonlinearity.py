@@ -4,6 +4,8 @@ pixel of a frame.
 
 Relative gain is dependent on both the detector gain and the dn count
 value of a given pixel.
+
+Adapted from https://github.com/roman-corgi/cgi_iit_drp/blob/main/proc_cgi_frame_NTR/proc_cgi_frame/gsw_nonlin.py.
 """
 
 import numpy as np
