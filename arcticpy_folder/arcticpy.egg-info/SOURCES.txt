@@ -1,6 +1,7 @@
 LICENSE.txt
 MANIFEST.in
 README.md
+pyproject.toml
 setup.cfg
 setup.py
 arcticpy/__init__.py

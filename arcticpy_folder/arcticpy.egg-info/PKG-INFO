@@ -7,13 +7,18 @@ Author: Jacob Kegerreis, Richard Massey, James Nightingale
 Author-email: jacob.kegerreis@durham.ac.uk
 License: GNU GPLv3+
 Keywords: charge transfer inefficiency correction
-Platform: UNKNOWN
 Classifier: Development Status :: 4 - Beta
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
 Requires-Python: <=3.9
 Description-Content-Type: text/markdown
 License-File: LICENSE.txt
+Requires-Dist: autoconf==0.6.1
+Requires-Dist: autoarray==0.13.4
+Requires-Dist: colorcet>=2.0.2
+Requires-Dist: numpy>=1.18.0
+Requires-Dist: scipy>=1.5.1
+Requires-Dist: astropy>=3.0.0
 
 ArCTIC python
 =============
@@ -538,5 +543,3 @@ image from the Hubble Space Telescope (HST) Advanced Camera for Surveys (ACS)
 instrument.
 
 More coming soon...
-
-

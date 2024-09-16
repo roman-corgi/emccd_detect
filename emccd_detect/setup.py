@@ -2,7 +2,7 @@
 from io import open
 from os import path
 from setuptools import setup, find_packages, find_namespace_packages
-import emccd_detect
+#import emccd_detect
 
 here = path.abspath(path.dirname(__file__))
 
@@ -11,11 +11,11 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='emccd_detect',
-    version=emccd_detect.__version__,
+    version='2.4.0', #emccd_detect.__version__,
     description='EMCCD detector image simulation',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.jpl.nasa.gov/WFIRST-CGI/emccd_detect',
+    #url='https://github.jpl.nasa.gov/WFIRST-CGI/emccd_detect',
     author='Bijan Nemati, Sam Miller, Kevin Ludwick',
     author_email='bijan.nemati@tellus1.com, sam.miller@uah.edu, kevin.ludwick@uah.edu',
     classifiers=[
