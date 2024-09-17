@@ -687,6 +687,12 @@ class EMCCDDetect(EMCCDDetectBase):
             Bias subtracted, gain divided frame in units of e-.
 
         """
+        if hasattr(self, 'nonlin_path'):
+            if self.nonlin_path is not None:
+                nonlin_factors = apply_relgains(frame_dn, self.em_gain, 
+                                                self.nonlin_path)
+                # correct fo nonlin by dividing
+                frame_dn /= nonlin_factors
         return (frame_dn * self.eperdn - self.bias) / self.em_gain
 
 
