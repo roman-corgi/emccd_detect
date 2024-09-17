@@ -692,7 +692,7 @@ class EMCCDDetect(EMCCDDetectBase):
                 nonlin_factors = apply_relgains(frame_dn, self.em_gain, 
                                                 self.nonlin_path)
                 # correct fo nonlin by dividing
-                frame_dn /= nonlin_factors
+                frame_dn = frame_dn/nonlin_factors
         return (frame_dn * self.eperdn - self.bias) / self.em_gain
 
 
