@@ -6,6 +6,7 @@ import warnings
 from pathlib import Path
 
 import numpy as np
+from astropy.io import fits
 
 from emccd_detect.cosmics import cosmic_hits, sat_tails
 from emccd_detect.rand_em_gain import rand_em_gain
@@ -54,7 +55,12 @@ class EMCCDDetectBase:
         inclusive.
     numel_gain_register : int
         Number of gain register elements. For eventually modeling partial CIC.
-
+    row_read_time : float
+        Time in seconds for each row to move into the first register (same as 
+        the time for each row to be clocked toward the register). This is used 
+        to simulate smear on the image due to clocking during the exposure to 
+        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
+        simulated.
     """
     def __init__(
         self,
@@ -70,7 +76,8 @@ class EMCCDDetectBase:
         pixel_pitch,
         eperdn,
         nbits,
-        numel_gain_register
+        numel_gain_register,
+        row_read_time
     ):
         # Input checks
         if not isinstance(nbits, (int, np.integer)):
@@ -78,6 +85,8 @@ class EMCCDDetectBase:
         if nbits < 1 or nbits > 64:
             raise EMCCDDetectException('nbits must be between 1 and 64, '
                                        'inclusive')
+        if row_read_time < 0:
+            raise EMCCDDetectException('row_read_time must be >= 0 seconds.')
 
         self.em_gain = em_gain
         self.full_well_image = full_well_image
@@ -92,6 +101,7 @@ class EMCCDDetectBase:
         self.eperdn = eperdn
         self.nbits = nbits
         self.numel_gain_register = numel_gain_register
+        self.row_read_time = row_read_time
 
         # Placeholders for trap parameters
         self.parallel_ccd = None
@@ -246,6 +256,43 @@ class EMCCDDetectBase:
         return output_dn.reshape(actualized_e.shape)
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
+        # apply non-uniformity of pixel responsivity via master flat
+        if hasattr(self, 'flat_path'):
+            if self.flat_path is not None:
+                with fits.open(self.flat_path) as hdul:
+                    self.flat = hdul[1].data
+                if (self.flat < 0).any():
+                    raise EMCCDDetectException('Master flat must not contain '
+                                                'negative values.')
+                if self.flat.shape != fluxmap_full.shape:
+                    imaging_area_ones = np.ones_like(fluxmap_full)
+                    # Attempt to embed the flat within the 
+                    # imaging+shielded area
+                    self.flat_im = self.meta.embed_im(imaging_area_ones, 
+                                                    'image', self.flat.copy())
+                    if self.flat_im.shape != fluxmap_full.shape:
+                        raise EMCCDDetectException('Master flat shape must '
+                                                'agree with shape of fluxmap.')
+                    else:
+                        fluxmap_full *= self.flat_im
+                else:   
+                    fluxmap_full *= self.flat
+
+        # simulate smear to fluxmap
+        # credit for this smearing code: Peter Williams, Tellus1, 2024
+        # XXX Technically, smearing adds electrons to each pixel, which 
+        # increases the chance of charge capture for CTI, but simulating 
+        # this small effect would require hacking arCTIc.
+        smear = np.zeros_like(fluxmap_full)
+        m = len(smear)
+        for r in range(m):
+            columnsum = 0
+            for i in range(r+1):
+                columnsum = columnsum + self.row_read_time*fluxmap_full[i,:]
+            smear[r,:] = columnsum
+        
+        fluxmap_full = fluxmap_full + smear/frametime
+
         # Add cosmic ray effects
         # XXX Maybe change this to units of flux later
         cosm_actualized_e = cosmic_hits(np.zeros_like(fluxmap_full),
@@ -503,7 +550,7 @@ class EMCCDDetect(EMCCDDetectBase):
     full_well_image : float
         Image area full well capacity (e-). Defaults to 78000.
     full_well_serial : float
-        Serial (gain) register full well capacity (e-). Defaults to None.
+        Serial (gain) register full well capacity (e-). Defaults to 105000.
     dark_current: float
         Dark current rate (e-/pix/s). Defaults to 0.00031.
     cic : float
@@ -519,7 +566,7 @@ class EMCCDDetect(EMCCDDetectBase):
     pixel_pitch : float
         Distance between pixel centers (m). Defaults to 13e-6.
     eperdn : float
-        Electrons per dn. Defaults to None.
+        Electrons per dn. Defaults to 8.2.
     nbits : int
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive. Defaults to 14.
@@ -532,15 +579,28 @@ class EMCCDDetect(EMCCDDetectBase):
     nonlin_path : str
         Path of nonlinearity correction file.  See doc string of 
         nonlinearity.apply_relgains for details on the required 
-        format of the file.  If None, defaults to no application of 
-        nonlinearity.
+        format of the file.  If None, no application of 
+        nonlinearity is performed.  Defaults to None.
+    row_read_time : float
+        Time in seconds for each row to move into the first register (same as 
+        the time for each row to be clocked toward the register). This is used 
+        to simulate smear on the image due to clocking during the exposure to 
+        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
+        simulated.  Defaults to 0 seconds.
+    flat_path : str
+        Path of master flat file.  Assumed to be a FITS file for which the flat
+        data resides in the first extension HDU.  The flat is assumed to be
+        of image-area shape (specified by the metadata from meta_path),
+        dark-subtracted, divided by k-gain, divided by EM gain, and desmeared. 
+        If the input is None, no application of pixel nonuniformity is 
+        performed.  Defaults to None.
 
     """
     def __init__(
         self,
         em_gain=1.,
         full_well_image=78000.,
-        full_well_serial=None,
+        full_well_serial=105000.,
         dark_current=0.00031,
         cic=0.016,
         read_noise=110.,
@@ -548,11 +608,13 @@ class EMCCDDetect(EMCCDDetectBase):
         qe=0.9,
         cr_rate=0.,
         pixel_pitch=13e-6,
-        eperdn=None,
+        eperdn=8.2,
         nbits=14,
         numel_gain_register=604,
         meta_path=None,
-        nonlin_path=None
+        nonlin_path=None,
+        row_read_time=0,  # seconds
+        flat_path=None
     ):
         # If no metadata file path specified, default to metadata.yaml in util
         if meta_path is None:
@@ -563,13 +625,8 @@ class EMCCDDetect(EMCCDDetectBase):
         self.meta_path = meta_path
         self.meta = MetadataWrapper(self.meta_path)
 
-        # Set defaults from metadata
-        if full_well_serial is None:
-            full_well_serial = self.meta.fwc
-        if eperdn is None:
-            eperdn = self.meta.eperdn
-
         self.nonlin_path = nonlin_path
+        self.flat_path = flat_path
 
         super().__init__(
             em_gain=em_gain,
@@ -584,7 +641,8 @@ class EMCCDDetect(EMCCDDetectBase):
             pixel_pitch=pixel_pitch,
             eperdn=eperdn,
             nbits=nbits,
-            numel_gain_register=numel_gain_register
+            numel_gain_register=numel_gain_register,
+            row_read_time=row_read_time
         )
 
     def sim_full_frame(self, fluxmap, frametime):
@@ -784,7 +842,8 @@ def emccd_detect(
         pixel_pitch=pixel_pitch,
         eperdn=1.,
         nbits=64,
-        numel_gain_register=604
+        numel_gain_register=604,
+        row_read_time=0
     )
 
     return emccd.sim_sub_frame(fluxmap, frametime).astype(float)
