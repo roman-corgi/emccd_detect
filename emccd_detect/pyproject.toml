@@ -9,4 +9,4 @@ version = "2.5.0"              # REQUIRED
 readme = "README.md"
 license = { file = "LICENSE.txt" }
 #authors = [{ name = "Kevin Ludwick", email = "your@email.com" }]
-#dependencies = []
+dependencies = []
