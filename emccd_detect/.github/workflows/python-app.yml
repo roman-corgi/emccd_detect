@@ -10,7 +10,7 @@
 # documentation.
 
 name: Publish to PyPI
-working-directory: emccd_detect
+working-directory: emccd_detect/emccd_detect
 on:
   workflow_dispatch:  # allows manual triggering
   release:
