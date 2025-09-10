@@ -12,6 +12,7 @@
 name: Upload Python Package
 working-directory: emccd_detect
 on:
+  workflow_dispatch:  # allows manual triggering
   release:
     types: [published]
 
