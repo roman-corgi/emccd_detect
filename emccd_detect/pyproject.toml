@@ -1,3 +1,10 @@
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+name = "emccd_detect"       # REQUIRED
+version = "2.5.1"              # REQUIRED
+#description = "Short summary"
+readme = "README.md"
+license = { file = "LICENSE" }
+#authors = [{ name = "Kevin Ludwick", email = "your@email.com" }]
+#dependencies = []
