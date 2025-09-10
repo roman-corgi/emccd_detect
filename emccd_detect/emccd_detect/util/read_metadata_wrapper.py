@@ -23,20 +23,6 @@ class MetadataWrapper(Metadata):
         Data from metadata file.
     geom : SimpleNamespace
         Geometry specific data.
-    eperdn : float
-        Electrons per dn conversion factor (detector k gain).
-    fwc : float
-        Full well capacity of detector.
-    sat_thresh : float
-        Multiplication factor for fwc that determines saturated cosmic pixels.
-    plat_thresh : float
-        Multiplication factor for fwc that determines edges of cosmic plateu.
-    cosm_filter : int
-        Minimum length in pixels of cosmic plateus to be identified.
-    tail_filter : int
-        Moving median filter window size for cosmic tail subtraction.
-    cic_thresh : float
-        Multiplication factor for readnoise that determines beginning of cic.
 
     """
 

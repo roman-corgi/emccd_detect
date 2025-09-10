@@ -5,7 +5,9 @@ Given an input fluxmap, emccd_detect will return a simulated EMCCD detector imag
 
 # Version
 
-The latest version of emccd\_detect is 2.4.0.  Main differences from previous version: the ability to implement readout nonlinearity and the latest version of arcticpy for charge transfer inefficiency implementation.
+The latest version of emccd\_detect is 2.5.0.  Main differences from previous version, 2.4.0: 
+--the ability to implement smear due to exposure of some rows while others are being read out.  Credit for this smearing code: Peter Williams, Tellus1, 2024.
+--the ability to implement non-uniformity in pixel response via an input master flat.  Assumed to be a FITS file.
 
 
 ## Getting Started
