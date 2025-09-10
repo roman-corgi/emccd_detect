@@ -10,7 +10,7 @@
 # documentation.
 
 name: Upload Python Package
-
+working-directory: emccd_detect
 on:
   release:
     types: [published]
