@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "emccd_detect"       # REQUIRED
-version = "2.5.1"              # REQUIRED
+version = "2.5.0"              # REQUIRED
 #description = "Short summary"
 readme = "README.md"
 license = { file = "LICENSE" }
