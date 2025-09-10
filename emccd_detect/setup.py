@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='emccd_detect',
-    version='2.4.0', #emccd_detect.__version__,
+    version='2.5.0', #emccd_detect.__version__,
     description='EMCCD detector image simulation',
     long_description=long_description,
     long_description_content_type='text/markdown',
