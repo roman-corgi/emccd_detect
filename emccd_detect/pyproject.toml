@@ -1,12 +1,43 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "emccd_detect"       # REQUIRED
-version = "2.5.0"              # REQUIRED
-#description = "Short summary"
+name = "emccd_detect"
+version = "2.5.0"
+description = "EMCCD detector image simulation"
 readme = "README.md"
-license = { file = "LICENSE.txt" }
-#authors = [{ name = "Kevin Ludwick", email = "your@email.com" }]
-dependencies = []
+authors = [
+  { name = "Bijan Nemati", email = "bijan.nemati@tellus1.com" },
+  { name = "Sam Miller", email = "sam.miller@uah.edu" },
+  { name = "Kevin Ludwick", email = "kevin.ludwick@uah.edu" },
+]
+requires-python = ">=3.6"
+dependencies = [
+  "astropy",
+  "matplotlib",
+  "numpy",
+  "scipy",
+  "pynufft==2020.0.0",
+  "pyyaml",
+]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+exclude = [
+  "arcticpy_folder",
+  "arcticpy_folder.*",
+  "arcticpy",
+  "arcticpy.*",
+]
+
+[tool.setuptools.package-data]
+"*" = ["metadata.yaml"]
