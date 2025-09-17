@@ -12,6 +12,7 @@ authors = [
   { name = "Sam Miller", email = "sam.miller@uah.edu" },
   { name = "Kevin Ludwick", email = "kevin.ludwick@uah.edu" },
 ]
+license = { file = "LICENSE" }
 requires-python = ">=3.6"
 dependencies = [
   "astropy",
