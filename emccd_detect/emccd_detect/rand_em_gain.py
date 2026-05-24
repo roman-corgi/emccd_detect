@@ -3,15 +3,15 @@
 
 import numpy as np
 from scipy import special
-from scipy.optimize import fsolve
-from partial_CIC_MLE import _LogPn, _LogGamma
+from emccd_detect.partial_CIC_MLE import _LogPn, _LogGamma
+#from partial_CIC_MLE import _LogPn, _LogGamma
 
 
 class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
 
-def rand_em_gain(n_in_array, em_gain):
+def rand_em_gain(n_in_array, em_gain, quick, threshold):
     """Generate random numbers according to EM gain pdfs.
 
     Parameters
@@ -20,6 +20,10 @@ def rand_em_gain(n_in_array, em_gain):
         Array of electron values (e-).
     em_gain : float
         EM gain multiplication factor.
+    threshold : float
+        Threshold for switching between methods.  If the product of n_in and 
+        the size of the array is greater than this threshold, the faster, less memory-intensive method 
+        (gamma distribution) is used.  Otherwise, the more accurate method (Pn) is used.
 
     Returns
     -------
@@ -45,57 +49,78 @@ def rand_em_gain(n_in_array, em_gain):
     elif em_gain == 1:
         return n_in_array
     else:
-        # Apply gain to regular counts
-        # Used to do this: Erlang (gamma) distribution variate
-        # n_out_array = np.random.gamma(n_in_array, em_gain)
-        # n_out_array = np.round(n_out_array)
-    
-        # more precise method here:
-        n_out_array = _apply_gain(n_in_array, em_gain)
+        n_out_array = _apply_gain(n_in_array, em_gain, quick, threshold)
         return n_out_array
 
-def _apply_gain(n_in_array, em_gain):
+def _apply_gain(n_in_array, em_gain, quick, threshold):
     """Apply a specific em_gain to all nonzero n_in values."""
-    # Initialize output count array #XXX Do Pn in array chunks
+    # Initialize output count array
     n_out_array = np.zeros_like(n_in_array)
 
-    # Get unique nonzero n_in values
-    n_in_unique = np.unique(n_in_array)
-    n_in_unique = n_in_unique[n_in_unique > 0]
+    if quick:
+        n_out_array = np.random.gamma(n_in_array, em_gain)
+    else:
+        # need integer values for Pn().  Otherwise, we try to keep e- values as floats since EM gain,
+        # k gain, nonlinearity, master flat, etc are calibrated assuming fractions of electrons, and 
+        # we can get fractions of electrons here for particular gain values.  So we just round 
+        # DN output to integer at the end.
+        n_in_array = np.round(n_in_array) 
 
-    # Generate random numbers according to the gain distribution for each n_in
-    for n_in in n_in_unique:
-        inds = np.where(n_in_array == n_in)[0]
-        n_out_array[inds] = _rand_pdf(n_in, em_gain, len(inds))
+        gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) >= threshold)
+        not_gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) < threshold)
+        n_out_array[gamma_inds] = np.random.gamma(n_in_array[gamma_inds], em_gain)
+        # For the others, get unique nonzero n_in values
+        n_in_unique = np.unique(n_in_array[not_gamma_inds])
+
+        if n_in_unique.size != 0:
+            n_in_unique = n_in_unique[n_in_unique > 0]
+            # Generate random numbers according to the gain distribution for each n_in
+            for n_in in n_in_unique:                
+                inds = np.where(n_in_array == n_in)[0]
+                n_out_array[inds] = _rand_pdf(int(np.round(n_in)), em_gain, len(inds), threshold=threshold)
 
     return np.round(n_out_array)
 
-def _rand_pdf(n_in, em_gain, size):
+def _rand_pdf(n_in, em_gain, size, threshold=1e7):
     """Draw samples from the EM gain distribution."""
-    y = np.random.random(size)
+    y = np.random.random(size) # ranges from [0,1)
 
     # Use exact solutions for n_in == 1; no exact solution for n_in >= 2 (when summing PDF to get CDF; there is 
     # exact solution for n_in=2 if you integrate PDF to get CDF) 
     if n_in == 1:
         n_out = -em_gain * np.log(1 - y)
     else:
-        # For n > 1, sum PDF to get CDF.  Sum up to the value expected 
-        # assuming Erlang, and then iterate from there.
-        cdfsum = np.ma.masked_array(np.zeros_like(y), mask=np.zeros_like(y).astype(bool))
-        n_out = np.zeros_like(y)
-        x = np.array([n_in]) # starting term in sum: n = x (lowest x can be is n)
-        while cdfsum.mask.min() == 0: 
-            cdfsum_prev = cdfsum
-            cdfsum = cdfsum + Pn(n_in, em_gain, x)
-            mask = (cdfsum > y)
-            cdfsum.mask = mask
-            keep_inds = np.where(mask == 1)
-            # if 1, x-1 closer to y
-            preferred_x_1 = np.less(np.abs(cdfsum_prev.data - y), np.abs(cdfsum.data - y)).astype(int)
-            # if 1, x closer to y
-            preferred_x = 1 - preferred_x_1
-            n_out[keep_inds] = preferred_x_1[keep_inds] * (x-1) + preferred_x[keep_inds] * x
-            x += 1
+        # For n > 1, sum PDF to get CDF. 
+        n_out = np.ones_like(y).astype(float)*np.nan
+        # as a good initial guess, generate up to n_in*em_gain*y/0.5, which is the Erlang mean scaled by y relative to 0.5 prob, where the mean is 
+        x = np.arange(n_in, np.round(n_in*em_gain*y.max()/0.5))
+        if n_in * x.size >= threshold: #was 2e8 originally 
+            #revert back to gamma distribution, valid for large x values. 
+            # When n*g is large, the mean will be large, and most of the non-zero CDF
+            # happens around there, but if a small y value is requested, it could 
+            # be that the corresponding x is small, so this condition is a little 
+            # better than using gamma distribution when n*g is large. We consider
+            # n_in*x.size b/c that is the practical memory bottleneck which can stop the program.
+            n_out = np.random.gamma(n_in, em_gain, size=size) # then the while loop will be skipped, and this n_out will be returned
+        cdfsum = np.array([0]) #initialize 
+        counter = 0
+        while np.where(np.isnan(n_out))[0].size > 0: 
+            cdfsum = np.append(cdfsum[-1], cdfsum[-1] + np.cumsum(Pn(n_in, em_gain, x)))
+            x = np.append(x[0]-1, x) # add one more term to sum to match cdfsum
+            # find where y values should go in cdfsum array
+            keep_inds = np.where(y <= cdfsum[-1])
+            keep_inds = np.intersect1d(keep_inds, np.where(y >= cdfsum[0]))
+            cdf_inds = np.searchsorted(cdfsum.data, y[keep_inds])
+            cdf_inds2 = np.where(cdf_inds == 0, 1, cdf_inds) # to avoid out of bounds error when cdf_inds is 0; in this case where 0 is in cdf_inds, both options below are the same
+            # if 1, x[cdf_inds] closer to y
+            preferred_x = np.less(np.abs(cdfsum[cdf_inds] - y[keep_inds]), np.abs(cdfsum[cdf_inds2-1] - y[keep_inds])).astype(int)
+            # if 1, x[cdf_inds-1] closer to y
+            preferred_x_1 = 1 - preferred_x
+            n_out[keep_inds] = preferred_x_1 * x[cdf_inds2-1] + preferred_x * x[cdf_inds]
+            if counter == 0:
+                n_out[np.where(y < cdfsum[0])] = n_in 
+            x = np.arange(x[-1]+1, 2*(x[-1]+1)) # increase x range if needed 
+            counter += 1
 
     return np.round(n_out)
 
@@ -155,14 +180,16 @@ def Pn(n, g, x):
 
 
 if __name__ == '__main__':
-    import time
     import matplotlib.pyplot as plt
 
-    x_arr = np.arange(0, 200)
-    plt.plot(x_arr, np.exp(_LogGamma(100,2,x_arr)))
-    plt.plot(x_arr, Pn(100,2,x_arr))
+    # x_arr = np.arange(0, 200)
+    # plt.plot(x_arr, np.exp(_LogGamma(100,2,x_arr)))
+    # plt.plot(x_arr, Pn(100,2,x_arr))
 
-    output = _rand_pdf(3,4,3)
+    n=100;g=1000
+    x_arr = np.round(np.linspace(n, n*g*4, num=4000)).astype(int)
+    plt.plot(x_arr, np.exp(_LogGamma(n,g,x_arr)))
+    plt.plot(x_arr, Pn(n,g,x_arr))
 
     # Generally, the agreement b/w the old and new methods is good.  The new
     # method just speeds up the code a lot, especially when cosmics are present.
@@ -239,18 +266,21 @@ if __name__ == '__main__':
     def compare_stats(g, n, n_samples, max_val, num_bins, plot=False):
 
         n_in_array = np.array([n]*n_samples)
-        old_method = _apply_gain_old(n_in_array, g, max_val)
+        old_method = rand_em_gain(n_in_array, g, quick=True, threshold=1e7) 
+        #old_method = _apply_gain_old(n_in_array, g, max_val)
 
-        # gamma distribution:
-        x = rand_em_gain(n_in_array, g)
+        # new method:
+        x = rand_em_gain(n_in_array, g, quick=False, threshold=1e7)
 
         print("For n={}, g={}:".format(n,g))
         print('Mean for old method:  ', np.mean(old_method))
         print('Std dev for old method:  ', np.std(old_method))
-        print('Mean of gamma distribution:  ', np.mean(x))
-        print('Std dev for gamma distribution:  ', np.std(x))
-        print('theoretical mean:  ', g*n)
-        print('theortical std dev:  ', g*np.sqrt(n))
+        print('Mean of new method:  ', np.mean(x))
+        print('Std dev for new method:  ', np.std(x))
+        print('Difference of means:  ', np.mean(old_method) - np.mean(x))
+        print('Percentage of std dev for difference:  ', (np.mean(old_method) - np.mean(x))/(g*n))
+        print('theoretical mean (gamma):  ', g*n)
+        print('theortical std dev (gamma):  ', g*np.sqrt(n))
         print()
 
         if plot==True:
@@ -264,7 +294,7 @@ if __name__ == '__main__':
             H = ax.hist(x, bins = num_bins)
             ax.set_ylabel('number of occurrences')
             ax.set_xlabel('gained counts (e-)')
-            ax.set_title('Histogram of Gained Counts (Gamma Distribution, n={})'.format(n))
+            ax.set_title('Histogram of Gained Counts (New Method, n={})'.format(n))
 
             plt.show()
 
@@ -281,17 +311,37 @@ if __name__ == '__main__':
     # in original code, max_val used max(n_in_array) where that array was for
     # all serial cells; so artifically inflate by multiplying by 100
     n = 1
+    np.random.seed(123) # for reproducibility
     compare_stats(g, n, n_samples, 100*max_val(g,n), num_bins)
 
     n2 = 2
+    np.random.seed(123) # for reproducibility
     compare_stats(g, n2, n_samples, 100*max_val(g,n), num_bins)
 
     # now a value of n for which these methods differed
     n3 = 3
+    np.random.seed(123) # for reproducibility
     compare_stats(g, n3, n_samples, 100*max_val(g,n), num_bins)
 
     n4 = 40
+    np.random.seed(123) # for reproducibility
     compare_stats(g, n4, n_samples, 100*max_val(g,n), num_bins)
 
     n5 = 100
+    np.random.seed(123) # for reproducibility
     compare_stats(g, n5, n_samples, 100*max_val(g,n), num_bins)
+
+    n6 = 100
+    g6 = 100
+    np.random.seed(123) # for reproducibility
+    compare_stats(g6, n6, n_samples, 100*max_val(g6,n6), num_bins)
+
+    n7 = 1000
+    g7 = 1000
+    np.random.seed(123) # for reproducibility
+    compare_stats(g7, n7, n_samples, 100*max_val(g7,n7), num_bins)
+
+    n8 = 18000
+    g8 = 5000
+    np.random.seed(123) # for reproducibility
+    compare_stats(g8, n8, n_samples, 100*max_val(g8,n8), num_bins)

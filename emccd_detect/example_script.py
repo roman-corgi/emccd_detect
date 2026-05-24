@@ -90,6 +90,13 @@ if __name__ == '__main__':
     # Note that the defaults for full_well_serial and eperdn are specified in
     # the metadata file.  Nonlinearity during readout can be applied.  See 
     # nonlinearity.py for details.  
+
+    # threshold for switching between methods in rand_em_gain; if number of pre-gain counts * size of array 
+    # is greater than this, the faster, less memory-intensive method 
+    # (gamma distribution) is used.  Otherwise, the more accurate method (Pn) is used. 
+    # So if threshold=0, the gamma distribution method is always used, and if threshold is very large, 
+    # the Pn method is always used. 
+    # Adjust as needed based on memory constraints and desired accuracy.
     emccd = EMCCDDetect(
         em_gain=5000.,
         full_well_image=78000.,  # e-
@@ -99,7 +106,7 @@ if __name__ == '__main__':
         read_noise=110.,  # e-/pix/frame
         bias=1500.,  # e-
         qe=0.9,
-        cr_rate=0 ,#5.,  # hits/cm^2/s
+        cr_rate=0, #5 # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=8.2,
         nbits=14,
@@ -107,7 +114,8 @@ if __name__ == '__main__':
         meta_path=meta_path,
         nonlin_path=nonlin_sample,
         flat_path=flat_path,
-        row_read_time=223.5e-6 # in seconds
+        row_read_time=223.5e-6, # in seconds
+        threshold=1e7, # default value 
     )
     # To turn off the smearing effect (due to exposure during readout of rows 
     # that are still exposed), set row_read_time to 0.
@@ -123,7 +131,6 @@ if __name__ == '__main__':
     # For sim_sub_frame(), you can input a master flat of the same shape as 
     # the smaller fluxmap. 
     emccd.flat_path = flat_path_sub
-    np.random.seed(123)
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
 
 
@@ -149,6 +156,7 @@ if __name__ == '__main__':
     # turn off the flat for this
     emccd.flat_path = None
     sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime)
+    
     imagesc(sim_sub_frame, 'Output Sub Frame Before CTI')
     try: 
         emccd.update_cti(parallel_traps=[ap.TrapInstantCapture(density=1,release_timescale=1)], serial=False)

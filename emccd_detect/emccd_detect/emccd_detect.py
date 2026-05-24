@@ -18,7 +18,21 @@ except:
     pass
 
 
+# NOTE Roman's EXCAM EMCCD has a field-free region of 8um thick, so pre-gain-register saturation
+# is unlikely to cause vertical blooming during parallel clocking, and cosmic rays will have a 
+# spread-out hit.  However, if pixel is saturated before gain register, vertical blooming 
+# will occur.  Charge diffusion will also have a spreading effect on PSFs.  The input flux map
+# is assumed to be the signal that hits after diffusion has occurred.  
 
+# NOTE In general, we try to keep e- values as float instead of int, even though there is no such 
+# thing as a fraction of an electron, since EM gain,
+# k gain, nonlinearity, master flat, etc are calibrated assuming fractions of electrons, and 
+# we can get fractions of electrons for general gain values.  So we just round 
+# DN output to integer at the end.
+
+# NOTE The EM gain register is designed so that charge beyond the serial FWC spills
+# into neighboring pixels downstream.  In addition, high EM gain can cause surface traps in 
+# the gain register, which increases the length of serial tails further.  These effects are simulated.
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
 
@@ -61,6 +75,15 @@ class EMCCDDetectBase:
         to simulate smear on the image due to clocking during the exposure to 
         light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
         simulated.
+    threshold : float
+        Threshold for switching between methods in rand_em_gain; if number of 
+        pre-gain counts * size of array is greater than this, the faster, 
+        less memory-intensive method (gamma distribution) is used.  
+        Otherwise, the more accurate method (Pn) is used. 
+        So if threshold=0, the gamma distribution method is always used, 
+        and if threshold is very large, the Pn method is always used. 
+        Adjust as needed based on memory constraints and desired accuracy. A 
+        good value for this 1e7.
     """
     def __init__(
         self,
@@ -77,7 +100,9 @@ class EMCCDDetectBase:
         eperdn,
         nbits,
         numel_gain_register,
-        row_read_time
+        row_read_time,
+        quick,
+        threshold
     ):
         # Input checks
         if not isinstance(nbits, (int, np.integer)):
@@ -102,6 +127,8 @@ class EMCCDDetectBase:
         self.nbits = nbits
         self.numel_gain_register = numel_gain_register
         self.row_read_time = row_read_time
+        self.quick = quick
+        self.threshold = threshold
 
         # Placeholders for trap parameters
         self.parallel_ccd = None
@@ -280,9 +307,10 @@ class EMCCDDetectBase:
 
         # simulate smear to fluxmap
         # credit for this smearing code: Peter Williams, Tellus1, 2024
-        # XXX Technically, smearing adds electrons to each pixel, which 
-        # increases the chance of charge capture for CTI, but simulating 
-        # this small effect would require hacking arCTIc.
+        # XXX Technically, smearing adds electrons to each pixel during 
+        # parallel clocking, which increases the chance of charge capture 
+        # for CTI, but simulating this small effect would require 
+        # hacking arCTIc.
         smear = np.zeros_like(fluxmap_full)
         m = len(smear)
         for r in range(m):
@@ -291,7 +319,11 @@ class EMCCDDetectBase:
                 columnsum = columnsum + self.row_read_time*fluxmap_full[i,:]
             smear[r,:] = columnsum
         
-        fluxmap_full = fluxmap_full + smear/frametime
+        # to avoid adding smear if frametime is 0, which would be unphysical 
+        # and also cause division by 0 and thus issues with the 
+        # Poisson distribution in the imaging area elements
+        if frametime != 0: 
+            fluxmap_full = fluxmap_full + smear/frametime
 
         # Add cosmic ray effects
         # XXX Maybe change this to units of flux later
@@ -471,11 +503,16 @@ class EMCCDDetectBase:
 
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
-            em_gain=self.em_gain)
+            em_gain=self.em_gain, 
+            quick=self.quick,
+            threshold=self.threshold)
 
         # Simulate saturation tails
-        if self.cr_rate != 0:
-            gain_counts = sat_tails(gain_counts, self.full_well_serial)
+        # Cosmic tails mainly due downstream spillover in gain register and trapping effects in gain register; 
+        # not modeled with arCTIc, where serial register is merely clocking with
+        # no EM gain(?), so we simulate these effects here.
+        # The traps in the gain register are simulated in sat_tails here.
+        gain_counts = sat_tails(gain_counts, self.full_well_serial)
 
         # Cap at full well capacity of gain register
         gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
@@ -614,7 +651,9 @@ class EMCCDDetect(EMCCDDetectBase):
         meta_path=None,
         nonlin_path=None,
         row_read_time=0,  # seconds
-        flat_path=None
+        flat_path=None,
+        quick=True,
+        threshold=1e7
     ):
         # If no metadata file path specified, default to metadata.yaml in util
         if meta_path is None:
@@ -642,7 +681,9 @@ class EMCCDDetect(EMCCDDetectBase):
             eperdn=eperdn,
             nbits=nbits,
             numel_gain_register=numel_gain_register,
-            row_read_time=row_read_time
+            row_read_time=row_read_time,
+            quick=quick,
+            threshold=threshold
         )
 
     def sim_full_frame(self, fluxmap, frametime):
@@ -843,7 +884,9 @@ def emccd_detect(
         eperdn=1.,
         nbits=64,
         numel_gain_register=604,
-        row_read_time=0
+        row_read_time=0,
+        quick=True,
+        threshold=0
     )
 
     return emccd.sim_sub_frame(fluxmap, frametime).astype(float)

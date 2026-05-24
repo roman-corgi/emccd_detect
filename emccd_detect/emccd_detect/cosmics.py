@@ -101,8 +101,18 @@ def sat_tails(serial_frame, full_well_serial):
 
 
 def _set_tail_val(overflow, overflow_i, i):
+    # Some of excess above FWC is captured by traps in gain register, some lost to substrate
     relative_i = i+1 - overflow_i
-    tail_val = overflow * 1 / relative_i
+    # Fraction of excess above FWC spread across downstream pixels is Sum(1/2**n) 
+    # for n=1 to some potentially high number, so the sum never exceeds 1.
+    # Perhaps more realistic is Sum(1/3**n) or some other series, but this sum 
+    # is good b/c it gives worst case scenario basically, with the most charge
+    # retained and distributed.  But we do cut off at some point for surface traps 
+    # (when tail_val < 1000). 
+    try: 
+        tail_val = overflow * 1 / (2**(relative_i-1))
+    except:
+        tail_val = 0 # relative_i is too large in this case, resulting in overflow error, so tail value is negligible and set to 0.
     if tail_val < 1000:
         tail_val = 0
 
