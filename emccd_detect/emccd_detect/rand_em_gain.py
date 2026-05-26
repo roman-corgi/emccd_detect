@@ -3,15 +3,21 @@
 
 import numpy as np
 from scipy import special
-from emccd_detect.partial_CIC_MLE import _LogPn, _LogGamma
-#from partial_CIC_MLE import _LogPn, _LogGamma
+from scipy.special import gammaln
+#from emccd_detect.partial_CIC_MLE import _LogPn, _LogGamma
+from partial_CIC_MLE import _LogPn, _LogGamma
+try:
+    from joblib import Parallel, delayed
+    import multiprocessing
+except:
+    pass
 
 
 class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
 
-def rand_em_gain(n_in_array, em_gain, quick, threshold):
+def rand_em_gain(n_in_array, em_gain, threshold):
     """Generate random numbers according to EM gain pdfs.
 
     Parameters
@@ -49,35 +55,32 @@ def rand_em_gain(n_in_array, em_gain, quick, threshold):
     elif em_gain == 1:
         return n_in_array
     else:
-        n_out_array = _apply_gain(n_in_array, em_gain, quick, threshold)
+        n_out_array = _apply_gain(n_in_array, em_gain, threshold)
         return n_out_array
 
-def _apply_gain(n_in_array, em_gain, quick, threshold):
+def _apply_gain(n_in_array, em_gain, threshold):
     """Apply a specific em_gain to all nonzero n_in values."""
     # Initialize output count array
     n_out_array = np.zeros_like(n_in_array)
 
-    if quick:
-        n_out_array = np.random.gamma(n_in_array, em_gain)
-    else:
-        # need integer values for Pn().  Otherwise, we try to keep e- values as floats since EM gain,
-        # k gain, nonlinearity, master flat, etc are calibrated assuming fractions of electrons, and 
-        # we can get fractions of electrons here for particular gain values.  So we just round 
-        # DN output to integer at the end.
-        n_in_array = np.round(n_in_array) 
+    # need integer values for Pn().  Otherwise, we try to keep e- values as floats since EM gain,
+    # k gain, nonlinearity, master flat, etc are calibrated assuming fractions of electrons, and 
+    # we can get fractions of electrons here for particular gain values.  So we just round 
+    # DN output to integer at the end.
+    n_in_array = np.round(n_in_array) 
 
-        gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) >= threshold)
-        not_gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) < threshold)
-        n_out_array[gamma_inds] = np.random.gamma(n_in_array[gamma_inds], em_gain)
-        # For the others, get unique nonzero n_in values
-        n_in_unique = np.unique(n_in_array[not_gamma_inds])
-
-        if n_in_unique.size != 0:
-            n_in_unique = n_in_unique[n_in_unique > 0]
-            # Generate random numbers according to the gain distribution for each n_in
-            for n_in in n_in_unique:                
-                inds = np.where(n_in_array == n_in)[0]
-                n_out_array[inds] = _rand_pdf(int(np.round(n_in)), em_gain, len(inds), threshold=threshold)
+    gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) >= threshold)
+    not_gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) < threshold)
+    n_out_array[gamma_inds] = np.random.gamma(n_in_array[gamma_inds], em_gain)
+    # For the others, get unique nonzero n_in values
+    n_in_unique = np.unique(n_in_array[not_gamma_inds])
+    
+    if n_in_unique.size != 0:
+        n_in_unique = n_in_unique[n_in_unique > 0]
+        # Generate random numbers according to the gain distribution for each n_in
+        for n_in in n_in_unique:                
+            inds = np.where(n_in_array == n_in)[0]
+            n_out_array[inds] = _rand_pdf(int(np.round(n_in)), em_gain, len(inds), threshold=threshold)
 
     return np.round(n_out_array)
 
@@ -178,19 +181,48 @@ def Pn(n, g, x):
     Pn = np.exp(out)
     return Pn
 
+def Brian_Sutin(gain, M, nmax, w, x):
+    '''Using Brian Sutin's formulation of Matsuo, 
+    a form much easier to compute.
+    '''
+    num_proc = multiprocessing.cpu_count() #XXX add class attribute for num_proc? 
+    P0 = np.zeros(nmax+1)
+    P0[w] = 1 # w is the number of electrons incident on the gain register
+    B = np.zeros((nmax+1, nmax+1))
+    Q = gain**(1/M) -1 #Q is the probability of multiplication in a given stage
+    def compute_B_row(n):
+        for k in range(int(np.ceil(n/2)), n+1):
+            #if k <= n and n-k<= k:
+            B[k,n] = np.exp(gammaln(k+1) - gammaln(n-k+1) - gammaln(2*k-n+1) + (2*k-n)* np.log(1-Q) + (n-k)*np.log(Q))
+    
+    Parallel(n_jobs=num_proc, prefer='threads')(delayed(compute_B_row)(n) for n in range(1, nmax+1))
+
+
+    # for n in range(1, nmax+1):
+    #     for k in range(int(np.ceil(n/2)), n+1):
+    #         #if k <= n and n-k<= k:
+    #         B[k,n] = np.exp(gammaln(k+1) - gammaln(n-k+1) - gammaln(2*k-n+1) + (2*k-n)* np.log(1-Q) + (n-k)*np.log(Q))
+    
+    Bpower = np.linalg.matrix_power(B, M)
+    P = P0.dot(Bpower)
+    return P[x]
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    # x_arr = np.arange(0, 200)
-    # plt.plot(x_arr, np.exp(_LogGamma(100,2,x_arr)))
-    # plt.plot(x_arr, Pn(100,2,x_arr))
+    g=500; n=2; M=604
+    nmax=int(g*n*1.2)
+    x_arr = np.arange(0, nmax)
+    plt.plot(x_arr, np.exp(_LogGamma(n,g,x_arr)))
+    plt.plot(x_arr, Pn(n,g,x_arr))
+    plt.plot(x_arr, Brian_Sutin(gain=g, M=M, nmax=nmax, w=n, x=x_arr))
 
     n=100;g=1000
     x_arr = np.round(np.linspace(n, n*g*4, num=4000)).astype(int)
     plt.plot(x_arr, np.exp(_LogGamma(n,g,x_arr)))
     plt.plot(x_arr, Pn(n,g,x_arr))
 
+    #OLD COMMENT
     # Generally, the agreement b/w the old and new methods is good.  The new
     # method just speeds up the code a lot, especially when cosmics are present.
     # Old method functions below:
@@ -263,14 +295,14 @@ if __name__ == '__main__':
 
         return cdf
 
-    def compare_stats(g, n, n_samples, max_val, num_bins, plot=False):
+    def compare_stats(g, n, n_samples, max_val, num_bins, plot=False, threshold=1e7):
 
         n_in_array = np.array([n]*n_samples)
-        old_method = rand_em_gain(n_in_array, g, quick=True, threshold=1e7) 
+        old_method = rand_em_gain(n_in_array, g, threshold=0) 
         #old_method = _apply_gain_old(n_in_array, g, max_val)
 
         # new method:
-        x = rand_em_gain(n_in_array, g, quick=False, threshold=1e7)
+        x = rand_em_gain(n_in_array, g, threshold=threshold)
 
         print("For n={}, g={}:".format(n,g))
         print('Mean for old method:  ', np.mean(old_method))
@@ -307,41 +339,59 @@ if __name__ == '__main__':
     # gain since we just want an upper limit)
     def max_val(g, n):
         return g*n + 4*g*np.sqrt(2*n)
+    
+    threshold = 1e9
 
     # in original code, max_val used max(n_in_array) where that array was for
     # all serial cells; so artifically inflate by multiplying by 100
     n = 1
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n, n_samples, 100*max_val(g,n), num_bins)
+    compare_stats(g, n, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
 
     n2 = 2
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n2, n_samples, 100*max_val(g,n), num_bins)
+    compare_stats(g, n2, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
 
     # now a value of n for which these methods differed
     n3 = 3
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n3, n_samples, 100*max_val(g,n), num_bins)
+    compare_stats(g, n3, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
 
     n4 = 40
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n4, n_samples, 100*max_val(g,n), num_bins)
+    compare_stats(g, n4, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
 
     n5 = 100
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n5, n_samples, 100*max_val(g,n), num_bins)
+    compare_stats(g, n5, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
 
     n6 = 100
     g6 = 100
     np.random.seed(123) # for reproducibility
-    compare_stats(g6, n6, n_samples, 100*max_val(g6,n6), num_bins)
+    compare_stats(g6, n6, n_samples, 100*max_val(g6,n6), num_bins, threshold=threshold)
 
     n7 = 1000
     g7 = 1000
     np.random.seed(123) # for reproducibility
-    compare_stats(g7, n7, n_samples, 100*max_val(g7,n7), num_bins)
+    compare_stats(g7, n7, n_samples, 100*max_val(g7,n7), num_bins, threshold=threshold)
 
     n8 = 18000
     g8 = 5000
     np.random.seed(123) # for reproducibility
-    compare_stats(g8, n8, n_samples, 100*max_val(g8,n8), num_bins)
+    compare_stats(g8, n8, n_samples, 100*max_val(g8,n8), num_bins, threshold=threshold)
+
+    #g=100;M=604;nmax=4000;w=3
+    #prob = Brian_Sutin(gain=1000, M=604, nmax=4000, w=3)
+    g=100;M=50;nmax=1000;w=3
+    prob = Brian_Sutin(gain=g, M=M, nmax=nmax, w=w)
+    plt.figure()
+    plt.semilogy(np.arange(0, len(prob)), prob)
+    plt.semilogy(np.arange(0, len(prob)), np.exp(_LogPn(w, g, np.arange(0, len(prob)))))
+    plt.semilogy(np.arange(0, len(prob)), np.exp(_LogGamma(w,g,np.arange(0, len(prob)))))
+    plt.title('log plot of Sutin for gain=' + str(g) + ', \n number of stages=' + str(M) + ', number of incoming=' + str(w))
+    plt.xlabel('output value index')
+    plt.ylabel('probability')
+    plt.grid(True)
+    plt.show()
+
+    pass

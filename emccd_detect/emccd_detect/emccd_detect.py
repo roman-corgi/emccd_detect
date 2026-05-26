@@ -101,7 +101,6 @@ class EMCCDDetectBase:
         nbits,
         numel_gain_register,
         row_read_time,
-        quick,
         threshold
     ):
         # Input checks
@@ -127,7 +126,6 @@ class EMCCDDetectBase:
         self.nbits = nbits
         self.numel_gain_register = numel_gain_register
         self.row_read_time = row_read_time
-        self.quick = quick
         self.threshold = threshold
 
         # Placeholders for trap parameters
@@ -504,7 +502,6 @@ class EMCCDDetectBase:
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
             em_gain=self.em_gain, 
-            quick=self.quick,
             threshold=self.threshold)
 
         # Simulate saturation tails
@@ -652,7 +649,6 @@ class EMCCDDetect(EMCCDDetectBase):
         nonlin_path=None,
         row_read_time=0,  # seconds
         flat_path=None,
-        quick=True,
         threshold=1e7
     ):
         # If no metadata file path specified, default to metadata.yaml in util
@@ -682,7 +678,6 @@ class EMCCDDetect(EMCCDDetectBase):
             nbits=nbits,
             numel_gain_register=numel_gain_register,
             row_read_time=row_read_time,
-            quick=quick,
             threshold=threshold
         )
 
@@ -885,7 +880,6 @@ def emccd_detect(
         nbits=64,
         numel_gain_register=604,
         row_read_time=0,
-        quick=True,
         threshold=0
     )
 

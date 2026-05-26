@@ -24,7 +24,7 @@ Journal reference:	J. Astron. Telesc. Instrum. Syst. 11(1), 018005 (2025)
 
 import numpy as np
 from scipy.special import (gamma, factorial,
-                           hyp2f1, hyp0f1)
+                           hyp2f1, hyp0f1, gammaln)
 from scipy.optimize import minimize, Bounds
 from scipy.interpolate import UnivariateSpline
 from astropy.io import fits
@@ -50,17 +50,19 @@ def _LogPn(n, g, x):
     elif n > 3:
     # way to handle the large gammas that cancel on top and bottom without
     # getting a nan:  func = gamma(n+X)/gamma(2+X) simplified for Python
-        func = np.array([i+X-1 for i in range(3, n+1)]).T
+        #func = np.array([i+X-1 for i in range(3, n+1)]).T
+        #LogPn = (np.sum(np.log(func),axis=1) + np.log(2-n+X) - (X/g + n*np.log(g)))
+        logfunc = gammaln(n+X) - gammaln(2+X)
         # Pn = (np.product(func,axis=1)*((2 - n + X))/
         #       (np.e**(X/g)*g**n))
-        LogPn = (np.sum(np.log(func),axis=1) + np.log(2-n+X) -
+        LogPn = (logfunc + np.log(2-n+X) -
                 (X/g + n*np.log(g)))
 
     # Pnnorm = ((4**n*gamma(0.5 + n)*(np.e**(1/g)*
     #         hyp2f1(1,2*n,2 + n,np.e**(-1/g))/((n+1)*n) +
     #         hyp2f1(2,1 + 2*n,3 + n,np.e**(-1/g))/((n+2)*(n+1))))/
     #         (np.e**((1 + n)/g)*g**n*np.sqrt(np.pi)))
-    LogPnnorm = (n*np.log(4) + np.log(gamma(0.5+n)) - np.log(n+1) +
+    LogPnnorm = (n*np.log(4) + gammaln(0.5+n) - np.log(n+1) +
                  np.log(np.e**(1/g)*
             hyp2f1(1,2*n,2 + n,np.e**(-1/g))/(n) +
             hyp2f1(2,1 + 2*n,3 + n,np.e**(-1/g))/(n+2)) -

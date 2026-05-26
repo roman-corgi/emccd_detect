@@ -115,7 +115,7 @@ if __name__ == '__main__':
         nonlin_path=nonlin_sample,
         flat_path=flat_path,
         row_read_time=223.5e-6, # in seconds
-        threshold=1e7, # default value 
+        threshold=1e8, #XXX default value 
     )
     # To turn off the smearing effect (due to exposure during readout of rows 
     # that are still exposed), set row_read_time to 0.
