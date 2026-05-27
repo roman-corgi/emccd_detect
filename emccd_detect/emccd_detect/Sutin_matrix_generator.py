@@ -15,11 +15,12 @@ from astropy.io import fits
 import os
 
 
-def Brian_Sutin(gain, M, nmax, w, x):
+def Brian_Sutin(gain, M, nmax, w, x, num_proc=None):
     '''Using Brian Sutin's formulation of Matsuo, 
     a form much easier to compute.
     '''
-    num_proc = multiprocessing.cpu_count() #XXX add class attribute for num_proc? 
+    if num_proc is None:
+        num_proc = multiprocessing.cpu_count() 
     P0 = np.zeros(nmax+1)
     P0[w] = 1 # w is the number of electrons incident on the gain register
     B = np.zeros((nmax+1, nmax+1))
@@ -45,11 +46,12 @@ def Brian_Sutin(gain, M, nmax, w, x):
 
 if __name__ == '__main__':
 
-
-    gain_range = np.linspace(2, 7000, num=10)
-    M_range = np.linspace(30, 900, num=10).astype(int)
+    #max matrix case is 60k x 60k matrix:  28.8GB; Output of function for this case, though, is just 480kB.
+    # Total for all 1000 arrays:  480MB, which is manageable.
+    gain_range = np.logspace(0,2.477,10) #Runs from 10^1 to 10^2.477 = 300 in 10 steps, giving more steps in the lower gain range.  np.linspace(2, 300, num=10) # high gain: Erlang good approximation 
+    M_range = np.linspace(50, 900, num=10).astype(int)
     w = np.linspace(1, 100, num=10).astype(int)
-    dimension = int(gain_range.max() * w.max() * 1.2)
+    dimension = int(gain_range.max() * w.max() * 2) 
     gain_arrays = []
     for gain in gain_range:
         M_arrays = []

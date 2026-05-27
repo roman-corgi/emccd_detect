@@ -508,7 +508,9 @@ def _LogPoisson(L, x):
     out[xless0] = -np.inf
     xgreat0 = np.where(x>=0)
     X = x[xgreat0]
-    out[xgreat0] = -L + X*np.log(L) - np.log(factorial(X))
+    #out[xgreat0] = -L + X*np.log(L) - np.log(factorial(X))
+    # for large X, log of factorial will be inf, so use gammaln, which is the log of the gamma function, and for integer X, gamma(X) = factorial(X-1)
+    out[xgreat0] = -L + X*np.log(L) - gammaln(X+1)
     # In case nans occur for huge x values, use approximation
     outinf = np.where(np.isinf(out))
     Xinf = x[outinf]
@@ -528,8 +530,10 @@ def _LogGamma(n, g, x):
     xgreat1 = np.where(x >= n)
     X = x[xgreat1]
     if g > 1:
-        out[xgreat1] = -(X/g) - n*np.log(g) + (-1 + n)*np.log(X) - np.log(factorial(-1 + n))
+        #out[xgreat1] = -(X/g) - n*np.log(g) + (-1 + n)*np.log(X) - np.log(factorial(-1 + n))
         # for large n, the log of factorial will be np.inf
+        #better to use gammaln, which is the log of the gamma function, and for integer n, gamma(n) = factorial(n-1)
+        out[xgreat1] = -(X/g) - n*np.log(g) + (-1 + n)*np.log(X) - gammaln(n)
         outinf = np.where(np.isinf(out))
         Xinf = x[outinf]
         # Stirling's approximation for large n

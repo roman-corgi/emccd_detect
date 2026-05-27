@@ -210,12 +210,14 @@ def Brian_Sutin(gain, M, nmax, w, x):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    g=500; n=2; M=604
+    #g=500; n=2; M=604
+    g=3; n=10; M=604
     nmax=int(g*n*1.2)
     x_arr = np.arange(0, nmax)
     plt.plot(x_arr, np.exp(_LogGamma(n,g,x_arr)))
     plt.plot(x_arr, Pn(n,g,x_arr))
-    plt.plot(x_arr, Brian_Sutin(gain=g, M=M, nmax=nmax, w=n, x=x_arr))
+    BSprob = Brian_Sutin(gain=g, M=M, nmax=nmax, w=n, x=x_arr)
+    plt.plot(x_arr, BSprob)
 
     n=100;g=1000
     x_arr = np.round(np.linspace(n, n*g*4, num=4000)).astype(int)
