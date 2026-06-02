@@ -15,7 +15,28 @@ from astropy.io import fits
 import os
 
 
-def Brian_Sutin(gain, M, nmax, w, x, num_proc=None):
+
+def Brian_Sutin(gain, M, w, x):
+    '''Using Brian Sutin's formulation of Matsuo, 
+    a form much easier to compute.
+    '''
+    nmax = x.max()
+    P0 = np.zeros(nmax+1)
+    P0[w] = 1 # w is the number of electrons incident on the gain register
+    B = np.zeros((nmax+1, nmax+1))
+    Q = gain**(1/M) -1 #Q is the probability of multiplication in a given stage
+    if Q >= 1:
+        raise ValueError('Gain and M values are not compatible. Q must be <1.')
+    n, k = np.meshgrid(np.arange(nmax+1), np.arange(nmax+1))
+    B[k,n] = np.exp(gammaln(k+1) - gammaln(n-k+1) - gammaln(2*k-n+1) + (2*k-n)* np.log(1-Q) + (n-k)*np.log(Q))
+    inds=np.where(k>n)
+    B[inds] = 0 
+
+    Bpower = np.linalg.matrix_power(B, M)
+    P = P0.dot(Bpower)
+    return P
+
+def Brian_Sutin_orig(gain, M, nmax, w, x, num_proc=None):
     '''Using Brian Sutin's formulation of Matsuo, 
     a form much easier to compute.
     '''
@@ -28,9 +49,9 @@ def Brian_Sutin(gain, M, nmax, w, x, num_proc=None):
     if Q >= 1:
         raise ValueError('Gain and M values are not compatible. Q must be <1.')
     def compute_B_row(n):
-        for k in range(int(np.ceil(n/2)), n+1):
-            #if k <= n and n-k<= k:
-            B[k,n] = np.exp(gammaln(k+1) - gammaln(n-k+1) - gammaln(2*k-n+1) + (2*k-n)* np.log(1-Q) + (n-k)*np.log(Q))
+        for k in range(nmax+1): #range(int(np.ceil(n/2)), n+1):
+            if k <= n and n-k<= k:
+                B[k,n] = np.exp(gammaln(k+1) - gammaln(n-k+1) - gammaln(2*k-n+1) + (2*k-n)* np.log(1-Q) + (n-k)*np.log(Q))
     
     Parallel(n_jobs=num_proc, prefer='threads')(delayed(compute_B_row)(n) for n in range(1, nmax+1))
 
@@ -44,13 +65,68 @@ def Brian_Sutin(gain, M, nmax, w, x, num_proc=None):
     P = P0.dot(Bpower)
     return P[x]
 
+
+def interpolate_Brian_Sutin(gain, M, w, x, gain_arrays, gain_range, M_range, w_range):
+    """Interpolate precomputed Brian_Sutin probability arrays along gain, M, and w axes.
+
+    gain_arrays: array-like with shape (len(gain_range), len(M_range), len(w_range), dimension)
+    gain_range, M_range, w_range: 1D arrays of parameter grid used to build gain_arrays
+    Returns probabilities for indices x (array-like) for requested gain, M, w.
+    """
+    gain_arr = np.asarray(gain_arrays)
+    gain_range = np.asarray(gain_range)
+    M_range = np.asarray(M_range)
+    w_range = np.asarray(w_range)
+
+    # ensure parameters within bounds
+    if gain < gain_range.min() or gain > gain_range.max():
+        raise ValueError('gain outside provided gain_range')
+    if M < M_range.min() or M > M_range.max():
+        raise ValueError('M outside provided M_range')
+    if w < w_range.min() or w > w_range.max():
+        raise ValueError('w outside provided w_range')
+
+    x = np.asarray(x)
+    # ensure integer indices for x
+    if not np.issubdtype(x.dtype, np.integer):
+        raise ValueError('x must be integer indices')
+
+    max_len = gain_arr.shape[3]
+    if x.max() >= max_len:
+        raise IndexError('Requested x exceeds stored probability length')
+
+    # interpolate for each x index across gain, M, and w
+    probs = np.empty(x.shape, dtype=float)
+    for i, xi in enumerate(x):
+        # extract 3D slice for this x index: shape (len(gain_range), len(M_range), len(w_range))
+        data_3d = gain_arr[:, :, :, int(xi)]
+        
+        # interpolate along w_range first
+        data_2d = np.zeros((len(gain_range), len(M_range)))
+        for gi in range(len(gain_range)):
+            for mi in range(len(M_range)):
+                data_2d[gi, mi] = np.interp(w, w_range, data_3d[gi, mi, :])
+        
+        # interpolate along M_range
+        data_1d = np.zeros(len(gain_range))
+        for gi in range(len(gain_range)):
+            data_1d[gi] = np.interp(M, M_range, data_2d[gi, :])
+        
+        # interpolate along gain_range
+        probs[i] = np.interp(gain, gain_range, data_1d)
+
+    return probs
+
 if __name__ == '__main__':
 
     #max matrix case is 60k x 60k matrix:  28.8GB; Output of function for this case, though, is just 480kB.
     # Total for all 1000 arrays:  480MB, which is manageable.
-    gain_range = np.logspace(0,2.477,10) #Runs from 10^1 to 10^2.477 = 300 in 10 steps, giving more steps in the lower gain range.  np.linspace(2, 300, num=10) # high gain: Erlang good approximation 
-    M_range = np.linspace(50, 900, num=10).astype(int)
-    w = np.linspace(1, 100, num=10).astype(int)
+    #XXX gain_range = np.logspace(0,2.477,10) #Runs from 10^1 to 10^2.477 = 300 in 10 steps, giving more steps in the lower gain range.  np.linspace(2, 300, num=10) # high gain: Erlang good approximation 
+    #XXX M_range = np.linspace(50, 900, num=10).astype(int)
+    #XXX w = np.linspace(1, 100, num=10).astype(int)
+    gain_range = np.logspace(0,2,5) #Runs from 10^1 to 10^2.477 = 300 in 10 steps, giving more steps in the lower gain range.  np.linspace(2, 300, num=10) # high gain: Erlang good approximation 
+    M_range = np.linspace(50, 700, num=5).astype(int)
+    w = np.linspace(1, 50, num=5).astype(int)
     dimension = int(gain_range.max() * w.max() * 2) 
     gain_arrays = []
     for gain in gain_range:
@@ -60,7 +136,7 @@ if __name__ == '__main__':
             for w_i in w:
                 printout = 'gain: ' + str(gain) + ', M: ' + str(M) + ', w:' + str(w_i)
                 print('Calculating ' + printout)
-                nmax=int(gain*w_i*1.2)
+                nmax=int(gain*w_i*2)
                 x_arr = np.arange(0, nmax)
                 prob = Brian_Sutin(gain=gain, M=M, nmax=nmax, w=w_i, x=x_arr)
                 output = np.zeros(dimension)
@@ -69,13 +145,15 @@ if __name__ == '__main__':
             M_arrays.append(w_arrays)
         gain_arrays.append(M_arrays)
 
-    hdu1 = fits.PrimaryHDU(data=np.stack(gain_arrays))
-    hdu2 = fits.ImageHDU(data=gain_range, name='GAIN_VALS')
-    hdu3 = fits.ImageHDU(data=M_range, name='M_VALS')
-    hdu4 = fits.ImageHDU(data=w, name='W_VALS')
-    
-    hdul = fits.HDUList([hdu1, hdu2, hdu3, hdu4])
-    hdul.writeto('sutin_matrix_output.fits', overwrite=True)
+        hdu1 = fits.PrimaryHDU(data=np.stack(gain_arrays))
+        hdu2 = fits.ImageHDU(data=gain_range, name='GAIN_VALS')
+        hdu3 = fits.ImageHDU(data=M_range, name='M_VALS')
+        hdu4 = fits.ImageHDU(data=w, name='W_VALS')
+        
+        hdul = fits.HDUList([hdu1, hdu2, hdu3, hdu4])
+        hdul.writeto('sutin_matrix_output.fits', overwrite=True)
     
 
     pass
+
+    

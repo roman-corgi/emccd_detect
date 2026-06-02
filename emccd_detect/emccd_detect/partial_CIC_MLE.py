@@ -28,6 +28,7 @@ from scipy.special import (gamma, factorial,
 from scipy.optimize import minimize, Bounds
 from scipy.interpolate import UnivariateSpline
 from astropy.io import fits
+from scipy.stats import chisquare, chi2
 
 def _LogPn(n, g, x):
     '''The log of the EM gain PDF, valid for small and large gain values.  
@@ -854,7 +855,7 @@ def EM_gain_fit_conv_rn(frames, fluxe, gain, gmax, rn, mu, divisor=1, tol=1e-10,
 
 
 if __name__ == '__main__':
-    from scipy.stats import chisquare, chi2
+    
     import os
     from pathlib import Path
 

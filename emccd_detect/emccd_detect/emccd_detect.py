@@ -9,7 +9,7 @@ import numpy as np
 from astropy.io import fits
 
 from emccd_detect.cosmics import cosmic_hits, sat_tails
-from emccd_detect.rand_em_gain import rand_em_gain
+from emccd_detect.rand_em_gain import rand_em_gain, partial_CIC
 from emccd_detect.nonlinearity import apply_relgains
 from emccd_detect.util.read_metadata_wrapper import MetadataWrapper
 try:
@@ -51,7 +51,7 @@ class EMCCDDetectBase:
     dark_current: float
         Dark current rate (e-/pix/s).
     cic : float
-        Clock induced charge (e-/pix/frame).
+        Clock induced charge (CIC) (e-/pix/frame).
     read_noise : float
         Read noise (e-/pix/frame).
     bias : float
@@ -68,22 +68,7 @@ class EMCCDDetectBase:
         Number of bits used by the ADC readout. Must be between 1 and 64,
         inclusive.
     numel_gain_register : int
-        Number of gain register elements. For eventually modeling partial CIC.
-    row_read_time : float
-        Time in seconds for each row to move into the first register (same as 
-        the time for each row to be clocked toward the register). This is used 
-        to simulate smear on the image due to clocking during the exposure to 
-        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
-        simulated.
-    threshold : float
-        Threshold for switching between methods in rand_em_gain; if number of 
-        pre-gain counts * size of array is greater than this, the faster, 
-        less memory-intensive method (gamma distribution) is used.  
-        Otherwise, the more accurate method (Pn) is used. 
-        So if threshold=0, the gamma distribution method is always used, 
-        and if threshold is very large, the Pn method is always used. 
-        Adjust as needed based on memory constraints and desired accuracy. A 
-        good value for this 1e7.
+        Number of gain register elements. 
     """
     def __init__(
         self,
@@ -99,9 +84,7 @@ class EMCCDDetectBase:
         pixel_pitch,
         eperdn,
         nbits,
-        numel_gain_register,
-        row_read_time,
-        threshold
+        numel_gain_register
     ):
         # Input checks
         if not isinstance(nbits, (int, np.integer)):
@@ -109,8 +92,6 @@ class EMCCDDetectBase:
         if nbits < 1 or nbits > 64:
             raise EMCCDDetectException('nbits must be between 1 and 64, '
                                        'inclusive')
-        if row_read_time < 0:
-            raise EMCCDDetectException('row_read_time must be >= 0 seconds.')
 
         self.em_gain = em_gain
         self.full_well_image = full_well_image
@@ -125,8 +106,7 @@ class EMCCDDetectBase:
         self.eperdn = eperdn
         self.nbits = nbits
         self.numel_gain_register = numel_gain_register
-        self.row_read_time = row_read_time
-        self.threshold = threshold
+
 
         # Placeholders for trap parameters
         self.parallel_ccd = None
@@ -281,47 +261,6 @@ class EMCCDDetectBase:
         return output_dn.reshape(actualized_e.shape)
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
-        # apply non-uniformity of pixel responsivity via master flat
-        if hasattr(self, 'flat_path'):
-            if self.flat_path is not None:
-                with fits.open(self.flat_path) as hdul:
-                    self.flat = hdul[1].data
-                if (self.flat < 0).any():
-                    raise EMCCDDetectException('Master flat must not contain '
-                                                'negative values.')
-                if self.flat.shape != fluxmap_full.shape:
-                    imaging_area_ones = np.ones_like(fluxmap_full)
-                    # Attempt to embed the flat within the 
-                    # imaging+shielded area
-                    self.flat_im = self.meta.embed_im(imaging_area_ones, 
-                                                    'image', self.flat.copy())
-                    if self.flat_im.shape != fluxmap_full.shape:
-                        raise EMCCDDetectException('Master flat shape must '
-                                                'agree with shape of fluxmap.')
-                    else:
-                        fluxmap_full *= self.flat_im
-                else:   
-                    fluxmap_full *= self.flat
-
-        # simulate smear to fluxmap
-        # credit for this smearing code: Peter Williams, Tellus1, 2024
-        # XXX Technically, smearing adds electrons to each pixel during 
-        # parallel clocking, which increases the chance of charge capture 
-        # for CTI, but simulating this small effect would require 
-        # hacking arCTIc.
-        smear = np.zeros_like(fluxmap_full)
-        m = len(smear)
-        for r in range(m):
-            columnsum = 0
-            for i in range(r+1):
-                columnsum = columnsum + self.row_read_time*fluxmap_full[i,:]
-            smear[r,:] = columnsum
-        
-        # to avoid adding smear if frametime is 0, which would be unphysical 
-        # and also cause division by 0 and thus issues with the 
-        # Poisson distribution in the imaging area elements
-        if frametime != 0: 
-            fluxmap_full = fluxmap_full + smear/frametime
 
         # Add cosmic ray effects
         # XXX Maybe change this to units of flux later
@@ -444,7 +383,48 @@ class EMCCDDetectBase:
 
         """
         # Calculate mean photo-electrons after integrating over frametime
-        mean_phe_map = fluxmap_full * frametime * self.qe
+        mean_phe_map = fluxmap_full * frametime  
+        
+        # credit for this smearing code: Peter Williams, Tellus1, 2024
+        # XXX Technically, smearing adds electrons to each pixel during 
+        # parallel clocking, which increases the chance of charge capture 
+        # for CTI, but simulating this small effect would require 
+        # hacking arCTIc.
+        if hasattr(self, 'row_read_time'):
+            smear = np.zeros_like(fluxmap_full)
+            m = len(smear)
+            for r in range(m):
+                columnsum = 0
+                for i in range(r+1):
+                    columnsum = columnsum + self.row_read_time*fluxmap_full[i,:]
+                smear[r,:] = columnsum
+            # add in effect of smear
+            mean_phe_map = mean_phe_map + smear 
+
+        # apply non-uniformity of pixel responsivity via master flat
+        if hasattr(self, 'flat_path'):
+            if self.flat_path is not None:
+                with fits.open(self.flat_path) as hdul:
+                    self.flat = hdul[1].data
+                if (self.flat < 0).any():
+                    raise EMCCDDetectException('Master flat must not contain '
+                                                'negative values.')
+                if self.flat.shape != fluxmap_full.shape:
+                    imaging_area_ones = np.ones_like(fluxmap_full)
+                    # Attempt to embed the flat within the 
+                    # imaging+shielded area
+                    self.flat_im = self.meta.embed_im(imaging_area_ones, 
+                                                    'image', self.flat.copy())
+                    if self.flat_im.shape != fluxmap_full.shape:
+                        raise EMCCDDetectException('Master flat shape must '
+                                                'agree with shape of fluxmap.')
+                    else:
+                        mean_phe_map *= self.flat_im
+                else:   
+                    mean_phe_map *= self.flat
+        
+        #apply QE
+        mean_phe_map = mean_phe_map * self.qe
 
         # Calculate mean expected rate after integrating over frametime
         mean_dark = self.dark_current * frametime
@@ -457,7 +437,7 @@ class EMCCDDetectBase:
         actualized_e = np.random.poisson(self.mean_expected_rate).astype(float)
 
         # Add cosmic ray effects
-        # XXX Maybe change this to units of flux later
+        # XXX Maybe change this to units of flux later; make sure poisson nature of the hits inherently taken care of in cosmic function
         actualized_e += cosm_actualized_e
 
         # Cap at pixel full well capacity
@@ -498,11 +478,27 @@ class EMCCDDetectBase:
         """
         # Apply EM gain
         gain_counts = np.zeros_like(serial_counts)
-
+        if not hasattr(self, 'threshold'):
+            self.threshold = 0
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
             em_gain=self.em_gain, 
+            numel_gain_register=self.numel_gain_register,
             threshold=self.threshold)
+
+        # assuming partial CIC independently propagates through gain register 
+        #XXX if hasattr() for the inputs in emccdDetect but not base class
+        if hasattr(self, 'gain_CIC_Q') and hasattr(self, 'gain_CIC_specs') \
+            and hasattr(self, 'threshold'):
+            if self.gain_CIC_Q is None:
+                self.gain_CIC_Q = (self.em_gain**(1/self.numel_gain_register) - 1)/10
+            partial_cic = partial_CIC(gain_counts.size, 
+                                      self.em_gain,
+                                      self.numel_gain_register, 
+                                      self.gain_CIC_Q, 
+                                      self.gain_CIC_specs,
+                                      self.threshold)
+            gain_counts = gain_counts + partial_cic
 
         # Simulate saturation tails
         # Cosmic tails mainly due downstream spillover in gain register and trapping effects in gain register; 
@@ -628,6 +624,34 @@ class EMCCDDetect(EMCCDDetectBase):
         dark-subtracted, divided by k-gain, divided by EM gain, and desmeared. 
         If the input is None, no application of pixel nonuniformity is 
         performed.  Defaults to None.
+    threshold : float
+        Threshold for switching between methods in rand_em_gain; if number of 
+        pre-gain counts * size of array is greater than this, the faster, 
+        less memory-intensive method (gamma distribution) is used.  
+        Otherwise, the more accurate method (Pn) is used. 
+        So if threshold=0, the gamma distribution method is always used, 
+        and if threshold is very large, the Pn method is always used. 
+        Adjust as needed based on memory constraints and desired accuracy. 
+        Defaults to 1e7.
+    gain_CIC_Q : float or None
+        Probability Q (or mean rate) of production of a clock-induced charge (CIC)
+        in a given gain register stage. We call this "partial CIC". If None,
+        Q=P/10 is used, where P is the probability of charge multiplication 
+        for a single gain stage, and em_gain = (1+P)^numel_gain_register.  
+        Physically, Q < P. Defaults to None.  To simulate no partial CIC, let 
+        this input be 0.
+    gain_CIC_specs: dict or None
+        This input supercedes gain_CIC_Q and renders the value of gain_CIC_Q 
+        irrelevant.  This is used for specifying particular "hot" stages which source the 
+        CIC produced in the gain register.  If None, gain_CIC_Q assumed for all
+        gain register stages. If a dictionary is provided, the keys should be 
+        integer-valued and be the number of stages until the end (e.g., 1 means 
+        CIC appears in the last stage and gets clocked through that 1 gain stage),
+        and the values for the dictionary should be the corresponding Q values. 
+        Physically, Q < P, but we only know an average P from em_gain, so a 
+        "hot" stage could have Q >= P, where 
+        em_gain = (1+P)^numel_gain_register. Defaults to None.
+    
 
     """
     def __init__(
@@ -649,8 +673,28 @@ class EMCCDDetect(EMCCDDetectBase):
         nonlin_path=None,
         row_read_time=0,  # seconds
         flat_path=None,
-        threshold=1e7
+        threshold=1e7,
+        gain_CIC_Q=None,
+        gain_CIC_specs=None
     ):
+        if row_read_time < 0:
+            raise EMCCDDetectException('row_read_time must be >= 0 seconds.')
+        if gain_CIC_Q is not None:
+            if gain_CIC_Q >= em_gain**(1/numel_gain_register) - 1:
+                raise EMCCDDetectException('gain_CIC_Q >= P, where em_gain = '
+                            '(1+P)^numel_gain_register. gain_CIC_Q must be < P.')
+        if gain_CIC_specs is not None:
+            if not isinstance(gain_CIC_specs, dict):
+                raise EMCCDDetectException('gain_CIC_specs must either be None or a dictionary.')
+            for key, val in gain_CIC_specs.items():
+                if key//1 != key:
+                    raise EMCCDDetectException('All keys in gain_CIC_specs must be whole numbers.')
+            # check that the average Q < P (i.e., the mean production rate of partial CIC electrons is less than the rate for gain multiplication)
+            if len(gain_CIC_specs.values()) > numel_gain_register:
+                raise EMCCDDetectException('The number of stages specified in gain_CIC_specs is more than numel_gain_register.')
+            if np.sum(list(gain_CIC_specs.values()))/numel_gain_register >= em_gain**(1/numel_gain_register) - 1:
+                raise EMCCDDetectException('The average Q over all gain stages gain_CIC_specs must be < P, where em_gain = '
+                        '(1+P)^numel_gain_register.')
         # If no metadata file path specified, default to metadata.yaml in util
         if meta_path is None:
             here = os.path.abspath(os.path.dirname(__file__))
@@ -660,8 +704,14 @@ class EMCCDDetect(EMCCDDetectBase):
         self.meta_path = meta_path
         self.meta = MetadataWrapper(self.meta_path)
 
+        # instantiate other inputs not included in EMCCDDetectBase
         self.nonlin_path = nonlin_path
+        self.row_read_time = row_read_time
         self.flat_path = flat_path
+        self.threshold = threshold
+        self.gain_CIC_Q = gain_CIC_Q
+        self.gain_CIC_specs = gain_CIC_specs
+
 
         super().__init__(
             em_gain=em_gain,
@@ -676,9 +726,7 @@ class EMCCDDetect(EMCCDDetectBase):
             pixel_pitch=pixel_pitch,
             eperdn=eperdn,
             nbits=nbits,
-            numel_gain_register=numel_gain_register,
-            row_read_time=row_read_time,
-            threshold=threshold
+            numel_gain_register=numel_gain_register
         )
 
     def sim_full_frame(self, fluxmap, frametime):
@@ -879,8 +927,6 @@ def emccd_detect(
         eperdn=1.,
         nbits=64,
         numel_gain_register=604,
-        row_read_time=0,
-        threshold=0
     )
 
     return emccd.sim_sub_frame(fluxmap, frametime).astype(float)
