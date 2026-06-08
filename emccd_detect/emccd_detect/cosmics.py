@@ -2,17 +2,23 @@
 """Generate cosmic hits."""
 
 import numpy as np
+from scipy.stats import landau
+from scipy.special import erf
+from scipy.signal import fftconvolve
 
+def rot_gauss_spot(x, y, A, x0, y0, sx, sy, theta):
+    return  A*np.e**(-(np.cos(theta)*(x-x0)-np.sin(theta)*(y-y0))**2/(2*sx**2) - 
+                     (np.sin(theta)*(x-x0)+np.cos(theta)*(y-y0))**2/(2*sy**2))
 
-def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
+def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, zff=8e-6, 
+                loc=1590, scale=550, oversample_factor=10):
     """Generate cosmic hits.
 
     This function does not return the values of the cosmics; instead it returns
     the electron map which occurs as a result of the photelectric effect when
     the cosmics strike the detector. This allows the user to ignore the
     physical properties of the cosmics and focus only on their effect on the
-    detector. This is especially helpful when setting max_val greater than the
-    full well capacity, as it allows the user to create saturated cosmics.
+    detector. 
 
     Parameters
     ----------
@@ -24,8 +30,21 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
         Frame time (s).
     pixel_pitch : float
         Distance between pixel centers (m).
-    max_val : float
-        Maximum value of cosmic hit (e-).
+    zff : float
+        Free-field thickness of CCD (m). This is the perpendicular distance 
+        that the cosmic ray travels before hitting the detector, which affects
+        the size of the cosmic ray head.  Default is 8e-6m (for Roman CGI EMCCD).
+    loc : float
+        Location parameter for Landau distribution of total electrons delivered to sensor by cosmic ray. 
+        Default is 1590e- (expected for Roman CGI EMCCD).  Together with scale 
+        below gives a rough mean of 2360e- and most probable value (MPV) of 
+        1360e-, which are the values expected for Roman CGI EMCCD at L2.  
+    scale : float
+        Scale parameter for Landau distribution of total electrons delivered to sensor by cosmic ray. 
+        Default is 550e- (for Roman CGI EMCCD).
+    oversample_factor : int
+        Factor of oversampling of cosmic Gaussian over which to bin-sum to get 
+        pixel values.  Default is 10.
 
     Returns
     -------
@@ -41,14 +60,27 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
         hits_per_frame = int(round(hits_per_second * frametime))
 
         # Generate hit locations
-        # Describe each hit as a gaussian centered at (hit_row, hit_col) and having
-        # a radius of hit_rad chosen between cr_min_radius and cr_max_radius
-        cr_min_radius = 0
-        cr_max_radius = 2
         hit_row = np.random.uniform(low=0, high=nr-1, size=hits_per_frame)
         hit_col = np.random.uniform(low=0, high=nc-1, size=hits_per_frame)
-        hit_rad = np.random.uniform(low=cr_min_radius, high=cr_max_radius,
-                                    size=hits_per_frame)
+        # Describe each hit as a Gaussian centered at (hit_row, hit_col) with a
+        # Gaussian distribution of comsic head size because of random walk through field-free section.
+        cr_sigma = zff/pixel_pitch # in pixels 
+        hit_sigma = np.abs(np.random.normal(loc=0, scale=cr_sigma, size=hits_per_frame))
+        hit_rad = 2*hit_sigma # have to truncate somewhere, and this should include most of the significant values of the Gaussian.
+        # angle of incidence on detector, theta
+        theta = np.random.uniform(low=0, high=np.pi/2, size=hits_per_frame)
+        # azimuthal orientation of cosmic ray relative to positive x (col) axis
+        phi = np.random.uniform(low=0, high=np.pi, size=hits_per_frame)
+        stretched_sigma = hit_sigma/np.cos(theta) # in pixels, radius projected onto detector
+        sigma_x = np.abs(stretched_sigma*np.cos(phi)) 
+        sigma_y = np.abs(stretched_sigma*np.sin(phi)) 
+        # number of electrons delivered to sensor follows Landau distribution 
+        total_e = landau.rvs(loc=loc, scale=scale, size=hits_per_frame)
+        # amplitude in Gaussian (regardless of its orientation)
+        # If cosmic ray near edge of image area, so be it.  Energy amount still deposited to the 
+        # detector (into shielded area), but a smaller amount delivered to pixels, which is what happens in for loop 
+        # below.
+        amplitudes = total_e/(2*np.pi*sigma_x*sigma_y) 
 
         # Create hits
         for i in range(hits_per_frame):
@@ -59,18 +91,23 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, max_val):
             max_col = min(np.ceil(hit_col[i] + hit_rad[i]).astype(int), nc-1)
             cols, rows = np.meshgrid(np.arange(min_col, max_col+1),
                                     np.arange(min_row, max_row+1))
+            # oversampled cols, rows
+            o_cols, o_rows = np.meshgrid(np.arange(min_col, max_col+1, 1/oversample_factor),
+                                    np.arange(min_row, max_row+1, 1/oversample_factor)) 
+            # Create elliptic Gaussian for cosmic ray head
+            cosm_section = rot_gauss_spot(o_cols, o_rows, A=amplitudes[i]/(oversample_factor**2), 
+                                          x0=hit_col[i], y0=hit_row[i], sx=sigma_x[i], sy=sigma_y[i], theta=phi[i])
 
-            # Create gaussian
-            sigma = 0.5
-            a = 1 / (np.sqrt(2*np.pi) * sigma)
-            b = 2 * sigma**2
-            cosm_section = a * np.exp(-((rows-hit_row[i])**2 + (cols-hit_col[i])**2) / b)
-
-            # Scale by maximum value
-            cosm_section = cosm_section / np.max(cosm_section) * max_val
+            # Downsample: Sum oversampled pixels to form physical CCD pixel values
+            num_rows = max_row - min_row + 1
+            num_cols = max_col - min_col + 1
+            cosm_section_downsampled = cosm_section.reshape(
+                num_rows, oversample_factor,
+                num_cols, oversample_factor
+            ).sum(axis=(1, 3))
 
             # Add cosmic to frame
-            image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section
+            image_frame[min_row:max_row+1, min_col:max_col+1] += cosm_section_downsampled
 
     return image_frame
 
@@ -122,6 +159,7 @@ def _set_tail_val(overflow, overflow_i, i):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
+    cosmic_frame = cosmic_hits(np.zeros((1024, 1024)), cr_rate=5, frametime=1, pixel_pitch=13e-6)
     full_well_serial = 90000
 
     row = np.ones(100)

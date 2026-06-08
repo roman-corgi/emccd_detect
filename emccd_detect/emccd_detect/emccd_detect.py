@@ -32,7 +32,10 @@ except:
 
 # NOTE The EM gain register is designed so that charge beyond the serial FWC spills
 # into neighboring pixels downstream.  In addition, high EM gain can cause surface traps in 
-# the gain register, which increases the length of serial tails further.  These effects are simulated.
+# the gain register, which increases the length of serial tails further.  These effects are simulated.  
+# Partial CIC is observationally degenerate with the effect of surface traps which release a captured trap
+# many pixels downstream.  Probability of capture increases with charge packeet (probability ~1 for ~100e- or higher).
+# Small effect for low to moderate EM gains.  
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
 

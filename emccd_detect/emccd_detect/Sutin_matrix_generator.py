@@ -2,8 +2,9 @@
 """Generate random numbers according to EM gain pdfs."""
 
 import numpy as np
-from scipy import special
+from scipy import special, sparse
 from scipy.special import gammaln
+from scipy.interpolate import RegularGridInterpolator
 #from emccd_detect.partial_CIC_MLE import _LogPn, _LogGamma
 try:
     from joblib import Parallel, delayed
@@ -12,6 +13,7 @@ except:
     pass
 from partial_CIC_MLE import _LogPn, _LogGamma
 from astropy.io import fits
+from rand_em_gain import exact_gain_PDF
 import os
 
 
@@ -97,6 +99,7 @@ def interpolate_Brian_Sutin(gain, M, w, x, gain_arrays, gain_range, M_range, w_r
 
     # interpolate for each x index across gain, M, and w
     probs = np.empty(x.shape, dtype=float)
+
     for i, xi in enumerate(x):
         # extract 3D slice for this x index: shape (len(gain_range), len(M_range), len(w_range))
         data_3d = gain_arr[:, :, :, int(xi)]
@@ -117,8 +120,77 @@ def interpolate_Brian_Sutin(gain, M, w, x, gain_arrays, gain_range, M_range, w_r
 
     return probs
 
+
+def interpolate_Brian_Sutin_multi(gain, M, w, x, gain_arrays, gain_range, M_range, w_range):
+    """Interpolate precomputed Brian_Sutin probability arrays using trilinear
+    interpolation across gain, M, and w axes for all x indices simultaneously.
+    gain_arrays shape: (len(gain_range), len(M_range), len(w_range), dimension)
+    Returns probabilities for indices x (array-like) for requested gain, M, w.
+    """
+    gain_arr = np.asarray(gain_arrays)
+    gain_range = np.asarray(gain_range)
+    M_range = np.asarray(M_range)
+    w_range = np.asarray(w_range)
+
+    # bounds checks
+    if gain < gain_range.min() or gain > gain_range.max():
+        raise ValueError('gain outside provided gain_range')
+    if M < M_range.min() or M > M_range.max():
+        raise ValueError('M outside provided M_range')
+    if w < w_range.min() or w > w_range.max():
+        raise ValueError('w outside provided w_range')
+
+    x = np.asarray(x)
+    if not np.issubdtype(x.dtype, np.integer):
+        raise ValueError('x must be integer indices')
+
+    max_len = gain_arr.shape[3]
+    if x.max() >= max_len:
+        raise IndexError('Requested x exceeds stored probability length')
+
+    # Prepare grid interpolator for each x slice simultaneously by treating
+    # the first three axes as the regular grid and the last axis as separate
+    # data channels. We'll reshape to (npoints, ) for each x and evaluate at
+    # the single query point (gain, M, w).
+    # Create interpolator that returns vector values using bounds_error=True
+    grid = (gain_range, M_range, w_range)
+
+    # Preallocate output
+    probs = np.empty(x.shape, dtype=float)
+
+    # For efficiency, build interpolator for all grid points per x using
+    # RegularGridInterpolator with vector values by stacking the values along
+    # the last dimension.
+    # Reshape data to shape (len(gain_range), len(M_range), len(w_range), dimension)
+    data = gain_arr
+
+    # Create interpolator that returns a vector of length 'dimension'
+    interpolator = RegularGridInterpolator(grid, data, bounds_error=True,method='nearest')
+
+    # single query point
+    point = np.array([gain, M, w])
+    vals = interpolator(point)  # returns array of length dimension
+
+    # pick requested x indices
+    probs[:] = vals[0,x]
+
+    return probs
+
+
+
 if __name__ == '__main__':
 
+    import matplotlib.pyplot as plt
+
+    bsm = fits.open('sutin_matrix_output.fits')
+    gain_arrays = bsm[0].data[:, 0:10, 0:10, :]
+    gain_range = bsm[1].data[:10]
+    M_range = bsm[2].data[:10]
+    w_range = bsm[3].data[:10]
+    probs = interpolate_Brian_Sutin_multi(gain_range[2]+2, 357, w_range[2]-1, np.arange(0,3000), gain_arrays, gain_range, M_range, w_range)
+    exact = exact_gain_PDF(gain_range[2]+2, 357, w_range[2]-1, np.arange(0,3000))
+    gamma_arr = np.exp(_LogGamma( w_range[2]-1, gain_range[2]+2 ,np.arange(0,3000)))
+    plt.plot(np.arange(0,3000), probs);plt.plot(np.arange(0,3000), exact); plt.plot(np.arange(0,3000), gamma_arr) 
     #max matrix case is 60k x 60k matrix:  28.8GB; Output of function for this case, though, is just 480kB.
     # Total for all 1000 arrays:  480MB, which is manageable.
     #XXX gain_range = np.logspace(0,2.477,10) #Runs from 10^1 to 10^2.477 = 300 in 10 steps, giving more steps in the lower gain range.  np.linspace(2, 300, num=10) # high gain: Erlang good approximation 

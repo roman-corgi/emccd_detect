@@ -2,7 +2,7 @@
 """Generate random numbers according to EM gain pdfs."""
 
 import numpy as np
-from scipy import special, sparse
+from scipy import special
 from scipy.special import gammaln
 try:
     from emccd_detect.partial_CIC_MLE import _LogPn, _LogGamma
@@ -325,7 +325,7 @@ def _rand_pdf(n_in, em_gain, size, numel_gain_register, threshold=1e7):
 def _rand_pdf_Pn(n_in, em_gain, size, threshold=1e7):
     """Draw samples from the EM gain distribution.
     
-    Kevin Ludwick's paper reference regarding Pn:
+    paper reference regarding Pn:
     https://doi.org/10.1117/1.JATIS.11.1.018005
     """
     y = np.random.random(size) # ranges from [0,1)
@@ -475,7 +475,7 @@ def partial_CIC(array_size, em_gain, numel_gain_register, gain_CIC_Q,
     '''Computes the contribution of partial CIC (clock-induced charge generated 
     in the gain register).  
 
-    reference to Kevin Ludwick's paper regarding partial CIC:
+    reference to paper regarding partial CIC:
     https://doi.org/10.1117/1.JATIS.11.1.018005
     
     Parameters
