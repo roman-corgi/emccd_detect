@@ -16,7 +16,7 @@ try:
     from arcticpy import add_cti, CCD, ROE, TrapInstantCapture
 except:
     pass
-
+#comment
 
 
 class EMCCDDetectException(Exception):
@@ -56,10 +56,10 @@ class EMCCDDetectBase:
     numel_gain_register : int
         Number of gain register elements. For eventually modeling partial CIC.
     row_read_time : float
-        Time in seconds for each row to move into the first register (same as 
-        the time for each row to be clocked toward the register). This is used 
-        to simulate smear on the image due to clocking during the exposure to 
-        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
+        Time in seconds for each row to move into the first register (same as
+        the time for each row to be clocked toward the register). This is used
+        to simulate smear on the image due to clocking during the exposure to
+        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is
         simulated.
     """
     def __init__(
@@ -112,7 +112,7 @@ class EMCCDDetectBase:
         self.serial_roe = None
         self.serial_traps = None
         self.serial_express = None
-     
+
 
         # Placeholders for derived values
         self.mean_expected_rate = None
@@ -144,16 +144,16 @@ class EMCCDDetectBase:
             serial_roe=None,
             serial_traps=None,
             serial_express=1,
-            parallel=True, 
+            parallel=True,
             serial=True,
             **kwargs # any other arguments that arcticpy.add_cti() might accept
         ):
-            '''See arcticpy documentation for details on parameters. Any arguments 
+            '''See arcticpy documentation for details on parameters. Any arguments
             not explicitly listed here can be handed to arcticpy.add_cti() via
-            kwargs.  
-            
-            Parallel and serial CTI can each be switched on or off via the 
-            "parallel" and "serial" arguments of this function.  True means that 
+            kwargs.
+
+            Parallel and serial CTI can each be switched on or off via the
+            "parallel" and "serial" arguments of this function.  True means that
             type of CTI is simulated.  Both are True by default.'''
             # Update parameters
             self.parallel_ccd = parallel_ccd
@@ -266,22 +266,22 @@ class EMCCDDetectBase:
                                                 'negative values.')
                 if self.flat.shape != fluxmap_full.shape:
                     imaging_area_ones = np.ones_like(fluxmap_full)
-                    # Attempt to embed the flat within the 
+                    # Attempt to embed the flat within the
                     # imaging+shielded area
-                    self.flat_im = self.meta.embed_im(imaging_area_ones, 
+                    self.flat_im = self.meta.embed_im(imaging_area_ones,
                                                     'image', self.flat.copy())
                     if self.flat_im.shape != fluxmap_full.shape:
                         raise EMCCDDetectException('Master flat shape must '
                                                 'agree with shape of fluxmap.')
                     else:
                         fluxmap_full *= self.flat_im
-                else:   
+                else:
                     fluxmap_full *= self.flat
 
         # simulate smear to fluxmap
         # credit for this smearing code: Peter Williams, Tellus1, 2024
-        # XXX Technically, smearing adds electrons to each pixel, which 
-        # increases the chance of charge capture for CTI, but simulating 
+        # XXX Technically, smearing adds electrons to each pixel, which
+        # increases the chance of charge capture for CTI, but simulating
         # this small effect would require hacking arCTIc.
         smear = np.zeros_like(fluxmap_full)
         m = len(smear)
@@ -290,7 +290,7 @@ class EMCCDDetectBase:
             for i in range(r+1):
                 columnsum = columnsum + self.row_read_time*fluxmap_full[i,:]
             smear[r,:] = columnsum
-        
+
         fluxmap_full = fluxmap_full + smear/frametime
 
         # Add cosmic ray effects
@@ -341,9 +341,9 @@ class EMCCDDetectBase:
         # XXX Another place where we are fudging a little as far as the order of operations(?)
         actualized_e_full[empty_element_m] = np.random.poisson(actualized_e_full[empty_element_m]
                                                                + self.cic)
-        
-        # add serial CTI; the addition of CIC (serial and parallel) is really 
-        # *during* the addition of CTI, but this corrective effect would not be very significant 
+
+        # add serial CTI; the addition of CIC (serial and parallel) is really
+        # *during* the addition of CTI, but this corrective effect would not be very significant
         if self.serial_ccd is not None and self.serial_roe is not None and self.serial_traps is not None:
             try:
                 cti_actualized_e_full = add_cti(
@@ -527,7 +527,7 @@ class EMCCDDetectBase:
         dn = amp_ev / self.eperdn
         if hasattr(self, 'nonlin_path'):
             if self.nonlin_path is not None:
-                nonlin_factors = apply_relgains(dn, self.em_gain, 
+                nonlin_factors = apply_relgains(dn, self.em_gain,
                                                 self.nonlin_path)
                 dn *= nonlin_factors
         dn_min = 0
@@ -577,22 +577,22 @@ class EMCCDDetect(EMCCDDetectBase):
         Full path of metadata.yaml.  If None, defaults to metadata.yaml in util
         folder.
     nonlin_path : str
-        Path of nonlinearity correction file.  See doc string of 
-        nonlinearity.apply_relgains for details on the required 
-        format of the file.  If None, no application of 
+        Path of nonlinearity correction file.  See doc string of
+        nonlinearity.apply_relgains for details on the required
+        format of the file.  If None, no application of
         nonlinearity is performed.  Defaults to None.
     row_read_time : float
-        Time in seconds for each row to move into the first register (same as 
-        the time for each row to be clocked toward the register). This is used 
-        to simulate smear on the image due to clocking during the exposure to 
-        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
+        Time in seconds for each row to move into the first register (same as
+        the time for each row to be clocked toward the register). This is used
+        to simulate smear on the image due to clocking during the exposure to
+        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is
         simulated.  Defaults to 0 seconds.
     flat_path : str
         Path of master flat file.  Assumed to be a FITS file for which the flat
         data resides in the first extension HDU.  The flat is assumed to be
         of image-area shape (specified by the metadata from meta_path),
-        dark-subtracted, divided by k-gain, divided by EM gain, and desmeared. 
-        If the input is None, no application of pixel nonuniformity is 
+        dark-subtracted, divided by k-gain, divided by EM gain, and desmeared.
+        If the input is None, no application of pixel nonuniformity is
         performed.  Defaults to None.
 
     """
@@ -747,7 +747,7 @@ class EMCCDDetect(EMCCDDetectBase):
         """
         if hasattr(self, 'nonlin_path'):
             if self.nonlin_path is not None:
-                nonlin_factors = apply_relgains(frame_dn, self.em_gain, 
+                nonlin_factors = apply_relgains(frame_dn, self.em_gain,
                                                 self.nonlin_path)
                 # correct fo nonlin by dividing
                 frame_dn = frame_dn/nonlin_factors
