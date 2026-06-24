@@ -55,8 +55,8 @@ class Metadata(object):
         rows, cols, r0c0 = self._unpack_geom(key)
 
         section = frame[r0c0[0]:r0c0[0]+rows, r0c0[1]:r0c0[1]+cols]
-        if section.size == 0:
-            raise ReadMetadataException('Corners invalid')
+        # if section.size == 0:
+        #     raise ReadMetadataException('Corners invalid')
         return section
 
     def _unpack_geom(self, key):

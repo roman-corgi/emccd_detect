@@ -44,22 +44,22 @@ if __name__ == '__main__':
     nonlin_sample = Path(here, 'emccd_detect', 'util', 'nonlin_sample.csv')
     flat_path = Path(here, 'emccd_detect', 'util', 'flat_sample.fits')
     flat_path_sub = Path(here, 'emccd_detect', 'util', 'flat_sample_sub.fits')
-    
+
     # For the simplest possible use of EMCCDDetect, use its defaults
     emccd = EMCCDDetect()
 
-    # If you are using Python<=3.9, you can also apply CTI to the frame using the 
+    # If you are using Python<=3.9, you can also apply CTI to the frame using the
     # pure-Python, older version of arcticpy that was included with this emccd_detect package
-    # in its own separate folder.  
-    # If you have Python>3.9, this older version will not work. If you have the 
-    # current vesion of articpy (which is a wrapper for C++ code), you can have 
-    # any version of Python.  See (<https://github.com/jkeger/arctic>) for installation of the 
+    # in its own separate folder.
+    # If you have Python>3.9, this older version will not work. If you have the
+    # current vesion of articpy (which is a wrapper for C++ code), you can have
+    # any version of Python.  See (<https://github.com/jkeger/arctic>) for installation of the
     # newest version of arcticpy.
 
     # Below is how you could apply CTI.
     # For the old version of arcticpy, see (<https://github.com/jkeger/arcticpy/tree/row_wise/arcticpy>) for
     # details on the optional inputs to add_cti() so that you can specify
-    # something meaningful for the EMCCD you have in mind. For the newer version, 
+    # something meaningful for the EMCCD you have in mind. For the newer version,
     # see (<https://github.com/jkeger/arctic>).
     # (using "try" so that this script still runs in the case that arcticpy
     # is not viable.  In that case, running this method update_cti()
@@ -84,12 +84,13 @@ if __name__ == '__main__':
     # For more control, each of the following parameters can be specified.
     # Custom metadata path, if the user wants to use a different metadata file
     # metadata.yaml included in uttil folder:  for SCI frames for Roman CGI.
-    # metadata_eng.yaml included in uttil folder:  for ENG frames for Roman CGI, 
+    # metadata_eng.yaml included in uttil folder:  for ENG frames for Roman CGI,
     # along with a few others.
     meta_path = Path(here, 'emccd_detect', 'util', 'metadata.yaml')
+    fpn_path= Path(here, 'emccd_detect', 'util', 'FPN_map.fits')
     # Note that the defaults for full_well_serial and eperdn are specified in
-    # the metadata file.  Nonlinearity during readout can be applied.  See 
-    # nonlinearity.py for details.  
+    # the metadata file.  Nonlinearity during readout can be applied.  See
+    # nonlinearity.py for details.
     emccd = EMCCDDetect(
         em_gain=5000.,
         full_well_image=78000.,  # e-
@@ -99,7 +100,7 @@ if __name__ == '__main__':
         read_noise=110.,  # e-/pix/frame
         bias=1500.,  # e-
         qe=0.9,
-        cr_rate=0 ,#5.,  # hits/cm^2/s
+        cr_rate=0,#5.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=8.2,
         nbits=14,
@@ -107,24 +108,30 @@ if __name__ == '__main__':
         meta_path=meta_path,
         nonlin_path=nonlin_sample,
         flat_path=flat_path,
-        row_read_time=223.5e-6 # in seconds
+        row_read_time=0, #223.5e-6, # in seconds
+        fpn_path = None, #'roman', #None,
+        bias_sigma_row = 35,
+        bias_sigma_col = 35
     )
-    # To turn off the smearing effect (due to exposure during readout of rows 
+    # To turn off the smearing effect (due to exposure during readout of rows
     # that are still exposed), set row_read_time to 0.
 
-    # To retain the same output for multiple runs using the same class 
-    # instance, one can specify the same seed before each instance of creating 
+    # To retain the same output for multiple runs using the same class
+    # instance, one can specify the same seed before each instance of creating
     # a frame
     # Simulate the full frame (surround the full fluxmap with prescan, etc.).
     # The master flat should have the shape of the image area.
     np.random.seed(123)
-    sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+    full_fluxmap = np.zeros((1024,1024)).astype(float)
+    sim_full_frame = emccd.sim_full_frame(full_fluxmap, 1e-9) #frametime)
+    plt.imshow(sim_full_frame); plt.show()
     # Simulate only the fluxmap
-    # For sim_sub_frame(), you can input a master flat of the same shape as 
-    # the smaller fluxmap. 
+    # For sim_sub_frame(), you can input a master flat of the same shape as
+    # the smaller fluxmap.
     emccd.flat_path = flat_path_sub
     np.random.seed(123)
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
+    plt.imshow(sim_sub_frame); plt.show()
 
 
     # The class also has some convenience functions to help with inspecting the
@@ -140,9 +147,9 @@ if __name__ == '__main__':
     # For legacy purposes, the class can also be called from a function wrapper
     sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
 
-    ########### example with arcitcpy-specific inputs 
+    ########### example with arcitcpy-specific inputs
     # There are 2 inputs for update_cti() which are specific to how emccd_detect implements
-    # arcticpy:  serial=True turns on serial CTI, and parallel=True turns on parallel CTI. 
+    # arcticpy:  serial=True turns on serial CTI, and parallel=True turns on parallel CTI.
     # Both are True by default.
     fluxmap2 = np.zeros((70,70)) # toy fluxmap
     fluxmap2[30:40,30:40] = 200
@@ -150,7 +157,7 @@ if __name__ == '__main__':
     emccd.flat_path = None
     sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime)
     imagesc(sim_sub_frame, 'Output Sub Frame Before CTI')
-    try: 
+    try:
         emccd.update_cti(parallel_traps=[ap.TrapInstantCapture(density=1,release_timescale=1)], serial=False)
     except:
         pass

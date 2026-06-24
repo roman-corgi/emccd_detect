@@ -16,7 +16,7 @@ try:
     from arcticpy import add_cti, CCD, ROE, TrapInstantCapture
 except:
     pass
-#comment
+import matplotlib.pyplot as plt
 
 
 class EMCCDDetectException(Exception):
@@ -250,7 +250,7 @@ class EMCCDDetectBase:
         gain_counts = self.clock_serial(parallel_counts, empty_element_m)
 
         # Simulate amplifier and adc redout
-        output_dn = self.readout(gain_counts)
+        output_dn = self.readout(gain_counts.reshape(parallel_counts.shape))
 
         # Reshape from 1d to 2d
         return output_dn.reshape(actualized_e.shape)
@@ -501,11 +501,61 @@ class EMCCDDetectBase:
         after the application of EM gain.
 
         """
+        # 'roman' case for sub-frame, full frame[13:13+1024, 1088:1088+1024]
+        # self.meta['frame_rows']    self.meta['frame_cols']
+        # elif rows and cols of serial counts < frame_rows , frame_cols
+        # else:
+        #     raise EMCCDDetectException('Input fpn_path specifies an array that is bigger than the full frame.')
+
+        if hasattr(self, 'fpn_path'):
+            here = os.path.abspath(os.path.dirname(__file__))
+            if self.fpn_path is not None and not 'roman':
+                with fits.open(self.fpn_path) as hdul:
+                    self.fpn = hdul[0].data
+            elif self.fpn_path == "roman":
+                if serial_counts.shape[0] == self.meta.data['frame_rows'] and serial_counts.shape[1] == self.meta.data['frame_cols']:
+                    with fits.open(Path(here, 'util', 'FPN_map.fits')) as hdul:
+                        frame_data = hdul[0].data
+                    self.fpn = frame_data
+                elif serial_counts.shape[0] <= self.meta.data['geom']['image']['rows'] and serial_counts.shape[1] <= self.meta.data['geom']['image']['cols']:
+                    #If the area specificed by the user is not full frame then
+                    #this code cuts out a portion/the entire image area on the fpn map to apply to amp
+                    with fits.open(Path(here, 'util', 'FPN_map.fits')) as hdul:
+                        frame_data = hdul[0].data
+                    r0c0 = self.meta.data['geom']['image']['r0c0']
+                    subframe_array = frame_data[r0c0[0]:r0c0[0]+serial_counts.shape[0], r0c0[1]:r0c0[1]+serial_counts.shape[1]]
+                    self.fpn = subframe_array
+                else:
+                    raise EMCCDDetectException('Input fpn_path specifies an array that is incompatible with Roman full frame and Roman image/sub-image area.  If '
+                                               'Roman FPN pattern desired for a different frame shape, please specify your own custom filepath.')
+            elif self.fpn_path is None:
+                self.fpn = np.zeros_like(serial_counts)
+                bias_row_offset = np.random.normal(self.bias, self.bias_sigma_row, self.fpn.shape[0])
+                self.fpn += bias_row_offset[:, np.newaxis]
+                bias_col_offset = np.random.normal(0, self.bias_sigma_col, self.fpn.shape[1])
+                self.fpn += bias_col_offset[np.newaxis, :]
+            else: #exception
+                raise EMCCDDetectException('Current input for fpn_path is not one of the accepted inputs')
+        else: # just self.bias constant
+            self.fpn = self.bias
+
         # Create read noise distribution in units of electrons
         read_noise_e = self.read_noise * np.random.normal(size=serial_counts.shape)
 
         # Apply read noise and bias to counts to get output electron volts
-        amp_ev = serial_counts + read_noise_e + self.bias
+        amp_ev = serial_counts + read_noise_e + self.fpn
+
+
+
+        # with fits.open() as hdul:
+        #     fpn_maps = hdul[0].data
+        # with fits.open('placeholder') as hdul:
+        #     customefpn_path = hdul[0]._data
+
+        # if fpn is None:
+        #     actual_fpn = fpn_maps
+        # elif fpn == 'custom'
+        #     actual_fpn = customefpn_path
 
         return amp_ev
 
@@ -594,11 +644,25 @@ class EMCCDDetect(EMCCDDetectBase):
         dark-subtracted, divided by k-gain, divided by EM gain, and desmeared.
         If the input is None, no application of pixel nonuniformity is
         performed.  Defaults to None.
+    fpn_path : str
+        Inserting a FITS file that will serve as the fixed pattern noise (FPN) for the
+        image.  Assumed to be a FITS file for which the FPN data resides in
+        the first extension HDU. If it is 'roman' actomaticaly puts in roman
+        telescope fits file for FPN. If it is None then it adds horizontal and
+        vertical FPN according to a normal distribution accroding to the
+        bias_sigman_row and bias_sigman_col varibles. If it is a fits file that
+        the user specifices then it will use that file as the FPN.
+    bias_sigma_row: int
+        This number affects how large the normal distrubtion of FPN values for
+        the rows of the self.bias array.
+    bias_sigma_col: int
+        This number affects how large the normal distrubtion of FPN values for
+        the columns of the self.bias array.
 
     """
     def __init__(
         self,
-        em_gain=1.,
+        em_gain=50.,
         full_well_image=78000.,
         full_well_serial=105000.,
         dark_current=0.00031,
@@ -614,7 +678,10 @@ class EMCCDDetect(EMCCDDetectBase):
         meta_path=None,
         nonlin_path=None,
         row_read_time=0,  # seconds
-        flat_path=None
+        flat_path=None,
+        fpn_path= 'roman',
+        bias_sigma_col=35,
+        bias_sigma_row=35
     ):
         # If no metadata file path specified, default to metadata.yaml in util
         if meta_path is None:
@@ -627,6 +694,9 @@ class EMCCDDetect(EMCCDDetectBase):
 
         self.nonlin_path = nonlin_path
         self.flat_path = flat_path
+        self.fpn_path = fpn_path
+        self.bias_sigma_row = bias_sigma_row
+        self.bias_sigma_col = bias_sigma_col
 
         super().__init__(
             em_gain=em_gain,
@@ -690,7 +760,7 @@ class EMCCDDetect(EMCCDDetectBase):
         gain_counts = self.clock_serial(parallel_counts_full, empty_element_m)
 
         # Simulate amplifier and adc redout
-        output_dn = self.readout(gain_counts)
+        output_dn = self.readout(gain_counts.reshape(parallel_counts_full.shape))
 
         # Reshape from 1d to 2d
         return output_dn.reshape(parallel_counts_full.shape)
