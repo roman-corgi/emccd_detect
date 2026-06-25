@@ -100,7 +100,7 @@ if __name__ == '__main__':
         read_noise=110.,  # e-/pix/frame
         bias=1500.,  # e-
         qe=0.9,
-        cr_rate=0,#5.,  # hits/cm^2/s
+        cr_rate=5.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=8.2,
         nbits=14,
@@ -108,8 +108,8 @@ if __name__ == '__main__':
         meta_path=meta_path,
         nonlin_path=nonlin_sample,
         flat_path=flat_path,
-        row_read_time=0, #223.5e-6, # in seconds
-        fpn_path = None, #'roman', #None,
+        row_read_time=223.5e-6, # in seconds
+        fpn_path = None, #'roman', #None, #custom file
         bias_sigma_row = 35,
         bias_sigma_col = 35
     )
@@ -118,21 +118,37 @@ if __name__ == '__main__':
 
     # To retain the same output for multiple runs using the same class
     # instance, one can specify the same seed before each instance of creating
-    # a frame
+    # a frame.
     # Simulate the full frame (surround the full fluxmap with prescan, etc.).
     # The master flat should have the shape of the image area.
     np.random.seed(123)
-    full_fluxmap = np.zeros((1024,1024)).astype(float)
-    sim_full_frame = emccd.sim_full_frame(full_fluxmap, 1e-9) #frametime)
-    plt.imshow(sim_full_frame); plt.show()
+    sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+
+    # This is a showcase of just the current FPN Map
+    # If fpn_path is on None they the column and row patter will be present
+    # And if fpn_path is on 'roman' the FPN map from the roman telescope
+    # will be present
+    emccd.cic = 0
+    emccd.dark_current = 0
+    emccd.cr_rate = 0
+    test_array = np.zeros((1024,1024))
+    fpn_array = emccd.sim_full_frame(test_array, .001)
+    plt.imshow(fpn_array)
+
+    # resetting parameters
+    emccd.cic = 0.016
+    emccd.dark_current = 0.00031
+    emccd.cr_rate = 5.
     # Simulate only the fluxmap
     # For sim_sub_frame(), you can input a master flat of the same shape as
     # the smaller fluxmap.
     emccd.flat_path = flat_path_sub
     np.random.seed(123)
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
-    plt.imshow(sim_sub_frame); plt.show()
 
+
+    #TODO demonstrate sim_sub_frame Roman FPN by doing a sim_sub_frame(np.zeros(), 0); plt.imshow
+    # TODO demonstrate fpn_path=None case with default sigma values; sim_sub_frame(np.zeros(), 0); plt.imshow
 
     # The class also has some convenience functions to help with inspecting the
     # simulated frame

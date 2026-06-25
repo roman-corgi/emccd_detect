@@ -18,7 +18,6 @@ except:
     pass
 import matplotlib.pyplot as plt
 
-
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
 
@@ -250,7 +249,7 @@ class EMCCDDetectBase:
         gain_counts = self.clock_serial(parallel_counts, empty_element_m)
 
         # Simulate amplifier and adc redout
-        output_dn = self.readout(gain_counts.reshape(parallel_counts.shape))
+        output_dn = self.readout(gain_counts.reshape(parallel_counts.shape), frametime)
 
         # Reshape from 1d to 2d
         return output_dn.reshape(actualized_e.shape)
@@ -378,9 +377,9 @@ class EMCCDDetectBase:
 
         return gain_counts
 
-    def readout(self, gain_counts):
+    def readout(self, gain_counts, frametime):
         # Pass electrons through amplifier
-        amp_ev = self._amp(gain_counts)
+        amp_ev = self._amp(gain_counts, frametime)
 
         # Pass amp electron volt counts through analog to digital converter,
         # applying nonlinearity if applicable
@@ -482,13 +481,15 @@ class EMCCDDetectBase:
 
         return gain_counts
 
-    def _amp(self, serial_counts):
+    def _amp(self, serial_counts, frametime):
         """Simulate amp behavior.
 
         Parameters
         ----------
         serial_counts : array_like
             Electron counts from the serial register.
+        frametime: float
+            Frame exposure time (s).
 
         Returns
         -------
@@ -501,11 +502,7 @@ class EMCCDDetectBase:
         after the application of EM gain.
 
         """
-        # 'roman' case for sub-frame, full frame[13:13+1024, 1088:1088+1024]
-        # self.meta['frame_rows']    self.meta['frame_cols']
-        # elif rows and cols of serial counts < frame_rows , frame_cols
-        # else:
-        #     raise EMCCDDetectException('Input fpn_path specifies an array that is bigger than the full frame.')
+        old_state = np.random.get_state()
 
         if hasattr(self, 'fpn_path'):
             here = os.path.abspath(os.path.dirname(__file__))
@@ -529,6 +526,8 @@ class EMCCDDetectBase:
                     raise EMCCDDetectException('Input fpn_path specifies an array that is incompatible with Roman full frame and Roman image/sub-image area.  If '
                                                'Roman FPN pattern desired for a different frame shape, please specify your own custom filepath.')
             elif self.fpn_path is None:
+                seed2 = self.em_gain + self.bias + frametime + self.dark_current
+                np.random.default_rng(int(seed2))
                 self.fpn = np.zeros_like(serial_counts)
                 bias_row_offset = np.random.normal(self.bias, self.bias_sigma_row, self.fpn.shape[0])
                 self.fpn += bias_row_offset[:, np.newaxis]
@@ -538,6 +537,8 @@ class EMCCDDetectBase:
                 raise EMCCDDetectException('Current input for fpn_path is not one of the accepted inputs')
         else: # just self.bias constant
             self.fpn = self.bias
+
+        np.random.set_state(old_state)
 
         # Create read noise distribution in units of electrons
         read_noise_e = self.read_noise * np.random.normal(size=serial_counts.shape)
@@ -647,17 +648,23 @@ class EMCCDDetect(EMCCDDetectBase):
     fpn_path : str
         Inserting a FITS file that will serve as the fixed pattern noise (FPN) for the
         image.  Assumed to be a FITS file for which the FPN data resides in
-        the first extension HDU. If it is 'roman' actomaticaly puts in roman
-        telescope fits file for FPN. If it is None then it adds horizontal and
-        vertical FPN according to a normal distribution accroding to the
-        bias_sigman_row and bias_sigman_col varibles. If it is a fits file that
+        the primary HDU. If it is 'roman' automatically puts in Roman
+        Telescope FITS file for FPN. If it is None then it adds horizontal and
+        vertical FPN according to a normal distribution according to the
+        bias_sigman_row and bias_sigman_col varibles. If it is a FITS file that
         the user specifices then it will use that file as the FPN.
     bias_sigma_row: int
         This number affects how large the normal distrubtion of FPN values for
-        the rows of the self.bias array.
+        the rows of the self.bias array. This parameter is irrelevant if fpn_path is not None.
+        The random seed for this variable depends on gain (em_gain), voltage bias (bias), exposure time (frametime), and dark current (dark_current).
+        And if you put in the same numbers for each of the three elements you will get the same
+        FPN.
     bias_sigma_col: int
         This number affects how large the normal distrubtion of FPN values for
-        the columns of the self.bias array.
+        the columns of the self.bias array. This parameter is irrelevant if fpn_path is not None.
+        The random seed for this variable depends on gain (em_gain), voltage bias (bias), exposure time (frametime), and dark current (dark_current).
+        And if you put in the same numbers for each of the three elements you will get the same
+        FPN.
 
     """
     def __init__(
@@ -760,7 +767,7 @@ class EMCCDDetect(EMCCDDetectBase):
         gain_counts = self.clock_serial(parallel_counts_full, empty_element_m)
 
         # Simulate amplifier and adc redout
-        output_dn = self.readout(gain_counts.reshape(parallel_counts_full.shape))
+        output_dn = self.readout(gain_counts.reshape(parallel_counts_full.shape), frametime)
 
         # Reshape from 1d to 2d
         return output_dn.reshape(parallel_counts_full.shape)
