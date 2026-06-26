@@ -24,11 +24,16 @@ Journal reference:	J. Astron. Telesc. Instrum. Syst. 11(1), 018005 (2025)
 
 import numpy as np
 from scipy.special import (gamma, factorial,
-                           hyp2f1, hyp0f1, gammaln)
+                           hyp2f1, hyp0f1, gammaln, laguerre)
 from scipy.optimize import minimize, Bounds
 from scipy.interpolate import UnivariateSpline
 from astropy.io import fits
 from scipy.stats import chisquare, chi2
+
+try:
+    from emccd_detect.rand_em_gain import exact_gain_PDF
+except:
+    from rand_em_gain import exact_gain_PDF
 
 def _LogPn(n, g, x):
     '''The log of the EM gain PDF, valid for small and large gain values.  
@@ -118,9 +123,10 @@ def _PoissonPn(L, g, x):
     return out
 
 
-def _W(p, M, g, x):
-    '''The partial CIC PDF (for 0 incoming particles to the gain register.)
-    Eq. 22 of the paper.'''
+def _W(p, M, g, x, Pn=False):
+    '''The partial CIC PDF (for 0 incoming particles to the gain register),
+    Eq. 36 of the paper.  If Pn=False, the Gamma distribution 
+    is used as the PDF to calculate _W instead.'''
     x = x.astype(float)
     W =np.zeros_like(x).astype(float)
     xless1 = np.where(x<1)
@@ -129,7 +135,7 @@ def _W(p, M, g, x):
     W[xless1] = (1-p)**M
     xless0 = np.where(x<0)
     W[xless0] = 0
-    # r=1 case taken care of separately:
+    # r=1 case taken care of separately (same for Pn and Gamma):
     logw_r1 = -(Xgreat1/g**(1/M)) + np.log(((1 - p)**(-1 + M)*p)/g**(1/M))
     
     pieces = M+5
@@ -140,12 +146,24 @@ def _W(p, M, g, x):
     wsum = np.zeros((Marray.size-1, Xgreat1.size))
     for m in range(len(Marray)-1):
 
-        w = np.array([( np.exp(-(Xgreat1/g**((1 + r)/(2.*M))))*(((1 - p)**(-2 + M)
-        *p*(g**((1 + r)/(2.*M))*(1 - p)*
-            hyp2f1(1 - r,1 + Xgreat1,1,p/(g**((1 + r)/(2.*M))*(-1 + p))) +
-            p*(1 - r)*hyp2f1(2 - r,2 + Xgreat1,2,p/
-                                (g**((1 + r)/(2.*M))*(-1 + p)))))/
-        g**((1 + r)/M))) for r in range(Marray[m], Marray[m+1])])
+        if Pn:
+            w = np.array([( np.exp(-(Xgreat1/g**((1 + r)/(2.*M))))*(((1 - p)**(-2 + M)
+            *p*(g**((1 + r)/(2.*M))*(1 - p)*
+                hyp2f1(1 - r,1 + Xgreat1,1,p/(g**((1 + r)/(2.*M))*(-1 + p))) +
+                p*(1 - r)*hyp2f1(2 - r,2 + Xgreat1,2,p/
+                                    (g**((1 + r)/(2.*M))*(-1 + p)))))/
+            g**((1 + r)/M))) for r in range(Marray[m], Marray[m+1])])
+        else: # using Gamma distribution, which has a PDF peak much more in line with exact Matsuo/Brian Sutin distribution 
+            # w = np.array([((1 - p)**(-1 + M)*p*laguerre(-1 + r)((p*Xgreat1)/(g**((1 + r)/(2.*M))*(-1 + p))))/
+            # (np.e**(Xgreat1/g**((1 + r)/(2.*M)))*g**((1 + r)/(2.*M))) for r in range(Marray[m], Marray[m+1])])
+            #approx form (p<<1 for 3rd order in p):
+            w = np.array([p/(np.e**(Xgreat1/g**((1 + r)/(2.*M)))*g**((1 + r)/(2.*M))) + 
+            (p**2*(-(g**((1 + r)/(2.*M))*(-1 + M)) + (-1 + r)*Xgreat1))/
+             (np.e**(Xgreat1/g**((1 + r)/(2.*M)))*g**((1 + r)/M)) + 
+            (p**3*(g**((1 + r)/M)*(-2 + M)*(-1 + M) + 
+                 ((-1 + r)*Xgreat1*(-4*g**((1 + r)/(2.*M))*(-2 + M) + (-2 + r)*Xgreat1))/2.))/
+             (2.*np.e**(Xgreat1/g**((1 + r)/(2.*M)))*g**((3*(1 + r))/(2.*M))) for r in range(Marray[m], Marray[m+1])])
+
         wsum[m] = np.sum(w, axis=0)
 
 
@@ -156,30 +174,41 @@ def _W(p, M, g, x):
     out = W 
     return out
 
-def _Wmean(p, M, g, upper):
+def _Wmean(p, M, g, upper,Pn=False):
     '''The expected mean of the partial CIC PDF.'''
     x=np.arange(1,upper)
-    Wmean = sum(x*_W(p,M,g,x)/_Wnorm(p,M,g))
+    Wmean = sum(x*_W(p,M,g,x,Pn)/_Wnorm(p,M,g,Pn))
     return Wmean
 
-def _Wstd(p, M, g, upper):
+def _Wstd(p, M, g, upper,Pn=False):
     '''The standard deviation associated with the partial CIC PDF.'''
     x=np.arange(1,upper)
-    Wpart = sum(x**2*_W(p,M,g,x)/_Wnorm(p,M,g))
-    Wmean = _Wmean(p,M,g,upper)
+    Wpart = sum(x**2*_W(p,M,g,x,Pn)/_Wnorm(p,M,g,Pn))
+    Wmean = _Wmean(p,M,g,upper,Pn)
     Wstd = np.sqrt(Wpart - Wmean**2)
     return Wstd
 
-def _Wnorm(p, M, g):
+def _Wnorm(p, M, g, Pn=False):
     '''The normalization factor for the partial CIC PDF.'''
-    _Wnorm = lambda y: _W(p, M, g, y)
-    Wnorm = _infsum(_Wnorm, 1, 1e-16, 500)
-    return Wnorm + (1-p)**M # x=0 case included
+    if Pn:
+        _Wnorm = lambda y: _W(p, M, g, y, Pn=Pn)
+        #Wnorm = _infsum(_Wnorm, 1, 1e-16, 500) #XXX
+        Wnorm = _infsum(_Wnorm, 1, 1e-6, 100)
+        return Wnorm + (1-p)**M # x=0 case included
+    else: # I found a closed form for Gamma case under the series expansion of p<<1 to 3rd order in p
+        r = np.arange(1, M)
+        _Wnorm = ((p*((-1 + np.e**g**(-(1 + r)/(2.*M)))**2*g**((1 + r)/M)*
+                   (2 + (-1 + M)*p*(-2 + (-2 + M)*p)) - 
+                  2*np.e**g**(-(1 + r)/(2.*M))*(-1 + np.e**g**(-(1 + r)/(2.*M)))*
+                   g**((1 + r)/(2.*M))*p*(-1 + (-2 + M)*p)*(-1 + r) + 
+                  (np.e**g**(-(1 + r)/(2.*M))*(1 + np.e**g**(-(1 + r)/(2.*M)))*p**2*(-2 + r)*
+                     (-1 + r))/2.))/
+                (2.*(-1 + np.e**g**(-(1 + r)/(2.*M)))**3*g**((3*(1 + r))/(2.*M))))
+        Wnorm = np.sum(_Wnorm)
+        return Wnorm + (1-p)**M # x=0 case included
 
-
-
-def _PoissonPartCICRNFFT_W(L,Q,g,M, x, l, rn, mu, xbounds=None, cut=None):
-    '''The PDF represented by Eq. 31, accounting for partial CIC.  
+def _PoissonPartCICRNFFT_W(L,Q,g,M, x, l, rn, mu, xbounds=None, cut=None, Pn=False):
+    '''The PDF represented by Eq. 23, accounting for partial CIC.  
     L is the mean of the Poisson PDF, Q is the probability of a CIC in a gain
     stage, g is the gain, M is the number of gain stages, x is the number of 
     electron counts, rn is the read noise, and mu is the mean of the normal
@@ -195,7 +224,7 @@ def _PoissonPartCICRNFFT_W(L,Q,g,M, x, l, rn, mu, xbounds=None, cut=None):
         xmax = xbounds[1]
     xrange = np.arange(xmin, xmax, sp)
 
-    PGpad = _PoissonPartCIC_W(L,Q,g,M,xrange,l)
+    PGpad = _PoissonPartCIC_W(L,Q,g,M,xrange,l,Pn)
     rnpad = np.exp(_log_rn_dist(rn,mu,xrange))
     PGfft = np.fft.fft((PGpad))
     rnfft = np.fft.fft((rnpad))
@@ -205,7 +234,7 @@ def _PoissonPartCICRNFFT_W(L,Q,g,M, x, l, rn, mu, xbounds=None, cut=None):
     if conv.min() <= 0 or np.isnan(conv.any()):
         # read noise so distinct from other dist that it doesn't register;
         # so go back to just other dist
-        conv = _PoissonPartCIC_W(L,Q,g,M,xrange,l)
+        conv = _PoissonPartCIC_W(L,Q,g,M,xrange,l,Pn)
     norm = None
     if cut is not None:
         ind = np.argmin(np.abs(xrange-cut))
@@ -221,22 +250,26 @@ def _PoissonPartCICRNFFT_W(L,Q,g,M, x, l, rn, mu, xbounds=None, cut=None):
         out[out<=0] = 0
     return out, norm 
 
-def _PoissonPartCIC_W(L, Q, g, M, x, l):
+def _PoissonPartCIC_W(L, Q, g, M, x, l, Pn=False):
     '''Composition of partial CIC + EM gain PDF with Poisson PDF (Poisson for
-    electrons in the pixels, before getting to gain register).  Eq. 28 from 
+    electrons in the pixels, before getting to gain register).  Eq. 20 from 
     the paper.  L is the mean value for the Poisson distribution, 
     Q is the probability of a CIC in a gain stage, g is the gain, M is the number
     of gain stages, x is the electron count to evaluate the PDF at, 
-    and l is the number of terms to use in the sum in Eq. 28.'''
+    and l is the number of terms to use in the sum in Eq. 20. If Pn is False,
+    the Gamma distribution is used instead.'''
     if Q <= 0 and g > 1:
-        out = _PoissonPn(L, g, x)
+        if Pn:
+            out = _PoissonPn(L, g, x)
+        else: 
+            out = np.exp(_LogPoissonGamma(L, g, x))
     elif g <= 1: # physically, p > 0 only if gain > 1
         out = np.exp(_LogPoisson(L, x))
     else:
         x = x.astype(float)
         out = np.zeros_like(x).astype(float)
 
-        Wnorm = _Wnorm(Q, M, g)
+        Wnorm = _Wnorm(Q, M, g, Pn)
         xless1 = np.where(x < 1)
         out[xless1] = np.exp(-L)*(1-Q)**M/Wnorm
 
@@ -250,12 +283,15 @@ def _PoissonPartCIC_W(L, Q, g, M, x, l):
         SUM = np.zeros_like(X).astype(float)
         sp=1
         xrange = np.arange(0, X.max()+100, sp)
-        PGpad = _W(Q,M,g,xrange)/Wnorm
+        PGpad = _W(Q,M,g,xrange,Pn=Pn)/Wnorm
         PGfft = np.fft.fft((PGpad))
         fx = np.fft.fftfreq(PGpad.shape[0])
 
         for i in range(1, l+1): # sum includes i=l
-            rnpad = np.exp(_LogPn(i,g,xrange))
+            if Pn:
+                rnpad = np.exp(_LogPn(i,g,xrange))
+            else:
+                rnpad = np.exp(_LogGamma(i,g,xrange))
             rnfft = np.fft.fft((rnpad))
             conv = np.abs(np.fft.ifft(PGfft*rnfft*np.exp(2j*np.pi*fx*(-xrange.min()*1/sp))))
             interp = UnivariateSpline(xrange, conv, s = 0, ext=3)
@@ -265,7 +301,7 @@ def _PoissonPartCIC_W(L, Q, g, M, x, l):
             else:
                 interpX[interpX<=0] = 0
             SUM = SUM + interpX*np.exp(_LogPoisson(L,np.array([i])))
-        out[xgreat0] = np.exp(-L)*_W(Q, M, g, X)/Wnorm + SUM
+        out[xgreat0] = np.exp(-L)*_W(Q, M, g, X, Pn)/Wnorm + SUM
 
     return out
 
@@ -290,11 +326,11 @@ def _log_rn_dist(rn, mu, x):
 
 def EM_gain_fit_W(frames, Nem, l, fluxe, pCIC, gain,
                 read_noise, rn_mean,
-                gmax, tol=1e-10, lthresh=0, cut=None):
+                gmax, tol=1e-10, lthresh=0, cut=None, Pn=False):
     '''Performs maximum likelihood estimation (MLE).  Finds the parameter 
     values which maximize the likelihood of the overall PDF (including partial 
     CIC) of what is read 
-    out from a EMCCD (Eq. 31 of the paper.)  The variables represented by 
+    out from a EMCCD (Eq. 23 of the paper.)  The variables represented by 
     fluxe, pCIC, gain, read_noise, and rn_mean are allowed to vary.
     
     Parameters
@@ -346,6 +382,12 @@ def EM_gain_fit_W(frames, Nem, l, fluxe, pCIC, gain,
         domain above this value and normalizes the probability over that
         region.  This is useful if part of the histogram is not useable below a
         certain count level.  Defaults to None, which means no cut is employed.
+    
+    Pn : bool, optional
+        If True, Pn will be the basis PDF used to calculate partial CIC.  
+        If False, the Erlang distribution is used instead.  Defaults to False 
+        as the peak in the Erlang PDF is closer to the peak in the exact 
+        Matsuo/Brian Sutin distribution.
     '''
     f = np.ravel(frames)
     y_vals, bin_edges = np.histogram(f, bins=int(np.round(f.max()-f.min())))
@@ -367,7 +409,7 @@ def EM_gain_fit_W(frames, Nem, l, fluxe, pCIC, gain,
     def _loglik(v):
         '''The negative of the log of the likelihood.'''
         L, p, g, rn, mu = v
-        ar, norm = _PoissonPartCICRNFFT_W(L,p,g,Nem,xv,l,rn,mu, xbounds=(x_vals.min(), x_vals.max()), cut=cut)
+        ar, norm = _PoissonPartCICRNFFT_W(L,p,g,Nem,xv,l,rn,mu, xbounds=(x_vals.min(), x_vals.max()), cut=cut, Pn=Pn)
         logar = np.log(ar)
         if cut is not None:
             logar = logar - np.log(norm)
@@ -383,7 +425,7 @@ def EM_gain_fit_W(frames, Nem, l, fluxe, pCIC, gain,
             bounds=bounds,
             tol=tol,
             )
-    out, _ = _PoissonPartCICRNFFT_W(res.x[0],res.x[1],res.x[2],Nem,xv,l,res.x[3],res.x[4],xbounds=(x_vals.min(), x_vals.max()))
+    out, _ = _PoissonPartCICRNFFT_W(res.x[0],res.x[1],res.x[2],Nem,xv,l,res.x[3],res.x[4],xbounds=(x_vals.min(), x_vals.max()), Pn=Pn)
     scale = np.sum(yv)/np.sum(out)
     chisquare_value, pvalue = chisquare(yv/scale, out)
     print('Maximum log-likelihood: ', -res.fun)
@@ -395,11 +437,11 @@ def EM_gain_fit_W(frames, Nem, l, fluxe, pCIC, gain,
 
 def EM_gain_fit_LPG_W(frames, Nem, l, fluxe, pCIC, gain,
                 read_noise, rn_mean,
-                gmax, tol=1e-10, lthresh=0, cut=None):
+                gmax, tol=1e-10, lthresh=0, cut=None, Pn=False):
     '''Performs maximum likelihood estimation (MLE).  Finds the parameter 
     values which maximize the likelihood of the overall PDF (including partial 
     CIC) of what is read 
-    out from a EMCCD (Eq. 31 of the paper.)  The variables represented by 
+    out from a EMCCD (Eq. 23 of the paper.)  The variables represented by 
     fluxe, pCIC, gain, read_noise, and rn_mean are allowed to vary.
     
     Parameters
@@ -452,6 +494,12 @@ def EM_gain_fit_LPG_W(frames, Nem, l, fluxe, pCIC, gain,
         domain above this value and normalizes the probability over that
         region.  This is useful if part of the histogram is not useable below a
         certain count level.  Defaults to None, which means no cut is employed.
+    
+    Pn : bool, optional
+        If True, Pn will be the basis PDF used to calculate partial CIC.  
+        If False, the Erlang distribution is used instead.  Defaults to False 
+        as the peak in the Erlang PDF is closer to the peak in the exact 
+        Matsuo/Brian Sutin distribution.
     '''
     f = np.ravel(frames)
     y_vals, bin_edges = np.histogram(f, bins=int(np.round(f.max()-f.min())))
@@ -474,7 +522,7 @@ def EM_gain_fit_LPG_W(frames, Nem, l, fluxe, pCIC, gain,
         '''The negative of the log of the likelihood.'''
         L, p, g = v
         ar, norm = _PoissonPartCICRNFFT_W(L,p,g,Nem,xv,l,read_noise,rn_mean,
-                                    xbounds=(x_vals.min(), x_vals.max()), cut=cut)
+                                    xbounds=(x_vals.min(), x_vals.max()), cut=cut, Pn=Pn)
         logar = np.log(ar)
         if cut is not None:
             logar = logar - np.log(norm)
@@ -491,7 +539,7 @@ def EM_gain_fit_LPG_W(frames, Nem, l, fluxe, pCIC, gain,
             tol=tol,
             )
 
-    out, _ = _PoissonPartCICRNFFT_W(res.x[0],res.x[1],res.x[2],Nem,xv,l,read_noise,rn_mean,xbounds=(x_vals.min(), x_vals.max()))
+    out, _ = _PoissonPartCICRNFFT_W(res.x[0],res.x[1],res.x[2],Nem,xv,l,read_noise,rn_mean,xbounds=(x_vals.min(), x_vals.max()), Pn=Pn)
     scale = np.sum(yv)/np.sum(out)
     chisquare_value, pvalue = chisquare(yv/scale, out)
     print('Maximum log-likelihood: ', -res.fun)
@@ -519,6 +567,56 @@ def _LogPoisson(L, x):
 
     return out
 
+
+def _Exact(n, g, x, M=604):
+    '''The exact Matso/Sutin distribution
+    for the gain PDF, where n is the number of incoming electrons to the 
+    gain register and g is the gain.'''
+    # n>=1 and integer; g>=1
+    x = x.astype(float)
+    out = np.zeros_like(x).astype(float)
+
+    xgreat1 = np.where(x >= n)
+    X = x[xgreat1]
+    if g > 1:
+        out[xgreat1] = exact_gain_PDF(g, M, n, X)
+        outinf = np.where(np.isinf(out))
+        Xinf = x[outinf]
+        # Stirling's approximation for large n
+        out[outinf] = np.exp(-(Xinf/g) - n*np.log(g) + (-1 + n)*np.log(Xinf) - \
+                    (n*(-1 + np.log(n)) - np.log(n)/2 + np.log(2*np.pi)/2))
+
+    xlessn = np.where(x < n)
+    # there is analytic normalization we could apply, but it doesn't affect
+    # the MLE process: as long as it's all 1 or less, and it is
+    out[xlessn] = 0
+
+    return out
+
+def _LogExact(n, g, x, M=604):
+    '''The log of the exact Matso/Sutin distribution
+    for the gain PDF, where n is the number of incoming electrons to the 
+    gain register and g is the gain.'''
+    # n>=1 and integer; g>=1
+    x = x.astype(float)
+    out = np.zeros_like(x).astype(float)
+
+    xgreat1 = np.where(x >= n)
+    X = x[xgreat1]
+    if g > 1:
+        out[xgreat1] = np.log(exact_gain_PDF(g, M, n, X))
+        outinf = np.where(np.isinf(out))
+        Xinf = x[outinf]
+        # Stirling's approximation for large n
+        out[outinf] = -(Xinf/g) - n*np.log(g) + (-1 + n)*np.log(Xinf) - \
+                    (n*(-1 + np.log(n)) - np.log(n)/2 + np.log(2*np.pi)/2)
+
+    xlessn = np.where(x < n)
+    # there is analytic normalization we could apply, but it doesn't affect
+    # the MLE process: as long as it's all 1 or less, and it is
+    out[xlessn] = -np.inf # log(0)
+
+    return out
 
 def _LogGamma(n, g, x):
     '''The log of the Gamma distribution for integer n (Erlang distribution) 
@@ -551,7 +649,7 @@ def _LogGamma(n, g, x):
 def _LogPoissonGamma(L, g, x): 
     '''The log of the composition of the Poisson distribution with the 
     Erlang distribution, where L is the mean of the Poisson distribution and 
-    g is the gain.  This is the log of Eq. 29.'''
+    g is the gain.  This is the log of Eq. 20.'''
     x = x.astype(float)
     out = np.zeros_like(x).astype(float)
     xless1 = np.where(x < 1)
@@ -595,6 +693,90 @@ def _LogPoissonGamma(L, g, x):
 
     return out 
 
+def _PoissonExact(L, g, x, M=604): 
+    '''The composition of the Poisson distribution with the 
+    exact gain distribution, where L is the mean of the Poisson distribution and 
+    g is the gain.  This is Eq. 20.'''
+    x = x.astype(float)
+    out = np.zeros_like(x).astype(float)
+    xless1 = np.where(x < 1)
+    xless0 = np.where(x < 0)
+    out[xless1] = np.exp(-L)
+
+    xgreat1 = np.where(x >= 1)
+    X = x[xgreat1]
+    if g > 1:
+        # do sum of terms a few sigma around L
+        if L>1:
+            R = np.arange(max(L-5*np.sqrt(L), 1), max(L+5*np.sqrt(L)+1, 2+1))
+        else:
+            R = np.arange(1, 5)
+        array = np.array([(_Exact(i,g,X,M)*np.exp(_LogPoisson(L,np.array([i])))) for i in R]).T
+        #logarray = np.array([(_LogExact(i,g,X,M)+_LogPoisson(L,np.array([i]))) for i in R]).T
+        
+        SUM = np.sum(array, axis=1)
+        out[xgreat1] = SUM 
+
+        # if the above didn't work, then do rough estimate:
+        # take the biggest log to represent the whole sum of
+        # logs; exp it, but we want the log for the return anyways
+        # So it's just the max log term (for the peak of the distribution)
+        # times 2*std dev (for the rough full width), then take log of that:
+        outinf2 = np.where(np.isinf(out))
+
+        Xinf2 = x[outinf2]
+        if len(Xinf2) > 0:
+            array2 = np.array([(_Exact(i,g,Xinf2,M)*np.exp(_LogPoisson(L,np.array([i])))) for i in R]).T
+            out[outinf2] = np.max(array2, axis=1)* np.exp(np.log(2) + 0.5*np.log(L))
+
+
+        out[xless0] = 0 #-np.inf # overwrites any that were written in line above
+    else:
+        out[xgreat1] = np.exp(_LogPoisson(L, X))
+
+    return out 
+
+def _LogPoissonExact(L, g, x, M=604): 
+    '''The log of the composition of the Poisson distribution with the 
+    exact gain distribution, where L is the mean of the Poisson distribution and 
+    g is the gain.  This is the log of Eq. 20.'''
+    x = x.astype(float)
+    out = np.zeros_like(x).astype(float)
+    xless1 = np.where(x < 1)
+    xless0 = np.where(x < 0)
+    out[xless1] = np.exp(-L)
+
+    xgreat1 = np.where(x >= 1)
+    X = x[xgreat1]
+    if g > 1:
+        # do sum of terms a few sigma around L
+        if L>1:
+            R = np.arange(max(L-5*np.sqrt(L), 1), max(L+5*np.sqrt(L)+1, 2+1))
+        else:
+            R = np.arange(1, 5)
+        logarray = np.array([(_LogExact(i,g,X,M)+_LogPoisson(L,np.array([i]))) for i in R]).T
+        nn = np.exp(logarray)
+        SUM = np.sum(nn, axis=1)
+        out[xgreat1] = SUM # np.log(SUM)
+
+        # if the above didn't work, then do rough estimate:
+        # take the biggest log to represent the whole sum of
+        # logs; exp it, but we want the log for the return anyways
+        # So it's just the max log term (for the peak of the distribution)
+        # times 2*std dev (for the rough full width), then take log of that:
+        outinf2 = np.where(np.isinf(out))
+
+        Xinf2 = x[outinf2]
+        if len(Xinf2) > 0:
+            logarray2 = np.array([(_LogExact(i,g,Xinf2,M)+_LogPoisson(L,np.array([i]))) for i in R]).T
+            out[outinf2] = np.max(logarray2, axis=1) + np.log(2) + 0.5*np.log(L)
+
+
+        out[xless0] = 0 #-np.inf # overwrites any that were written in line above
+    else:
+        out[xgreat1] = np.exp(_LogPoisson(L, X))
+
+    return out 
 
 def _infsum(f, T, tol=1e-6, max_count=100):
     '''Performs an approximation of a infinite sum specified by the function of
@@ -618,7 +800,7 @@ def _infsum(f, T, tol=1e-6, max_count=100):
 
 
 def _PoissonGammaConvFFT(L,g,x,rn, mu, xbounds=None):
-    '''The PDF represented by Eq. 31, leaving out partial CIC (using Eq. 29).  
+    '''The PDF represented by Eq. 23, leaving out partial CIC (using Eq. 21).  
     L is the mean of the Poisson PDF, Q is the probability of a CIC in a gain
     stage, g is the gain, M is the number of gain stages, x is the number of 
     electron counts, rn is the read noise, and mu is the mean of the normal
@@ -657,11 +839,51 @@ def _PoissonGammaConvFFT(L,g,x,rn, mu, xbounds=None):
         out[out<=0] = 0
     return out
 
+def _PoissonExactConvFFT(L,g,x,rn, mu, M=604, xbounds=None):
+    '''The PDF represented by Eq. 23, leaving out partial CIC (using Eq. 21), 
+    and using the exact Matsuo/Sutin PDF for EM gain.  
+    L is the mean of the Poisson PDF, Q is the probability of a CIC in a gain
+    stage, g is the gain, M is the number of gain stages, x is the number of 
+    electron counts, rn is the read noise, and mu is the mean of the normal
+    distribution for read noise.
+    Terms for n=1 through n=l calculated here.  
+    l >=3 should be sufficient for high-gain frames.'''
+    sp=1
+    if xbounds is None:
+        xmin = x.min() - 1000
+        xmax = x.max() + 1000
+    else:
+        xmin = xbounds[0]
+        xmax = xbounds[1]
+    xrange = np.arange(xmin, xmax, sp) 
+
+    PGpad = _PoissonExact(L,g,xrange,M=M)
+    rnpad = np.exp(_log_rn_dist(rn,mu,xrange))
+    PGfft = np.fft.fft((PGpad))
+    rnfft = np.fft.fft((rnpad))
+    fx = np.fft.fftfreq(PGpad.shape[0])
+    # include a shift to shift 0 to the min index position
+    conv = np.abs((np.fft.ifft(PGfft*rnfft*np.exp(2j*np.pi*fx*(-xrange.min()*1/sp)))))
+
+    if conv.min() <= 0 or np.isnan(conv.any()):
+        # read noise so distinct from Poisson-gamma that it doesn't register;
+        # so go back to just Poisson-gamma
+        conv = _PoissonExact(L,g,xrange,M)
+    interp = UnivariateSpline(xrange, conv, s = 0, ext=3)
+    out = interp(x)
+    #Sometimes the interpolated curve dips slightly below 0 if the curve is 
+    # close enough to 0, which is not appropriate for a PDF.  Corrected here 
+    # by setting to the first non-zero minimum.
+    if out[out>0].size > 0:
+        out[out<=0] = np.min(out[out>0])
+    else:
+        out[out<=0] = 0
+    return out
 
 def EM_gain_fit_conv(frames, fluxe, gain, gmax, rn, mu, divisor=1, tol=1e-10, lthresh=0, cut=None):
     '''Performs maximum likelihood estimation (MLE).  Finds the parameter 
     values which maximize the likelihood of the overall PDF represented by 
-    Eq. 31, leaving out partial CIC (using Eq. 29).  
+    Eq. 23, leaving out partial CIC (using Eq. 21).  
     The variables represented by fluxe and gain are allowed to vary.
     
     Parameters
@@ -759,7 +981,7 @@ def EM_gain_fit_conv(frames, fluxe, gain, gmax, rn, mu, divisor=1, tol=1e-10, lt
 def EM_gain_fit_conv_rn(frames, fluxe, gain, gmax, rn, mu, divisor=1, tol=1e-10, lthresh=0, cut=None):
     '''Performs maximum likelihood estimation (MLE).  Finds the parameter 
     values which maximize the likelihood of the overall PDF represented by 
-    Eq. 31, leaving out partial CIC (using Eq. 29).  
+    Eq. 23, leaving out partial CIC (using Eq. 21).  
     The variables represented by fluxe, gain, rn, and mu are allowed to vary.
     
     Parameters
@@ -854,6 +1076,209 @@ def EM_gain_fit_conv_rn(frames, fluxe, gain, gmax, rn, mu, divisor=1, tol=1e-10,
     return res, chisquare_value, pvalue
 
 
+def EM_exact_gain_fit_conv(frames, fluxe, gain, gmax, rn, mu, M=604, divisor=1, tol=1e-10, lthresh=0, cut=None):
+    '''Performs maximum likelihood estimation (MLE) assuming the exact PDF for 
+    EM gain from Matsuo/Sutin.  Finds the parameter 
+    values which maximize the likelihood of the overall PDF represented by 
+    Eq. 23, leaving out partial CIC (using Eq. 21).  
+    The variables represented by fluxe and gain are allowed to vary.
+    
+    Parameters
+    ----------
+    frames : array-like
+        Array containing data from a frame or frames with non-unity EM gain.
+
+    fluxe : float
+        Mean number of electrons per pixel expected to be present in frames.
+        This parameter is used as the initial guess for the mean for the
+        Poisson distribution for the optimization process.  >= 0.
+
+    gain : float
+        Initial guess for the optimization process for the EM gain applied for
+        frames.  >= 1.
+
+    gmax : float
+        Upper bound of EM gain for the MLE fit value for gain.
+
+    rn : float
+        The fixed value used for the read noise in frames.  Parameter does not
+        vary.
+
+    mu : float
+        The fixed value used for the mean of the normal 
+        distribution for the read noise.  Parameter does not vary.
+
+    M : int, optional
+        Number of gain stages.  Defaults to 604 (for Roman Telescope EXCAM).
+        
+    divisor : float, optional
+        The size of the range of integer values found in frames is divided by
+        this parameter, and the result is used as the number of bins in the
+        histogram.  Defaults to 1.
+
+    tol : float, optional
+        Tolerance used in the MLE analysis, used in scipy.optimize.minimize.
+        Defaults to 1e-16.
+
+    lthresh : float, optional
+        The minimium frequency for a histogram bin for the data from
+        frames that is used for MLE analysis.  >= 0.    
+
+    cut : float, optional
+        If the user wants to apply MLE over a subset of the domain of the
+        probability distribution, the user can specify cut, which takes the
+        domain above this value and normalizes the probability over that
+        region.  This is useful if part of the histogram is not useable below a
+        certain count level.  Defaults to None, which means no cut is employed.
+    '''
+    f = np.ravel(frames)
+    y_vals, bin_edges = np.histogram(f, bins=int(np.round((f.max()-f.min())/divisor)))
+    if divisor > 1:
+        x_vals = (bin_edges + np.roll(bin_edges, -1))/2
+    x_vals = bin_edges[:-1]
+    good_ind = np.where(y_vals > lthresh)
+    yv = y_vals[good_ind]
+    xv = x_vals[good_ind]
+    if cut is not None:
+        gind = np.where(xv > cut)
+        yv = yv[gind]
+        xv = xv[gind]
+
+    bounds = Bounds(lb=np.array([f.mean()/(2*gain), max(1+np.finfo(float).eps, gain*.5)]),
+                ub=np.array([max(2*f.mean()/gain, 1), min(gain*1.5, gmax)]))
+
+    def _loglik(v):
+        '''The negative of the log of the likelihood.'''
+        L, g = v
+        ar = _PoissonExactConvFFT(L,g,xv,rn,mu,M, xbounds=(x_vals.min(), x_vals.max()))
+        logar = np.log(ar)
+        if cut is not None:
+            norm = np.sum(_PoissonExactConvFFT(L,g,np.arange(cut,
+                x_vals.max()),rn,mu,M,xbounds=(x_vals.min(), x_vals.max())))
+            logar = logar - np.log(norm)
+        out = -np.sum(yv*logar) 
+        print('L,g:  ', L,g)
+        print('lik: ', out)
+        
+        return out
+
+
+    res = minimize(fun=_loglik,
+            x0=np.array([fluxe, gain]),
+            bounds=bounds,
+            tol=tol,
+            )
+    out = _PoissonExactConvFFT(res.x[0],res.x[1],xv,rn,mu,M,xbounds=(x_vals.min(), x_vals.max()))
+    scale = np.sum(yv)/np.sum(out)
+    chisquare_value, pvalue = chisquare(yv/scale, out)
+    print('Maximum log-likelihood: ', -res.fun)
+    print('chi square value:  ', chisquare_value, ', p value: ', pvalue)
+    print('critical chi-square value:  ', chi2.ppf(1-0.05, df=xv.max()))
+
+    return res, chisquare_value, pvalue
+
+
+def EM_exact_gain_fit_conv_rn(frames, fluxe, gain, gmax, rn, mu, M=604, divisor=1, tol=1e-10, lthresh=0, cut=None):
+    '''Performs maximum likelihood estimation (MLE) assuming the exact Matsuo/Sutin
+    PDF.  Finds the parameter 
+    values which maximize the likelihood of the overall PDF represented by 
+    Eq. 23, leaving out partial CIC (using Eq. 21).  
+    The variables represented by fluxe, gain, rn, and mu are allowed to vary.
+    
+    Parameters
+    ----------
+    frames : array-like
+        Array containing data from a frame or frames with non-unity EM gain.
+
+    fluxe : float
+        Mean number of electrons per pixel expected to be present in frames.
+        This parameter is used as the initial guess for the mean for the
+        Poisson distribution for the optimization process.  >= 0.
+
+    gain : float
+        Initial guess for the optimization process for the EM gain applied for
+        frames.  >= 1.
+
+    gmax : float
+        Upper bound of EM gain for the MLE fit value for gain.
+
+    rn : float
+        The fixed value used for the read noise in frames.  Parameter does not
+        vary.
+
+    mu : float
+        The fixed value used for the mean of the normal 
+        distribution for the read noise.  Parameter does not vary.
+    
+    M : int, optional
+            Number of gain stages.  Defaults to 604 (for Roman Telescope EXCAM).
+        
+    divisor : float, optional
+        The size of the range of integer values found in frames is divided by
+        this parameter, and the result is used as the number of bins in the
+        histogram.  Defaults to 1.
+
+    tol : float, optional
+        Tolerance used in the MLE analysis, used in scipy.optimize.minimize.
+        Defaults to 1e-16.
+
+    lthresh : float, optional
+        The minimium frequency for a histogram bin for the data from
+        frames that is used for MLE analysis.  >= 0.    
+
+    cut : float, optional
+        If the user wants to apply MLE over a subset of the domain of the
+        probability distribution, the user can specify cut, which takes the
+        domain above this value and normalizes the probability over that
+        region.  This is useful if part of the histogram is not useable below a
+        certain count level.  Defaults to None, which means no cut is employed.
+    '''
+    f = np.ravel(frames)
+    y_vals, bin_edges = np.histogram(f, bins=int(np.round((f.max()-f.min())/divisor)))
+    if divisor > 1:
+        x_vals = (bin_edges + np.roll(bin_edges, -1))/2
+    x_vals = bin_edges[:-1]
+    good_ind = np.where(y_vals > lthresh)
+    yv = y_vals[good_ind]
+    xv = x_vals[good_ind]
+    if cut is not None:
+        gind = np.where(xv > cut)
+        yv = yv[gind]
+        xv = xv[gind]
+
+    bounds = Bounds(lb=np.array([f.mean()/(2*gain), max(1+np.finfo(float).eps, gain*.5), rn*0.5, -rn*.5]),
+                ub=np.array([max(2*f.mean()/gain, 1), min(gmax, gain*1.5), rn*1.5, rn*.5]))
+
+    def _loglik(v):
+        '''The negative of the log of the likelihood.'''
+        L, g, r, m = v
+        ar = _PoissonExactConvFFT(L,g,xv,r,m, M, xbounds=(x_vals.min(), x_vals.max()))
+        logar = np.log(ar)
+        if cut is not None:
+            norm = np.sum(_PoissonExactConvFFT(L,g,np.arange(cut,
+                x_vals.max()),r,m,M,xbounds=(x_vals.min(), x_vals.max())))
+            logar = logar - np.log(norm)
+        lik_ar = yv*logar 
+        out = -np.sum(lik_ar)
+        print('lik: ', out)
+        print('L, g, r, m:  ', L, g, r, m)
+        
+        return out
+
+    res = minimize(fun=_loglik,
+            x0=np.array([fluxe, gain, rn, mu]),
+            bounds=bounds,
+            tol=tol,
+            )
+    out = _PoissonExactConvFFT(res.x[0],res.x[1],xv,res.x[2],res.x[3],M,xbounds=(x_vals.min(), x_vals.max()))
+    scale = np.sum(yv)/np.sum(out)
+    chisquare_value, pvalue = chisquare(yv/scale, out)
+    print('Maximum log-likelihood: ', -res.fun)
+    print('chi square value:  ', chisquare_value, ', p value: ', pvalue)
+    print('critical chi-square value:  ', chi2.ppf(1-0.05, df=xv.max()))
+
+    return res, chisquare_value, pvalue
+
 if __name__ == '__main__':
     
     import os
@@ -914,20 +1339,26 @@ if __name__ == '__main__':
 
     
     # gain: 5000, eperdn: 8, read noise 110, darks
-    directory = Path(here, 'data_dir')
+    #directory = Path(here, 'data_dir')
+    directory = '/Users/kevinludwick/My Drive/UAH research/partial CIC/data_dir'
+    # directory = '/Users/kevinludwick/Documents/G 10 HV 25_0 DC 3 V Light 051821 CCD 85 EDU_ACQUIRE_NIMO_CB_JPLPS_051721_SN003/subfolder' #Path(here, 'data_dir')
+    # directory = '/Users/kevinludwick/Documents/TVAC_5_6_EMgain/lowGain/g4.508999824523926'
+    directory = '/Users/kevinludwick/Documents/Guillermo_TVAC_all_darks/TVACdata_obs/Glow/t10' #g~1.34 commanded
     # gain input below shouldn't really matter since it is divided and then multiplied back in
     frames = read_in_files(directory, eperdn=8, bias_offset=0, gain=5000)
 
     # NOTE To run over the full frame used in the paper, use the line below:
-    #frames = frames[1]
+    #frames = frames[1] 
     # NOTE TO run over the 1 row used in the paper, uncomment the line below:
-    frames = frames[0,500,:]
+    #frames = frames[0,500,:]
+    # NOTE To run over the illuminated g~10 frames, uncomment the line below:
+    #frames = frames[0,250:650,200:600]
 
     s_out_ind = np.where(~np.isnan(frames))
     frames = frames[s_out_ind]
 
     # plots in the paper:
-    if True: # change to True if plots desired
+    if False: # change to True if plots desired
         import matplotlib.pyplot as plt
         x = np.arange(-750,1250)
         out, norm = _PoissonPartCICRNFFT_W(.01,0,5000,602, x, 2, 110, 0, xbounds=None, cut=None)
@@ -976,6 +1407,25 @@ if __name__ == '__main__':
         ax_inset.set_title('Logarithmic Scale')
 
         plt.show()
+
+    if False: #g~1.34
+        res0, chisquare_value0, pvalue0 = EM_exact_gain_fit_conv(frames,frames.mean()/1.34, 1.34, 5,110,0,M=604, tol=1e-10)
+        #print(res0.success, res0.x, res0.fun, chisquare_value0, pvalue0)
+        #True [2.98434067 2.        ] 7231438.553475823 23544213.47993079 0.0
+        res01, chisquare_value01, pvalue01 = EM_exact_gain_fit_conv_rn(frames,frames.mean()/1.34, 1.34, 5,110,0,M=604, tol=1e-10)
+        #False [  2.98434067   2.         110.           0.        ] 7231438.290897492 23419176.085888505 0.0
+        res02, chisquare_value02, pvalue02 = EM_gain_fit_conv(frames,frames.mean()/1.34, 1.34, 5,110,0, tol=1e-10)
+        #print(res02.success, res02.x, res02.fun, chisquare_value02, pvalue02)
+        #False [2.98434067 2.        ] 7273077.08504523 24035139.191962723 0.0
+    
+    
+    # for g~10 illuminated
+    # res0, chisquare_value0, pvalue0 = EM_exact_gain_fit_conv(frames,frames.mean()/10, 10,30,110,0,M=604, tol=1e-10)
+    # cut = 2000 for g~4.5 illuminated 
+    #res0, chisquare_value0, pvalue0 = EM_exact_gain_fit_conv(frames,frames.mean()/5, 5, 15,110,0,M=604, tol=1e-10, cut=2000)
+
+    #XXX Line below for gain=5000, exact PDF:  makes a matrix of ~52k x 52k: not enough memory on my laptop to even make a meshgrid that size
+    res0, chisquare_value0, pvalue0  = EM_exact_gain_fit_conv(frames,.008, 5000,6000,110,0,cut=-800, tol=1e-10)
 
     # No partial CIC, lambda and g (Fits 1 and 5 from paper)
     res1, chisquare_value1, pvalue1  = EM_gain_fit_conv(frames,.008, 5000,6000,110,0,cut=-800, tol=1e-10)

@@ -67,7 +67,7 @@ if __name__ == '__main__':
     try:
         emccd.update_cti()
     except:
-        pass
+        pass 
     # Simulate only the fluxmap
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
     # Simulate the full frame (surround the full fluxmap with prescan, etc.)
@@ -104,9 +104,9 @@ if __name__ == '__main__':
         dark_current=0.00031,  # e-/pix/s
         cic=0.016,  # e-/pix/frame
         read_noise=110.,  # e-/pix/frame
-        bias=1500.,  # e-
+        bias=1500.,  # e- 
         qe=0.9,
-        cr_rate=0, #5 # hits/cm^2/s
+        cr_rate=0, #5, #5 # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=8.2,
         nbits=14,
@@ -115,7 +115,8 @@ if __name__ == '__main__':
         nonlin_path=nonlin_sample,
         flat_path=flat_path,
         row_read_time=223.5e-6, # in seconds
-        threshold=0, #1e8, #XXX default value 
+        threshold=np.inf, #1e8, #XXX default value 
+        tail_length=40
     )
     # To turn off the smearing effect (due to exposure during readout of rows 
     # that are still exposed), set row_read_time to 0.

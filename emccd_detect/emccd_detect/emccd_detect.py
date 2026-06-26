@@ -103,6 +103,8 @@ class EMCCDDetectBase:
         self.cic = cic
         self.read_noise = read_noise
         self.bias = bias
+        if self.bias < self.read_noise:
+            warnings.warn('Bias is less than the read noise, so clipping of negative values may occur. Bias is usually at least a few times the read noise.')
         self.qe = qe
         self.cr_rate = cr_rate
         self.pixel_pitch = pixel_pitch
@@ -264,13 +266,22 @@ class EMCCDDetectBase:
         return output_dn.reshape(actualized_e.shape)
 
     def integrate(self, fluxmap_full, frametime, exposed_pix_m):
-
         # Add cosmic ray effects
-        # XXX Maybe change this to units of flux later
+        # XXX Maybe change this to units of flux later. 
+        # inputs to EMCCDDetect but not EMCCDDetectBase:
+        if not hasattr(self, 'zff'):
+            self.zff = 8e-6 
+        if not hasattr(self, 'loc'):
+            self.loc = 1590
+        if not hasattr(self, 'scale'):
+            self.scale = 550
+        if not hasattr(self, 'oversample_factor'):
+            self.oversample_factor = 10
         cosm_actualized_e = cosmic_hits(np.zeros_like(fluxmap_full),
                                         self.cr_rate, frametime,
-                                        self.pixel_pitch, self.full_well_image)
-
+                                        self.pixel_pitch, self.zff, self.loc,
+                                        self.scale, self.oversample_factor)
+        
         # Mask flux out of unexposed (covered) pixels
         fluxmap_full[~exposed_pix_m] = 0
         cosm_actualized_e[~exposed_pix_m] = 0
@@ -282,6 +293,41 @@ class EMCCDDetectBase:
         return actualized_e
 
     def clock_parallel(self, actualized_e):
+
+        # account for clock-induced transfer overflow (and effectively covers continuous blooming apart from clocking)
+        sat_rows, sat_cols = np.where(actualized_e > self.full_well_image)
+        clock_iteration = 0
+        #keep track of charge that spills into overscan region; if running sim_sub_frame, this charge "disappears" but would have gone into the overscan region or the next frame if no overscan exists
+        overscan_cols_accumlation = np.zeros(actualized_e.shape[1])
+        while sat_rows.size > 0 and clock_iteration < actualized_e.shape[0]:
+            # saturated pixels most likely to overspill upstream, away from read-out direction, or 0-row direction.
+            # Upstream: going toward higher rows
+            # so let p > 0.5 influence bias in that direction.  Below returns 0 or 1. #XXX let this p be an input, and if None, no vertical blooming (perhaps there's blooming protection in place)
+            spill_pixels = np.random.binomial(n=len(sat_rows), p=0.7, size=len(sat_rows))
+            spill_pixels[spill_pixels==0] = -1 # small chance of spilling downstream
+            zero_inds = np.where(sat_rows==0)
+            spill_pixels[zero_inds] = 1 # charge can only go downstream in this case as the row has gone into serial register; gates not open for serial transfer yet
+            # last row: charge could flow downstream, which would be into overscan region, which can handle it 
+            spillover_rows = sat_rows + spill_pixels
+            beyond_last_row = np.where(spillover_rows >= actualized_e.shape[0]) 
+            if beyond_last_row[0].size > 0:
+                beyond_overspill_amount = actualized_e[sat_rows[beyond_last_row], sat_cols[beyond_last_row]] - self.full_well_image
+                overscan_cols_accumlation[sat_cols][beyond_last_row] += beyond_overspill_amount
+                actualized_e[sat_rows[beyond_last_row], sat_cols[beyond_last_row]] -= beyond_overspill_amount
+                spillover_rows = np.delete(spillover_rows, beyond_last_row) # this charge flowed into overscan 
+                sat_rows = np.delete(sat_rows, beyond_last_row)
+                sat_cols = np.delete(sat_cols, beyond_last_row)
+            #XXX while loop, bounded by 1024 iterations; after 1024, if pixels still saturated, fill in overscan
+            spill_amount = actualized_e[sat_rows, sat_cols] - self.full_well_image
+            actualized_e[spillover_rows, sat_cols] += spill_amount
+            actualized_e[sat_rows, sat_cols] -= spill_amount
+            sat_rows, sat_cols = np.where(actualized_e  > self.full_well_image)
+            clock_iteration += 1
+        self.overscan_cols_accumulation = overscan_cols_accumlation # for later, to add to parallel overscan? XXX Or does this charge remain in the imaging area until "clean out" before next frame?  Does it actually appear in non-imaging area somewhere?
+
+        # Physically, some pixels in principle can arrive at serial register still saturated.
+        # Physically, CTI and clock-induced transfer overflow should happen together, but this order here is good enough (no hack of arCTIc required)
+
         # Only add CTI if update_cti has been called
         if self.parallel_ccd is not None and self.parallel_roe is not None and self.parallel_traps is not None:
             try:
@@ -311,10 +357,9 @@ class EMCCDDetectBase:
     def clock_serial(self, actualized_e_full, empty_element_m):
         # Actualize cic electrons in prescan and overscan pixels
         # XXX Another place where we are fudging a little as far as the order of operations(?)
-        actualized_e_full[empty_element_m] = np.random.poisson(actualized_e_full[empty_element_m]
+        actualized_e_full[empty_element_m] += np.random.poisson(actualized_e_full[empty_element_m]
                                                                + self.cic)
-        
-        # add serial CTI; the addition of CIC (serial and parallel) is really 
+        # add serial CTI; the addition of CIC (serial and parallel) and smear is really 
         # *during* the addition of CTI, but this corrective effect would not be very significant 
         if self.serial_ccd is not None and self.serial_roe is not None and self.serial_traps is not None:
             try:
@@ -377,7 +422,7 @@ class EMCCDDetectBase:
         frametime : float
             Frame exposure time (s).
         cosm_actualized_e : array_like
-            Electrons actualized from cosmic rays, same size as fluxmap_full (-e).
+            Electrons actualized from cosmic rays, same size as fluxmap_full (e-).
 
         Returns
         -------
@@ -392,7 +437,9 @@ class EMCCDDetectBase:
         # XXX Technically, smearing adds electrons to each pixel during 
         # parallel clocking, which increases the chance of charge capture 
         # for CTI, but simulating this small effect would require 
-        # hacking arCTIc.
+        # hacking arCTIc.  
+        # Also, smearing is from flux and thus subject to pixel response non-uniformity, 
+        # so master flat implemented after smear
         if hasattr(self, 'row_read_time'):
             smear = np.zeros_like(fluxmap_full)
             m = len(smear)
@@ -436,15 +483,14 @@ class EMCCDDetectBase:
         # Set mean expected rate (commonly referred to as lambda)
         self.mean_expected_rate = mean_phe_map + mean_noise
 
-        # Actualize electrons at the pixels
+        # Poisson process of individual photons hitting detector; CIC and dark current also 
+        # governed by Poisson process.
+        # Actualize electrons at the pixels 
         actualized_e = np.random.poisson(self.mean_expected_rate).astype(float)
 
         # Add cosmic ray effects
-        # XXX Maybe change this to units of flux later; make sure poisson nature of the hits inherently taken care of in cosmic function
+        # XXX Maybe change this to units of flux later
         actualized_e += cosm_actualized_e
-
-        # Cap at pixel full well capacity
-        actualized_e[actualized_e > self.full_well_image] = self.full_well_image
 
         return actualized_e
 
@@ -495,20 +541,23 @@ class EMCCDDetectBase:
             and hasattr(self, 'threshold'):
             if self.gain_CIC_Q is None:
                 self.gain_CIC_Q = (self.em_gain**(1/self.numel_gain_register) - 1)/10
-            partial_cic = partial_CIC(gain_counts.size, 
-                                      self.em_gain,
-                                      self.numel_gain_register, 
-                                      self.gain_CIC_Q, 
-                                      self.gain_CIC_specs,
-                                      self.threshold)
-            gain_counts = gain_counts + partial_cic
+            if self.gain_CIC_Q != 0 or self.gain_CIC_specs is not None:
+                partial_cic = partial_CIC(gain_counts.size, 
+                                        self.em_gain,
+                                        self.numel_gain_register, 
+                                        self.gain_CIC_Q, 
+                                        self.gain_CIC_specs,
+                                        self.threshold)
+                gain_counts = gain_counts + partial_cic
 
         # Simulate saturation tails
-        # Cosmic tails mainly due downstream spillover in gain register and trapping effects in gain register; 
+        # Cosmic tails mainly due to downstream spillover in gain register and trapping effects in gain register; 
         # not modeled with arCTIc, where serial register is merely clocking with
         # no EM gain(?), so we simulate these effects here.
         # The traps in the gain register are simulated in sat_tails here.
-        gain_counts = sat_tails(gain_counts, self.full_well_serial)
+        if not hasattr(self, 'tail_length'):
+            self.tail_length = 40
+        gain_counts = sat_tails(gain_counts, self.full_well_serial, self.tail_length)
 
         # Cap at full well capacity of gain register
         gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
@@ -534,7 +583,7 @@ class EMCCDDetectBase:
         after the application of EM gain.
 
         """
-        # Create read noise distribution in units of electrons
+        # Create read noise distribution in units of electrons XXX add in optional mu for mean?
         read_noise_e = self.read_noise * np.random.normal(size=serial_counts.shape)
 
         # Apply read noise and bias to counts to get output electron volts
@@ -579,7 +628,7 @@ class EMCCDDetect(EMCCDDetectBase):
     Parameters
     ----------
     em_gain : float
-        Electron multiplying gain (e-/photoelectron). Defaults to 5000.
+        Electron multiplying gain (e-/photoelectron). Defaults to 1.
     full_well_image : float
         Image area full well capacity (e-). Defaults to 78000.
     full_well_serial : float
@@ -591,11 +640,33 @@ class EMCCDDetect(EMCCDDetectBase):
     read_noise : float
         Read noise (e-/pix/frame). Defaults to 110.
     bias : float
-        Bias offset (e-). Defaults to 1500.
+        Bias offset (e-). Defaults to 1500.  Because read noise is Gaussian with 
+        a zero mean usually, negative variates are possible.  During read out,
+        a voltage bias is added as a part of the conversion to digital numbers 
+        (DN), which is 0 at minimum.  So to prevent clipping off negative values, 
+        the bias should high enough (perhaps at least a few times the read noise).
     qe : float
         Quantum efficiency. Defaults to 0.9.
     cr_rate : float
         Cosmic ray rate (hits/cm^2/s). Defaults to 0.
+    zff : float
+        Free-field thickness of CCD (m). This is the perpendicular distance 
+        that the cosmic ray travels before hitting the detector, which affects
+        the size of the cosmic ray head.  Default is 8e-6m (for Roman CGI EMCCD).
+    loc : float
+        Location parameter for Landau distribution of total electrons delivered to sensor by cosmic ray. 
+        Default is 1590e- (expected for Roman CGI EMCCD).  Together with scale 
+        below gives a rough mean of 2360e- and most probable value (MPV) of 
+        1360e-, which are the values expected for Roman CGI EMCCD at L2.  
+    scale : float
+        Scale parameter for Landau distribution of total electrons delivered to sensor by cosmic ray. 
+        Default is 550e- (for Roman CGI EMCCD).
+    oversample_factor : int
+        Factor of oversampling of cosmic Gaussian over which to bin-sum to get 
+        pixel values.  Default is 10.
+    tail_length: int
+            Desired tail length of cosmic ray.  Defaults to 40 (what is expected in flight 
+            for the Roman Telescope).
     pixel_pitch : float
         Distance between pixel centers (m). Defaults to 13e-6.
     eperdn : float
@@ -631,18 +702,18 @@ class EMCCDDetect(EMCCDDetectBase):
         Threshold for switching between methods in rand_em_gain; if number of 
         pre-gain counts * size of array is greater than this, the faster, 
         less memory-intensive method (gamma distribution) is used.  
-        Otherwise, the more accurate method (Pn) is used. 
+        Otherwise, the more accurate method is used. 
         So if threshold=0, the gamma distribution method is always used, 
-        and if threshold is very large, the Pn method is always used. 
-        Adjust as needed based on memory constraints and desired accuracy. 
-        Defaults to 1e7.
+        and if threshold is very large, the more accurate method is always used. 
+        Adjust as needed based on memory constraints and desired speed and accuracy. 
+        Defaults to 0.
     gain_CIC_Q : float or None
         Probability Q (or mean rate) of production of a clock-induced charge (CIC)
         in a given gain register stage. We call this "partial CIC". If None,
         Q=P/10 is used, where P is the probability of charge multiplication 
         for a single gain stage, and em_gain = (1+P)^numel_gain_register.  
-        Physically, Q < P. Defaults to None.  To simulate no partial CIC, let 
-        this input be 0.
+        Physically, Q < P.  To simulate no partial CIC, let this input be 0.
+        Defaults to 0 (no partial CIC simulated).
     gain_CIC_specs: dict or None
         This input supercedes gain_CIC_Q and renders the value of gain_CIC_Q 
         irrelevant.  This is used for specifying particular "hot" stages which source the 
@@ -654,7 +725,6 @@ class EMCCDDetect(EMCCDDetectBase):
         Physically, Q < P, but we only know an average P from em_gain, so a 
         "hot" stage could have Q >= P, where 
         em_gain = (1+P)^numel_gain_register. Defaults to None.
-    
 
     """
     def __init__(
@@ -668,6 +738,11 @@ class EMCCDDetect(EMCCDDetectBase):
         bias=1500.,
         qe=0.9,
         cr_rate=0.,
+        zff=8e-6,
+        loc=1590,
+        scale=550, 
+        oversample_factor=10,
+        tail_length=40,
         pixel_pitch=13e-6,
         eperdn=8.2,
         nbits=14,
@@ -676,14 +751,16 @@ class EMCCDDetect(EMCCDDetectBase):
         nonlin_path=None,
         row_read_time=0,  # seconds
         flat_path=None,
-        threshold=1e7,
-        gain_CIC_Q=None,
-        gain_CIC_specs=None
+        threshold=np.inf, #XXX 0, #1e7,
+        gain_CIC_Q=0,
+        gain_CIC_specs=None,
     ):
+        if tail_length < 0:
+            raise EMCCDDetectException('tail_length cannot be negative.')
         if row_read_time < 0:
             raise EMCCDDetectException('row_read_time must be >= 0 seconds.')
         if gain_CIC_Q is not None:
-            if gain_CIC_Q >= em_gain**(1/numel_gain_register) - 1:
+            if gain_CIC_Q > em_gain**(1/numel_gain_register) - 1:
                 raise EMCCDDetectException('gain_CIC_Q >= P, where em_gain = '
                             '(1+P)^numel_gain_register. gain_CIC_Q must be < P.')
         if gain_CIC_specs is not None:
@@ -714,6 +791,11 @@ class EMCCDDetect(EMCCDDetectBase):
         self.threshold = threshold
         self.gain_CIC_Q = gain_CIC_Q
         self.gain_CIC_specs = gain_CIC_specs
+        self.tail_length = tail_length
+        self.zff = zff
+        self.loc = loc
+        self.scale = scale
+        self.oversample_factor = oversample_factor
 
 
         super().__init__(
@@ -773,6 +855,7 @@ class EMCCDDetect(EMCCDDetectBase):
         empty_element_m = (self.meta.mask('prescan')
                            + self.meta.mask('parallel_overscan')
                            + self.meta.mask('serial_overscan'))
+        
         # Simulate serial clocking
         gain_counts = self.clock_serial(parallel_counts_full, empty_element_m)
 
@@ -836,7 +919,7 @@ class EMCCDDetect(EMCCDDetectBase):
             if self.nonlin_path is not None:
                 nonlin_factors = apply_relgains(frame_dn, self.em_gain, 
                                                 self.nonlin_path)
-                # correct fo nonlin by dividing
+                # correct for nonlin by dividing
                 frame_dn = frame_dn/nonlin_factors
         return (frame_dn * self.eperdn - self.bias) / self.em_gain
 
