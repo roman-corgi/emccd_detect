@@ -546,18 +546,6 @@ class EMCCDDetectBase:
         # Apply read noise and bias to counts to get output electron volts
         amp_ev = serial_counts + read_noise_e + self.fpn
 
-
-
-        # with fits.open() as hdul:
-        #     fpn_maps = hdul[0].data
-        # with fits.open('placeholder') as hdul:
-        #     customefpn_path = hdul[0]._data
-
-        # if fpn is None:
-        #     actual_fpn = fpn_maps
-        # elif fpn == 'custom'
-        #     actual_fpn = customefpn_path
-
         return amp_ev
 
     def _adc(self, amp_ev):
@@ -669,7 +657,7 @@ class EMCCDDetect(EMCCDDetectBase):
     """
     def __init__(
         self,
-        em_gain=50.,
+        em_gain=1.,
         full_well_image=78000.,
         full_well_serial=105000.,
         dark_current=0.00031,

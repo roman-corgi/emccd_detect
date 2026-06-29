@@ -6,8 +6,7 @@ from astropy.io import fits
 
 def test_roman_case1():
     '''
-    This test makes sure that the fpn noise is not random if you put in the same seetings
-    It also makes sure that the dark current makes the values random
+    This test makes sure that the fpn noise is not random given the same settings but dark current is
     '''
 
     detector = EMCCDDetect(fpn_path = 'roman', cic=0, read_noise = 0, dark_current=1)
