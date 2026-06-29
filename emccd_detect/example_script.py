@@ -124,18 +124,27 @@ if __name__ == '__main__':
     np.random.seed(123)
     sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
 
-    # This is a showcase of just the current FPN Map
-    # If fpn_path is on None they the column and row patter will be present
-    # And if fpn_path is on 'roman' the FPN map from the roman telescope
-    # will be present
+    # This is a showcase of the FPN map implementation
+    # If fpn_path is None they the column and row pattern will be present
+    # And if fpn_path is on 'roman' the FPN map from the roman telescope will be present
+
     emccd.cic = 0
     emccd.dark_current = 0
     emccd.cr_rate = 0
+    emccd.read_noise = 0
+    fpn_path = 'roman'
+    test_array = np.zeros((1024,1024))
+    fpn_array = emccd.sim_full_frame(test_array, .001)
+    plt.imshow(fpn_array)
+
+    fpn_path = None
     test_array = np.zeros((1024,1024))
     fpn_array = emccd.sim_full_frame(test_array, .001)
     plt.imshow(fpn_array)
 
     # resetting parameters
+    fpn_path = 'roman'
+    emccd.read_noise = 110
     emccd.cic = 0.016
     emccd.dark_current = 0.00031
     emccd.cr_rate = 5.
@@ -146,9 +155,6 @@ if __name__ == '__main__':
     np.random.seed(123)
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
 
-
-    #TODO demonstrate sim_sub_frame Roman FPN by doing a sim_sub_frame(np.zeros(), 0); plt.imshow
-    # TODO demonstrate fpn_path=None case with default sigma values; sim_sub_frame(np.zeros(), 0); plt.imshow
 
     # The class also has some convenience functions to help with inspecting the
     # simulated frame

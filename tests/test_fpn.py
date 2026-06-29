@@ -6,7 +6,8 @@ from astropy.io import fits
 
 def test_roman_case1():
     '''
-    This test makes sure that the fpn noise is not random given the same settings but dark current is
+    This test makes sure that the FPN is not random given the same settings
+    "Also tests that when other noise sources are turned on, randomized noise is present despite the same settings which would give identical FPN."
     '''
 
     detector = EMCCDDetect(fpn_path = 'roman', cic=0, read_noise = 0, dark_current=1)
@@ -42,7 +43,7 @@ def test_None_case1():
 
 def test_None_case2():
     '''
-    This test makes sure that if you put 0 in for bias_sigma_row and bias_sigma_col you should get the same number everwhere which is and should be the integer bias/8.2
+    This test makes sure that when bias_sigma_row and bias_sigma_col are 0, the resulting array is the same number everwhere which should be the integer of bias/eperdn
     '''
     detector = EMCCDDetect(fpn_path = None, cic=0, read_noise = 0, dark_current=0.0, bias_sigma_row = 0, bias_sigma_col = 0, bias = 100)
 

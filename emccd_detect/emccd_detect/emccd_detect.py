@@ -16,7 +16,6 @@ try:
     from arcticpy import add_cti, CCD, ROE, TrapInstantCapture
 except:
     pass
-import matplotlib.pyplot as plt
 
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
