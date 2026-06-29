@@ -527,7 +527,7 @@ class EMCCDDetectBase:
                                                'Roman FPN pattern desired for a different frame shape, please specify your own custom filepath.')
             elif self.fpn_path is None:
                 seed2 = self.em_gain + self.bias + frametime + self.dark_current
-                np.random.default_rng(int(seed2))
+                np.random.seed(int(seed2))
                 self.fpn = np.zeros_like(serial_counts)
                 bias_row_offset = np.random.normal(self.bias, self.bias_sigma_row, self.fpn.shape[0])
                 self.fpn += bias_row_offset[:, np.newaxis]
