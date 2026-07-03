@@ -31,6 +31,9 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
 
 
 if __name__ == '__main__':
+    import time 
+
+    start_time = time.time()
     # Set up some inputs here
     here = os.path.abspath(os.path.dirname(__file__))
     # Get fluxmap
@@ -69,9 +72,9 @@ if __name__ == '__main__':
     except:
         pass 
     # Simulate only the fluxmap
-    sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
+    #XXX sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
     # Simulate the full frame (surround the full fluxmap with prescan, etc.)
-    sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+    #XXX sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
     # to turn off CTI application to future frames made with the same class
     # instance (If arcticpy not viable, trying to run unset_cti() will not
     # work):
@@ -91,12 +94,6 @@ if __name__ == '__main__':
     # the metadata file.  Nonlinearity during readout can be applied.  See 
     # nonlinearity.py for details.  
 
-    # threshold for switching between methods in rand_em_gain; if number of pre-gain counts * size of array 
-    # is greater than this, the faster, less memory-intensive method 
-    # (gamma distribution) is used.  Otherwise, the more accurate method (Pn) is used. 
-    # So if threshold=0, the gamma distribution method is always used, and if threshold is very large, 
-    # the Pn method is always used. 
-    # Adjust as needed based on memory constraints and desired accuracy.
     emccd = EMCCDDetect(
         em_gain=5000.,
         full_well_image=78000.,  # e-
@@ -106,7 +103,7 @@ if __name__ == '__main__':
         read_noise=110.,  # e-/pix/frame
         bias=1500.,  # e- 
         qe=0.9,
-        cr_rate=0, #5, #5 # hits/cm^2/s
+        cr_rate=5, #5, #5 # hits/cm^2/s
         pixel_pitch=13e-6,  # m
         eperdn=8.2,
         nbits=14,
@@ -115,11 +112,15 @@ if __name__ == '__main__':
         nonlin_path=nonlin_sample,
         flat_path=flat_path,
         row_read_time=223.5e-6, # in seconds
-        threshold=np.inf, #1e8, #XXX default value 
-        tail_length=40
+        tail_length=40,
+        gain_CIC_Q=0.001,
+        upstream_spill_prob=0.7
     )
     # To turn off the smearing effect (due to exposure during readout of rows 
     # that are still exposed), set row_read_time to 0.
+
+    # To turn off vertical blooming (the overspill into neighboring rows from saturated pixels), set upstream_spill_prob to None.
+    # If upstream_spill_prob is < 0.5, downstream overspill is more likely instead of upstream overspill. 
 
     # To retain the same output for multiple runs using the same class 
     # instance, one can specify the same seed before each instance of creating 
@@ -127,44 +128,52 @@ if __name__ == '__main__':
     # Simulate the full frame (surround the full fluxmap with prescan, etc.).
     # The master flat should have the shape of the image area.
     np.random.seed(123)
-    sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+    #XXX sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
     # Simulate only the fluxmap
     # For sim_sub_frame(), you can input a master flat of the same shape as 
     # the smaller fluxmap. 
     emccd.flat_path = flat_path_sub
-    sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
+    #XXX sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
 
 
     # The class also has some convenience functions to help with inspecting the
     # simulated frame
     # Get a gain divided, bias subtracted frame in units of e-
-    frame_e = emccd.get_e_frame(sim_full_frame)
+    #XXX frame_e = emccd.get_e_frame(sim_full_frame)
     # Return just the 1024x1024 region of a full frame
-    image = emccd.slice_fluxmap(sim_full_frame)
+    #XXX image = emccd.slice_fluxmap(sim_full_frame)
     # Return the prescan region of a full frame
-    prescan = emccd.slice_prescan(sim_full_frame)
+    #XXX prescan = emccd.slice_prescan(sim_full_frame)
 
 
     # For legacy purposes, the class can also be called from a function wrapper
-    sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
+    #XXX sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
 
     ########### example with arcitcpy-specific inputs 
     # There are 2 inputs for update_cti() which are specific to how emccd_detect implements
     # arcticpy:  serial=True turns on serial CTI, and parallel=True turns on parallel CTI. 
     # Both are True by default.
     fluxmap2 = np.zeros((70,70)) # toy fluxmap
-    fluxmap2[30:40,30:40] = 200
+    emccd.em_gain = 5
+    fluxmap2[30:40,30:40] = 99000 # enough to saturate image area, before gain applied, so vertical blooming happens
+    # do some saturation near the edge as well
+    fluxmap2[0:2, 10:15] = 99000
+    fluxmap2[-2:, 10:15] = 99000
     # turn off the flat for this
     emccd.flat_path = None
-    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime)
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime=1)
     
     imagesc(sim_sub_frame, 'Output Sub Frame Before CTI')
     try: 
         emccd.update_cti(parallel_traps=[ap.TrapInstantCapture(density=1,release_timescale=1)], serial=False)
     except:
         pass
-    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime)
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime=1)
+
+    print('Total time for example script:  %.2f seconds' % (time.time() - start_time))
+
     imagesc(sim_sub_frame, 'Output Sub Frame After CTI')
+
 
     # Plot images
     imagesc(full_fluxmap, 'Input Fluxmap')

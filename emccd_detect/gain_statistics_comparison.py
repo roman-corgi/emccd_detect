@@ -142,7 +142,6 @@ if __name__ == '__main__':
         numel_gain_register=604,
         meta_path=meta_path,
         row_read_time=223.5e-6, # in seconds
-        threshold=np.inf, #0, #2.001e2, #1e8, #XXX default value 
         gain_CIC_Q=0.001, #0.001, #0.001, #0.001, #0
         gain_CIC_specs=None, #{200:.01,204:.01,300:.01,400:.01}, #gain_CIC_specs, #None,
     )

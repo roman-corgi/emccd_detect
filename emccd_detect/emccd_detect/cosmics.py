@@ -6,10 +6,13 @@ from scipy.stats import landau
 from scipy.special import erf, digamma
 from scipy.signal import fftconvolve
 
+# NOTE:  We do not simulate cosmic hits in the non-imaging area directly (only effects from spillover).  
+# We could implement that, but it adds very little of value for what is desired from these simulations (namely, the image area), though 
+# it could potentially affect the bias read off from prescan if lots of cosmics present there.  Would have to know serial clocking time interval as an input.
 
-# P_int = 1 - e^(-thickness/lambda_I); lambda_I = 9.6cm for tungsten, so 10mm of thickness gives Pint ~ 0.1.  So do binomial 
+# interaction probability:  P_int = 1 - e^(-thickness/lambda_I); lambda_I = 9.6cm for tungsten, so 10mm of thickness gives Pint ~ 0.1.  So do binomial 
 # with p=0.1.  Then for multiplicity of secondaries, use n_sec = Poisson(mu) with mu=1-5 (enough to bring average e- due to cosmics down to 1300e-?).
-# Deposited e- charge: N_e = LogNormal() with mean equal to half of the Landau loc used for the primary rays.
+# Deposited e- charge: N_e = LogNormal() or Poisson (i.e., so skew for tail) with mean equal to half of the Landau loc used for the primary rays.
 
 # cosmic rays coming in from front-side of back-illuminated (or front-illuminated) CCD:  
 # same effect basically for incidence from either side b/c free-field region effect about the same.  
@@ -180,6 +183,7 @@ def sat_tails(serial_frame, full_well_serial, tail_length):
     tail length of about 40 expected from surface traps in gain register.
 
     """
+    serial_frame = serial_frame.astype(float) 
     # analytic solution for scalar needed to get tail_length terms adding to 1 for 1/(2a) + 1/(3a) + ... 
     scalar = H(tail_length) - 1
     overflow = 0.
@@ -220,7 +224,7 @@ def sat_tails(serial_frame, full_well_serial, tail_length):
     return serial_frame
 
 
-def _set_tail_val(overflow, overflow_i, i):
+def _set_tail_val_old(overflow, overflow_i, i):
     # Some of excess above FWC is captured by traps in gain register, some lost to substrate
     relative_i = i+1 - overflow_i
     # Fraction of excess above FWC spread across downstream pixels is Sum(1/2**n) 

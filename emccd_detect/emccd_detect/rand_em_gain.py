@@ -12,409 +12,13 @@ try:
     from partial_CIC_MLE import _LogPn, _LogGamma
 except:
     pass
-try:
-    from joblib import Parallel, delayed
-    import multiprocessing
-except:
-    pass
-import scipy.linalg as la
 
-try:
-    from numba import njit, prange
-except:
-    pass
-
-import numpy as np
-
-import time
-
-# @njit(parallel=True, cache=True)
-# def _numba_square_upper_triangular(M):
-#     """
-#     Parallelized upper-triangular matrix squaring.
-#     Only computes elements where col >= row, cutting standard multiplications in half.
-#     """
-#     m = M.shape[0]
-#     res = np.zeros((m, m), dtype=M.dtype)
-    
-#     # Parallelize the rows across available CPU cores
-#     for r in prange(m):
-#         for c in range(r, m):
-#             total = 0.0
-#             # Inner loop only traverses the valid overlapping non-zero range
-#             for k in range(r, c + 1):
-#                 total += M[r, k] * M[k, c]
-#             res[r, c] = total
-            
-#     return res
-
-# @njit(cache=True)
-# def _numba_vector_matrix_mult(vec, M):
-#     """
-#     Optimized Vector x Upper-Triangular Matrix multiplication.
-#     Skips operations where the matrix elements are guaranteed to be zero.
-#     """
-#     m = M.shape[0]
-#     res = np.zeros(m, dtype=M.dtype)
-    
-#     for c in range(m):
-#         total = 0.0
-#         # M[r, c] is only non-zero when r <= c
-#         for r in range(c + 1):
-#             total += vec[r] * M[r, c]
-#         res[c] = total
-        
-#     return res
-
-# @njit(cache=True)
-# def fast_numba_triangular_power(A, row_idx, p):
-#     """
-#     Computes a specific row of (A^p) where A is an upper triangular matrix.
-#     Fully compiled in Numba for maximum execution speed.
-    
-#     Parameters:
-#         A (NumPy.ndarray): An n x n upper triangular matrix (float64 or float32).
-#         row_idx (int): The 0-indexed row number to compute.
-#         p (int): The large exponent power (must be >= 0).
-#     """
-#     n = A.shape[0]
-    
-#     # Base Case: Identity row if power is 0
-#     if p == 0:
-#         identity_row = np.zeros(n, dtype=A.dtype)
-#         identity_row[row_idx] = 1.0
-#         return identity_row
-
-#     # Step 1: Truncate the matrix to only the lower-right submatrix.
-#     # We copy it so we don't accidentally overwrite or mutate your original matrix.
-#     U = A[row_idx:n, row_idx:n].copy()
-#     m = U.shape[0]
-    
-#     # Step 2: Initialize the row accumulator.
-#     # In the truncated space, our target row is always index 0.
-#     row_vec = np.zeros(m, dtype=A.dtype)
-#     row_vec[0] = 1.0
-    
-#     # Step 3: Binary Exponentiation (Square-and-Multiply) Loop
-#     # This loop runs entirely in native machine code.
-#     while p > 0:
-#         if p % 2 == 1:
-#             row_vec = _numba_vector_matrix_mult(row_vec, U)
-#             #row_vec = np.dot(row_vec, U) # relies on BLAS, which is already optimized and multi-threaded in NumPy
-        
-#         # Only square U if we actually need it for the next loop iterations
-#         if p > 1:
-#             U = _numba_square_upper_triangular(U)
-            
-#         p //= 2
-
-#     # Step 4: Map the truncated result vector back to full n-dimensional space
-#     full_row = np.zeros(n, dtype=A.dtype)
-#     full_row[row_idx:] = row_vec
-    
-#     return full_row
-
-import numpy as np
-from scipy.linalg import norm
-
-import numpy as np
-
-import numpy as np
-
-def fft_convolve(a, b):
-    """Convolution via FFT (exact up to numerical precision)."""
-    n = len(a) + len(b) - 1
-    nfft = 1 << (n - 1).bit_length()
-
-    A = np.fft.rfft(a, nfft)
-    B = np.fft.rfft(b, nfft)
-
-    return np.fft.irfft(A * B, nfft)[:n]
-
-def em_stage(p, Q, kmax):
-    """
-    Apply one EM gain stage to a PMF p.
-    """
-
-    # offspring distribution for one electron
-    offspring = np.zeros(3)
-    offspring[1] = 1 - Q
-    offspring[2] = Q
-
-    # truncate inputs
-    p = p[:kmax+1]
-
-    # each electron branches independently
-    # => PGF composition corresponds to convolution powers
-
-    result = np.array([1.0])
-
-    for k, pk in enumerate(p):
-        if pk == 0:
-            continue
-
-        # k-fold convolution of offspring distribution
-        dist = offspring.copy()
-
-        for _ in range(k - 1):
-            dist = fft_convolve(dist, offspring)
-            dist = dist[:kmax+1]
-
-        result = fft_convolve(result, dist)
-        result = result[:kmax+1]
-
-    return result
-
-def emccd_pmf_fft(w, Q, N, kmax=2000):
-    """
-    Exact PMF via FFT-based branching convolution.
-    """
-
-    # initial condition: w electrons
-    p = np.zeros(kmax + 1)
-    p[w] = 1.0
-
-    for _ in range(N):
-        p = em_stage(p, Q, kmax)
-
-        # renormalize for numerical stability
-        p /= p.sum()
-
-    return p
-
-def poly_truncate(p, kmax):
-    """Keep coefficients up to kmax."""
-    return p[:kmax+1]
-
-
-def poly_compose_linear_quadratic(p, a, b, kmax):
-    """
-    Compute p(a*z + b*z^2) as a polynomial in z.
-
-    p: polynomial coefficients (PGF)
-    a, b: transform coefficients
-    """
-
-    res = np.zeros(kmax + 1)
-
-    # start with 1
-    power = np.array([1.0])
-
-    for i, coeff in enumerate(p):
-        if coeff == 0:
-            continue
-
-        # compute (a z + b z^2)^i
-        term = np.array([1.0])
-
-        for _ in range(i):
-            # multiply by (a z + b z^2)
-            new = np.zeros(len(term) + 2)
-
-            new[1:len(term)+1] += a * term
-            new[2:len(term)+2] += b * term
-
-            term = new[:kmax+1]
-
-        res[:len(term)] += coeff * term[:kmax+1]
-
-    return poly_truncate(res, kmax)
-
-
-def emccd_pgf(w, Q, N, kmax):
-    """
-    Propagate PGF through EMCCD register.
-
-    Parameters
-    ----------
-    w : int
-        input electrons
-    Q : float
-        multiplication probability per interaction
-    N : int
-        number of stages
-    kmax : int
-        truncate distribution support
-    """
-
-    # initial PGF: z^w
-    G = np.zeros(kmax + 1)
-    if w <= kmax:
-        G[w] = 1.0
-    else:
-        raise ValueError("w > kmax truncation too small")
-
-    a = 1 - Q
-    b = Q
-
-    for _ in range(N):
-        G = poly_compose_linear_quadratic(G, a, b, kmax)
-
-    # normalize (numerical safety)
-    G /= G.sum()
-
-    return G
-
-def krylov_power(V, H, beta, N):
-
-    e1 = np.zeros(H.shape[0])
-    e1[0] = 1.0
-
-    return V @ (np.linalg.matrix_power(H, N) @ (beta * e1))
-
-def arnoldi(A, b, m):
-    """
-    Arnoldi factorization
-
-    Returns
-    -------
-    V : (n,m) orthonormal basis
-    H : (m,m) Hessenberg matrix
-    """
-
-    n = A.shape[0]
-
-    V = np.zeros((n, m))
-    H = np.zeros((m, m))
-
-    V[:, 0] = b / norm(b)
-
-    for j in range(m - 1):
-
-        w = A @ V[:, j]
-
-        for i in range(j + 1):
-            H[i, j] = np.dot(V[:, i], w)
-            w -= H[i, j] * V[:, i]
-
-        H[j + 1, j] = norm(w)
-
-        if H[j + 1, j] < 1e-14:
-            return V[:, :j + 1], H[:j + 1, :j + 1]
-
-        V[:, j + 1] = w / H[j + 1, j]
-
-    # last column
-    w = A @ V[:, m - 1]
-
-    for i in range(m):
-        H[i, m - 1] = np.dot(V[:, i], w)
-
-    return V, H
-
-def fast_upper_triangular_row_power(A, row_idx, p, matrix_thresh, chunk_size):
-    """
-    Computes a specific row of (A^p) where A is an upper triangular matrix.
-    
-    Parameters:
-        A (numPy.ndarray): An n x n upper triangular matrix.
-        row_idx (int): The 0-indexed row number to compute.
-        p (int): The large exponent power (must be >= 0).
-    """
-    n = A.shape[0]
-    if p == 0:
-        identity_row = np.zeros(n, dtype=A.dtype)
-        identity_row[row_idx] = 1
-        return identity_row
-
-    # Step 1: Truncate the matrix. We only need the lower-right submatrix.
-    # It starts at (row_idx, row_idx) and goes to the bottom right corner (n, n).
-    U = A[row_idx:n, row_idx:n].copy()
-    m = U.shape[0]
-    
-    # Step 2: Initialize the target row vector.
-    # In the truncated space, our target row is the very first row (index 0).
-    # We initialize it as the identity row to accumulate the power correctly.
-    row_vec = np.zeros(m, dtype=A.dtype)
-    row_vec[0] = 1
-    
-    # Step 3: Custom Upper Triangular Matrix Squaring function
-    def square_upper_triangular(M, matrix_thresh, chunk_size):
-        # standard np.dot(M, M) computes zeros below the diagonal.
-        # For maximum speed in pure Python/NumPy, we can use a masked or 
-        # triangular-aware approach, or rely on BLAS via np.dot which is heavily 
-        # optimized. However, enforcing the upper-triangular structure explicitly
-        # eliminates numerical drift and saves memory.
-        # (For large matrices, BLAS np.dot is faster than a pure Python loop, 
-        # so we clear out the lower triangle manually to preserve structure)
-        if M.shape[0] >= matrix_thresh:
-            res = np.zeros_like(M)
-            num_proc = multiprocessing.cpu_count()
-            def parallel_matrix_mult(i):
-                if i == len(M)//chunk_size - 1:
-                    range_ar = np.arange(chunk_size*i, len(M))
-                else:
-                    range_ar = np.arange(chunk_size*i, chunk_size*(i+1)) 
-                    # res[range_ar] = np.sum(M[range_ar]*M.T, axis=1)
-                res[range_ar] = np.dot(M[range_ar],M)
-            Parallel(n_jobs=num_proc, prefer='threads')(delayed(parallel_matrix_mult)(i) for i in range(len(M)//chunk_size))
-        else:
-            res = np.dot(M, M)
-        return np.triu(res)
-
-    # Step 4: Binary Exponentiation (Square-and-Multiply) Loop
-    while p > 0:
-        if p % 2 == 1:
-            # Vector-Matrix multiplication: row_vec = row_vec @ U
-            # Because U is upper triangular, we can optimize this slightly,
-            # but a 1D @ 2D dot product in NumPy is already highly optimized.
-            row_vec = np.dot(row_vec, U)
-        
-        U = square_upper_triangular(U, matrix_thresh, chunk_size)
-        p //= 2
-
-
-    # Step 5: Map the truncated row vector back to the full n-dimensional row
-    full_row = np.zeros(n, dtype=A.dtype)
-    full_row[row_idx:] = row_vec
-    
-    return full_row
-
-def get_eigenvectors_from_eigenvalues(A, eigenvalues, max_iter=2, tol=1e-10):
-    n = A.shape[0]
-    eigenvectors = np.zeros((n, len(eigenvalues)))
-    identity = np.eye(n)
-    
-    for i, lam in enumerate(eigenvalues):
-        # 1. Shift the matrix: (A - λI)
-        shifted_A = A - lam * identity
-        
-        # 2. Add a tiny perturbation if λ is an exact eigenvalue to prevent exact singularity
-        shifted_A += identity * 1e-12 
-        
-        # 3. Compute LU Decomposition once for this eigenvalue: O(n^3)
-        lu, piv = la.lu_factor(shifted_A)
-        
-        # 4. Start with a random initial guess vector
-        x = np.random.rand(n)
-        x /= la.norm(x)
-        
-        # 5. Inverse iteration loop: O(n^2) per step
-        for _ in range(max_iter):
-            # Solve (A - λI) x_new = x
-            x_new = la.lu_solve((lu, piv), x)
-            
-            norm_x_new = la.norm(x_new)
-            if norm_x_new < tol:
-                break
-                
-            x_new /= norm_x_new
-            
-            # Check for convergence early if needed
-            if la.norm(x_new - x) < tol or la.norm(x_new + x) < tol:
-                x = x_new
-                break
-            x = x_new
-            
-        eigenvectors[:, i] = x
-        
-    return eigenvectors
 
 class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
 
-def rand_em_gain(n_in_array, em_gain, numel_gain_register, threshold):
+def rand_em_gain(n_in_array, em_gain, numel_gain_register):
     """Generate random numbers according to EM gain pdfs.
 
     Parameters
@@ -423,10 +27,6 @@ def rand_em_gain(n_in_array, em_gain, numel_gain_register, threshold):
         Array of electron values (e-).
     em_gain : float
         EM gain multiplication factor.
-    threshold : float
-        Threshold for switching between methods.  If the product of n_in and 
-        the size of the array is greater than this threshold, the faster, less memory-intensive method 
-        (gamma distribution) is used.  Otherwise, the more accurate method (Pn) is used.
 
     Returns
     -------
@@ -452,48 +52,49 @@ def rand_em_gain(n_in_array, em_gain, numel_gain_register, threshold):
     elif em_gain == 1:
         return n_in_array
     else:
-        n_out_array = _apply_gain(n_in_array, em_gain, numel_gain_register, threshold)
+        n_out_array = _apply_gain(n_in_array, em_gain, numel_gain_register)
         return n_out_array
 
-def _apply_gain(n_in_array, em_gain, numel_gain_register, threshold):
+def _apply_gain(n_in_array, em_gain, numel_gain_register):
     """Apply a specific em_gain to all nonzero n_in values."""
-    # Initialize output count array
-    n_out_array = np.zeros_like(n_in_array)
-
-    # need integer values for Pn().  Otherwise, we try to keep e- values as floats since EM gain,
+    # physically, integer values of electrons for Matsuo (Galton-Watson branching process) distribution.  
+    # Otherwise, we try to keep e- values as floats since EM gain,
     # k gain, nonlinearity, master flat, etc are calibrated assuming fractions of electrons, and 
     # we can get fractions of electrons here for particular gain values.  So we just round 
     # DN output to integer at the end.
-    
-    n_in_array = np.round(n_in_array) 
 
-    #n_out_array = _rand_pdf(np.round(n_in_array), em_gain, n_in_array, numel_gain_register, threshold=threshold) 
+    #n_out_array = _rand_pdf(np.round(n_in_array), em_gain, numel_gain_register) 
+    n_out_array = np.random.gamma(n_in_array, em_gain) #XXX this is a good approximation for large n_in_array, but not for small n_in_array; so we will use the exact distribution for small n_in_array and the gamma distribution for large n_in_array
 
-    gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) >= threshold) #XXX change?
-    not_gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) < threshold)
-    n_out_array[gamma_inds] = np.random.gamma(n_in_array[gamma_inds], em_gain)
-    # For the others, get unique nonzero n_in values
-    n_in_unique = np.unique(n_in_array[not_gamma_inds])
+    # threshold=0
+    # n_out_array = np.zeros_like(n_in_array).astype(float)
+    # gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) >= threshold) #XXX change?
+    # not_gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) < threshold)
+    # n_out_array[gamma_inds] = np.random.gamma(n_in_array[gamma_inds], em_gain)
+    # # For the others, get unique nonzero n_in values
+    # n_in_unique = np.unique(n_in_array[not_gamma_inds])
     
-    if n_in_unique.size != 0:
-        n_in_unique = n_in_unique[n_in_unique > 0]
-        # Generate random numbers according to the gain distribution for each n_in
-        for n_in in n_in_unique:                
-            inds = np.where(n_in_array == n_in)[0]
-            n_out_array[inds] = _rand_pdf(int(np.round(n_in)), em_gain, len(inds), numel_gain_register, threshold=threshold) 
+    # if n_in_unique.size != 0:
+    #     n_in_unique = n_in_unique[n_in_unique > 0]
+    #     # Generate random numbers according to the gain distribution for each n_in
+    #     for n_in in n_in_unique:                
+    #         inds = np.where(n_in_array == n_in)[0]
+    #         n_out_array[inds] = _rand_pdf(int(np.round(n_in)), em_gain, numel_gain_register) 
 
     return np.round(n_out_array)
 
 
-def _rand_pdf(n_in, em_gain, size, numel_gain_register, threshold=1e7):
+def _rand_pdf(n_in, em_gain, numel_gain_register):
     """Draw samples from the EM gain distribution assuming Matsuo's exact 
     PDF (via Brian Sutin's formulation).
     
     Brian Sutin's paper: 
     https://doi.org/10.1117/1.JATIS.9.2.028001 
     """
-    n_out = np.ones(size) * n_in #n_in.astype(int) #np.ones(size) * n_in
-    n_out = n_out.astype(int)
+    try:
+        n_out = n_in.astype(int) 
+    except:
+        n_out = int(np.round(n_in))
     rng = np.random.default_rng()
     Q = em_gain**(1/numel_gain_register) - 1
     for stage in range(numel_gain_register):
@@ -551,7 +152,8 @@ def _rand_pdf_(n_in, em_gain, size, numel_gain_register, threshold=1e7):
     return np.round(n_out)
 
 def _rand_pdf_Pn(n_in, em_gain, size, threshold=1e7):
-    """Draw samples from the EM gain distribution.
+    """Draw samples from the EM gain distribution, one that is from a model less 
+    accurate than the exact one and the Eralang distribution. 
     
     paper reference regarding Pn:
     https://doi.org/10.1117/1.JATIS.11.1.018005
@@ -597,36 +199,6 @@ def _rand_pdf_Pn(n_in, em_gain, size, threshold=1e7):
 
     return np.round(n_out)
 
-def CDFErlang_root(x, n, g, y):
-    """We use the cumulative distribution function (CDF) for the EM gain 
-    probability distribution function (PDF), approximate but appropriate for 
-    large EM gain.  This function is used to find the x value when the CDF is 
-    equal to y.  The PDF is the Erlang distribution (gamma distribution for 
-    integer-valued n), which is normalized when it is integrated.  However, 
-    since x should also be integer-valued, the sum should be used instead.  
-    In that case, there is a normalization factor dependent on g and n, but the 
-    factor is very close to 1 in general.  Since we are already approximating
-    by using this PDF, we leave off this troublesome factor, which is in terms
-    of the Hurwitz-Lerch transcendent. 
-    
-    Parameters
-    ----------
-    x : array-like (1D)
-        PDF variate values, one for each value in n array.
-    n : array-like (1D)
-        Input array of electron values (e-) before entering the gain register.
-    g: float
-        EM gain value.
-    y : float
-        Desired CDF value.
-
-    Returns
-    -------
-    array-like (1D)
-        CDF values.
-    """
-    CDF = 1 - special.gammaincc(n, x/g)
-    return CDF - y
 
 def Pn(n, g, x):
     """The probability distribution function (PDF) for the normalized EM gain, 
@@ -651,20 +223,14 @@ def Pn(n, g, x):
     Pn = np.exp(out)
     return Pn
 
-def exact_gain_PDF(gain, M, w, x, matrix_thresh=None, chunk_size=100):
+def exact_gain_PDF(gain, M, w, x):
     '''Using Brian Sutin's formulation of Matsuo, 
     a form much easier to compute.
-
-    If nmax >= matrix_thresh, a parallelized computation for matrix multiplication
-    is used instead of the more memory-intensive method of computing the whole 
-    array at once.  Defaults to 2000.
-
-    Chunk_size is the number of rows to compute at once per core (if using 
-    parallelized computation). Defaults to 100.
     
     Brian's paper:
     https://doi.org/10.1117/1.JATIS.9.2.028001
     '''
+    import time
     t = time.time()
     w = int(np.round(w))
     M = int(M)
@@ -684,48 +250,11 @@ def exact_gain_PDF(gain, M, w, x, matrix_thresh=None, chunk_size=100):
     for i in range(M):
         P = B.T @ P
 
-    # tol = 1e-4
-    # #m = np.sum(((1-Q)**np.arange(nmax+1))**604 > tol)
-    # m = int(np.round(np.log(tol)/np.log(1-Q)))
-    # m = int(nmax/10)
-    # V,H = arnoldi(B.T,P0,m)
-    # P = krylov_power(V,H,np.linalg.norm(P0),604)
-
-    # V2,H2 = arnoldi(B.T,P0,m+5)
-    # x2 = krylov_power(V2,H2,np.linalg.norm(P0),604)
-    #err = np.linalg.norm(x1-x2)/np.linalg.norm(x2)
-
-    # eigenvalues = np.diag(B)
-    # eigenvectors = get_eigenvectors_from_eigenvalues(B, eigenvalues)
-
-    # Compute eigenvalues (D) and eigenvectors (V)
-    # eigenvalues, eigenvectors = np.linalg.eig(B)
-    # Raise the diagonal entries to the power of n
-    # D_power_n = np.diag(eigenvalues ** M)
-    # # Reconstruct the final matrix: V * (D^n) * V^-1
-    # V_inv = np.linalg.inv(eigenvectors)
-    # Bpower = eigenvectors @ D_power_n @ V_inv
-
-    # matrix is traingular, so sparse.  For speed and less memory usage:
-    # sparse_B = sparse.csc_array(B)
-    # # eigenvalues, eigenvectors = sparse.linalg.eigs(sparse_B, k=7)
-    # # D_power_n = np.diag(eigenvalues ** M)
-    # # # Reconstruct the final matrix: V * (D^n) * V^-1
-    # # V_inv = sparse.linalg.inv(eigenvectors)
-    # # Bpower = eigenvectors @ D_power_n @ V_inv
-    # Bpower = sparse.linalg.matrix_power(sparse_B, M)
-    # P = P0.dot(Bpower)
-    # if matrix_thresh is None:
-    #     matrix_thresh = np.inf
-    # t = time.time()
-    # P = fast_upper_triangular_row_power(B, w, M, matrix_thresh, chunk_size)
-
-    #P = fast_numba_triangular_power(B, w, M)
     print('Time for exact_gain_PDF:', time.time() - t)
     return P[x.astype(int)]
 
 def partial_CIC(array_size, em_gain, numel_gain_register, gain_CIC_Q, 
-                gain_CIC_specs, threshold):
+                gain_CIC_specs):
     '''Computes the contribution of partial CIC (clock-induced charge generated 
     in the gain register).  
 
@@ -751,10 +280,6 @@ def partial_CIC(array_size, em_gain, numel_gain_register, gain_CIC_Q,
         integer-valued and be the number of stages until the end (e.g., 1 means 
         CIC appears in the last stage and gets clocked through that 1 gain stage),
         and the values for the dictionary should be the corresponding Q values. 
-    threshold : float
-        Threshold for switching between methods.  If the product of n_in and 
-        the size of the array is greater than this threshold, the faster, less memory-intensive method 
-        (gamma distribution) is used.  Otherwise, the more accurate method (Pn) is used.
 
     Returns
     -------
@@ -792,7 +317,7 @@ def partial_CIC(array_size, em_gain, numel_gain_register, gain_CIC_Q,
        gain = (1+P)**stage_numbers[i] 
        inds = np.where(stage_chunks[i] > 0)
        if inds[0].size > 0:
-           n_out = rand_em_gain(stage_chunks[i][inds], gain, stage_numbers[i], threshold)
+           n_out = rand_em_gain(stage_chunks[i][inds], gain, stage_numbers[i])
            partial_CIC[inds] = partial_CIC[inds] + n_out
     
     return partial_CIC
@@ -803,11 +328,11 @@ if __name__ == '__main__':
     
     if False:
         partial_cic1 = partial_CIC(array_size=100, em_gain=1000, numel_gain_register=604, 
-                                gain_CIC_Q=None, gain_CIC_specs={1:.001, 400:.09}, threshold=1e8)
+                                gain_CIC_Q=None, gain_CIC_specs={1:.001, 400:.09})
 
         Q1 = (1000**(1/604)-1)/10
         partial_cic2 = partial_CIC(array_size=100, em_gain=1000, numel_gain_register=604, 
-                                gain_CIC_Q=(.001+.09)/604, gain_CIC_specs=None, threshold=1e8)
+                                gain_CIC_Q=(.001+.09)/604, gain_CIC_specs=None)
 
         plt.figure()
         plt.hist(partial_cic1.ravel(), bins=100, histtype='stepfilled', alpha=0.7)
@@ -820,13 +345,14 @@ if __name__ == '__main__':
 
     
     #g=5000; n=1; M=604
-    g=500; n=2; M=604
+    #g=500; n=2; M=604
+    g=3; n=100; M=604
     #g=3; n=10; M=604
     #g=150; n=10; M=604
     nmax=int(g*n*4)
     x_arr = np.arange(0, nmax)
     gamma_arr = np.exp(_LogGamma(n,g,x_arr))
-    BSprob = exact_gain_PDF(gain=g, M=M, w=n, x=x_arr, chunk_size=1000)
+    BSprob = exact_gain_PDF(gain=g, M=M, w=n, x=x_arr)
     plt.plot(x_arr, BSprob, linestyle='-', label='exact Matsuo/Sutin')
     plt.plot(x_arr, Pn(n,g,x_arr), linestyle=':', label='precursor to Erlang')
     plt.plot(x_arr, gamma_arr, linestyle='--', label='Erlang')
@@ -942,7 +468,7 @@ if __name__ == '__main__':
         logpdf = (n_in-1)*np.log(x) - x/em_gain - n_in*np.log(em_gain) - special.gammaln(n_in)
         pdf = np.exp(logpdf)
 
-        # XXX This is a rough but safe solution
+        #  This is a rough but safe solution
         sum_pdf = np.sum(pdf)
         if sum_pdf == 0:
             cdf = None
@@ -951,14 +477,14 @@ if __name__ == '__main__':
 
         return cdf
 
-    def compare_stats(g, n, n_samples, max_val, num_bins, plot=False, threshold=1e7):
+    def compare_stats(g, n, n_samples, max_val, num_bins, plot=False):
 
         n_in_array = np.array([n]*n_samples)
-        old_method = rand_em_gain(n_in_array, g, 604, threshold=0) 
+        old_method = np.random.gamma(n_in_array, g) 
         #old_method = _apply_gain_old(n_in_array, g, max_val)
 
         # new method:
-        x = rand_em_gain(n_in_array, g, 604, threshold=threshold)
+        x = rand_em_gain(n_in_array, g, 604)
 
         print("For n={}, g={}:".format(n,g))
         print('Mean for old method:  ', np.mean(old_method))
@@ -995,46 +521,44 @@ if __name__ == '__main__':
     # gain since we just want an upper limit)
     def max_val(g, n):
         return g*n + 4*g*np.sqrt(2*n)
-    
-    threshold = 1e9
 
     # in original code, max_val used max(n_in_array) where that array was for
     # all serial cells; so artifically inflate by multiplying by 100
     n = 1
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
+    compare_stats(g, n, n_samples, 100*max_val(g,n), num_bins)
 
     n2 = 2
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n2, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
+    compare_stats(g, n2, n_samples, 100*max_val(g,n), num_bins)
 
     # now a value of n for which these methods differed
     n3 = 3
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n3, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
+    compare_stats(g, n3, n_samples, 100*max_val(g,n), num_bins)
 
     n4 = 40
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n4, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
+    compare_stats(g, n4, n_samples, 100*max_val(g,n), num_bins)
 
     n5 = 100
     np.random.seed(123) # for reproducibility
-    compare_stats(g, n5, n_samples, 100*max_val(g,n), num_bins, threshold=threshold)
+    compare_stats(g, n5, n_samples, 100*max_val(g,n), num_bins)
 
     n6 = 100
     g6 = 100
     np.random.seed(123) # for reproducibility
-    compare_stats(g6, n6, n_samples, 100*max_val(g6,n6), num_bins, threshold=threshold)
+    compare_stats(g6, n6, n_samples, 100*max_val(g6,n6), num_bins)
 
     n7 = 1000
     g7 = 1000
     np.random.seed(123) # for reproducibility
-    compare_stats(g7, n7, n_samples, 100*max_val(g7,n7), num_bins, threshold=threshold)
+    compare_stats(g7, n7, n_samples, 100*max_val(g7,n7), num_bins)
 
     n8 = 18000
     g8 = 5000
     np.random.seed(123) # for reproducibility
-    compare_stats(g8, n8, n_samples, 100*max_val(g8,n8), num_bins, threshold=threshold)
+    compare_stats(g8, n8, n_samples, 100*max_val(g8,n8), num_bins)
 
     #g=100;M=604;nmax=4000;w=3
     #prob = Brian_Sutin(gain=1000, M=604, nmax=4000, w=3)
