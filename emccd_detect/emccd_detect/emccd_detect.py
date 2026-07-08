@@ -259,6 +259,10 @@ class EMCCDDetectBase:
         empty_element_m = np.zeros_like(parallel_counts).astype(bool)  # No empty elements
         gain_counts = self.clock_serial(parallel_counts, empty_element_m)
 
+        # Cap at full well capacity of gain register for sim_sub_frame() since excess charge would presumably get cleaned out or placed onto 
+        # the next frame, which is not simulated here. 
+        gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
+
         # Simulate amplifier and adc redout
         output_dn = self.readout(gain_counts)
 
@@ -361,12 +365,12 @@ class EMCCDDetectBase:
 
     def clock_serial(self, actualized_e_full, empty_element_m):
         # Actualize cic electrons in prescan and overscan pixels
-        # XXX Another place where we are fudging a little as far as the order of operations(?)
+        # Another place where we are fudging a little as far as the order of operations(?)
         actualized_e_full[empty_element_m] += np.random.poisson(actualized_e_full[empty_element_m]
                                                                + self.cic)
         #XXX Could treat overspill in serial register here, separately from sat_tails() 
         # which effectively handles overspill in gain register (and maybe some/all of the effect of serial register)?
-        
+
         # add serial CTI; the addition of CIC (serial and parallel) and smear is really 
         # *during* the addition of CTI, but this corrective effect would not be very significant 
         if self.serial_ccd is not None and self.serial_roe is not None and self.serial_traps is not None:
@@ -459,7 +463,7 @@ class EMCCDDetectBase:
             # add in effect of smear
             mean_phe_map = mean_phe_map + smear 
 
-        # apply non-uniformity of pixel responsivity via master flat
+        # apply non-uniformity of pixel responsivity via master flat; includes effect of dead/poor-response pixels
         if hasattr(self, 'flat_path'): # then self.meta should exist as well
             if self.flat_path is not None:
                 with fits.open(self.flat_path) as hdul:
@@ -484,8 +488,30 @@ class EMCCDDetectBase:
         #apply QE
         mean_phe_map = mean_phe_map * self.qe
 
+        if not hasattr(self, 'hot_pixel_path'):
+            self.hot_pixel_path = None
         # Calculate mean expected rate after integrating over frametime
-        mean_dark = self.dark_current * frametime
+        if self.hot_pixel_path is not None:
+            with fits.open(self.hot_pixel_path) as hdul:
+                self.hot_pixel_map = hdul[1].data
+            if (self.hot_pixel_map < 0).any():
+                raise EMCCDDetectException('Hot pixel map must not contain '
+                                            'negative values.')
+            if self.hot_pixel_map.shape != fluxmap_full.shape:
+                imaging_area_ones = np.ones_like(fluxmap_full)
+                # Attempt to embed the hot pixel map within the 
+                # imaging+shielded area
+                self.hot_pixel_map_im = self.meta.embed_im(imaging_area_ones, 
+                                                'image', self.hot_pixel_map.copy())
+                if self.hot_pixel_map_im.shape != fluxmap_full.shape:
+                    raise EMCCDDetectException('Hot pixel map shape must '
+                                            'agree with shape of fluxmap.')
+                else:
+                    mean_dark = self.dark_current * frametime * self.hot_pixel_map_im
+            else:   
+                mean_dark = self.dark_current * frametime * self.hot_pixel_map
+        else:
+            mean_dark = self.dark_current * frametime
         mean_noise = mean_dark + self.cic
 
         # Set mean expected rate (commonly referred to as lambda)
@@ -539,10 +565,12 @@ class EMCCDDetectBase:
         # pixels at once, each marching through the gain register, and the spillover and trap release in the register 
         # is effectively performed with sat_tails() afterwards. 
         gain_counts = np.zeros_like(serial_counts)
+        if not hasattr(self, 'fast_gain_mode'):
+            self.fast_gain_mode = False # use the fully accurate method
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
             em_gain=self.em_gain, 
-            numel_gain_register=self.numel_gain_register)
+            numel_gain_register=self.numel_gain_register, fast_gain_mode=self.fast_gain_mode)
 
         # assuming partial CIC independently propagates through gain register 
         #if hasattr() for the inputs in emccdDetect but not base class
@@ -564,12 +592,9 @@ class EMCCDDetectBase:
         # The traps in the gain register are simulated in sat_tails here.
         if not hasattr(self, 'tail_length'):
             self.tail_length = 40
-        gain_counts = sat_tails(gain_counts, self.full_well_serial, self.tail_length)
+        gain_counts_tails = sat_tails(gain_counts, self.full_well_serial, self.tail_length)
 
-        # Cap at full well capacity of gain register
-        #XXX gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
-
-        return gain_counts
+        return gain_counts_tails
 
     def _amp(self, serial_counts):
         """Simulate amp behavior.
@@ -692,19 +717,35 @@ class EMCCDDetect(EMCCDDetectBase):
         nonlinearity.apply_relgains for details on the required 
         format of the file.  If None, no application of 
         nonlinearity is performed.  Defaults to None.
-    row_read_time : float
-        Time in seconds for each row to move into the first register (same as 
-        the time for each row to be clocked toward the register). This is used 
-        to simulate smear on the image due to clocking during the exposure to 
-        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
-        simulated.  Defaults to 0 seconds.
     flat_path : str
         Path of master flat file.  Assumed to be a FITS file for which the flat
         data resides in the first extension HDU.  The flat is assumed to be
         of image-area shape (specified by the metadata from meta_path),
         dark-subtracted, divided by k-gain, divided by EM gain, and desmeared. 
         If the input is None, no application of pixel nonuniformity is 
-        performed.  Defaults to None.
+        performed.  Note that dead and/or poorly performing pixels can be 
+        simulated with this input by using values much less than 1.  
+        Defaults to None.  If the input master flat is compatible with the image 
+        area, the data for the master flat is stored as self.flat_im.  If the 
+        master flat is smaller (e.g., intended for sim_sub_frame()), 
+        it is stored as self.flat.  
+    hot_pixel_path : str
+        Path of hot pixel file.  Assumed to be a FITS file for which the data 
+        resides in the first extension HDU.  The values in the files should be
+        factor of multiplication of the simulated dark_current applicable for 
+        each pixel.  Regular pixels would have a value of 1, and hot/warm 
+        pixels would have some value > 1 (though any value > 0 is allowed).   
+        If the input is None, no hot pixels are simulated.  Defaults to None.
+        If the input hot pixel map is compatible with the image 
+        area, the data for the hot pixel map is stored as self.hot_pixel_map_im.  
+        If the hot pixel map is smaller (e.g., intended for sim_sub_frame()), 
+        it is stored as self.hot_pixel_map.  
+    row_read_time : float
+        Time in seconds for each row to move into the first register (same as 
+        the time for each row to be clocked toward the register). This is used 
+        to simulate smear on the image due to clocking during the exposure to 
+        light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
+        simulated.  Defaults to 0 seconds.
     gain_CIC_Q : float or None
         Probability Q (or mean rate) of production of a clock-induced charge (CIC)
         in a given gain register stage. We call this "partial CIC". If None,
@@ -731,6 +772,11 @@ class EMCCDDetect(EMCCDDetectBase):
         If a float, it must be between 0 and 1.  If < 0.5, overspill to the row downstream is 
         more likely than upstream overspill.  Defaults to 0.7.  Upstream overspill 
         is more likely for the Roman CGI EMCCDs.
+    fast_gain_mode : bool
+        If True, a faster but less accurate method (uses Erlang/Gamma distribution for EM gain)
+        of simulating the gain register is used.  If False, a slower but more accurate method 
+        (marches each pixel through the gain register with binomial distribution) is used.
+        The fast method is quite accurate for em_gain > 200.  Defaults to False.
 
     """
     def __init__(
@@ -755,14 +801,14 @@ class EMCCDDetect(EMCCDDetectBase):
         numel_gain_register=604,
         meta_path=None,
         nonlin_path=None,
-        row_read_time=0,  # seconds
         flat_path=None,
+        hot_pixel_path=None, 
+        row_read_time=0,  # seconds
         gain_CIC_Q=0,
         gain_CIC_specs=None,
-        upstream_spill_prob=0.7
-    ):#XXX add in hot pixels by an input fits file with an array of ones except for where the hot pixels are, and the number would be the factor of multiplication of the dark current; don't worry about stuck pixels for emccd; dead pixels from input flat already
-        #XXX threshold_gain for choosing speedy method vs exact method; default to 200?
-        
+        upstream_spill_prob=0.7,
+        fast_gain_mode=False
+    ):     
         if tail_length < 0:
             raise EMCCDDetectException('tail_length cannot be negative.') 
         if row_read_time < 0:
@@ -783,7 +829,7 @@ class EMCCDDetect(EMCCDDetectBase):
             # check that the average Q < P (i.e., the mean production rate of partial CIC electrons is less than the rate for gain multiplication)
             if len(gain_CIC_specs.values()) > numel_gain_register:
                 raise EMCCDDetectException('The number of stages specified in gain_CIC_specs is more than numel_gain_register.')
-            if np.sum(list(gain_CIC_specs.values()))/numel_gain_register >= em_gain**(1/numel_gain_register) - 1:
+            if np.sum(list(gain_CIC_specs.values()))/numel_gain_register >= em_gain**(1/numel_gain_register) - 1: # won't cause problems for typical case where only a few stage values filled in
                 raise EMCCDDetectException('The average Q over all gain stages gain_CIC_specs must be < P, where em_gain = '
                         '(1+P)^numel_gain_register.')
         # If no metadata file path specified, default to metadata.yaml in util
@@ -799,6 +845,7 @@ class EMCCDDetect(EMCCDDetectBase):
         self.nonlin_path = nonlin_path
         self.row_read_time = row_read_time
         self.flat_path = flat_path
+        self.hot_pixel_path = hot_pixel_path
         self.gain_CIC_Q = gain_CIC_Q
         self.gain_CIC_specs = gain_CIC_specs
         self.tail_length = tail_length
@@ -807,6 +854,7 @@ class EMCCDDetect(EMCCDDetectBase):
         self.scale = scale
         self.oversample_factor = oversample_factor
         self.upstream_spill_prob = upstream_spill_prob
+        self.fast_gain_mode = fast_gain_mode
 
 
         super().__init__(
@@ -869,6 +917,10 @@ class EMCCDDetect(EMCCDDetectBase):
         
         # Simulate serial clocking
         gain_counts = self.clock_serial(parallel_counts_full, empty_element_m)
+
+        # Cap at full well capacity of gain register since any excess charge not cleaned out via overscan (very unlikely) would presumably be placed in
+        # the next frame, which is not simulated here. 
+        gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
 
         # Simulate amplifier and adc redout
         output_dn = self.readout(gain_counts)

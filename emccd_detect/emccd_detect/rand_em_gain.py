@@ -18,7 +18,7 @@ class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
 
-def rand_em_gain(n_in_array, em_gain, numel_gain_register):
+def rand_em_gain(n_in_array, em_gain, numel_gain_register, fast_gain_mode=False):
     """Generate random numbers according to EM gain pdfs.
 
     Parameters
@@ -27,6 +27,13 @@ def rand_em_gain(n_in_array, em_gain, numel_gain_register):
         Array of electron values (e-).
     em_gain : float
         EM gain multiplication factor.
+    numel_gain_register : int
+        Number of gain stages in the register.
+    fast_gain_mode : bool, optional
+            If True, a faster but less accurate method (uses Erlang/Gamma distribution for EM gain)
+            of simulating the gain register is used.  If False, a slower but more accurate method 
+            (marches each pixel through the gain register with binomial distribution) is used.
+            The fast method is quite accurate for em_gain > 200.  Defaults to False.
 
     Returns
     -------
@@ -52,10 +59,10 @@ def rand_em_gain(n_in_array, em_gain, numel_gain_register):
     elif em_gain == 1:
         return n_in_array
     else:
-        n_out_array = _apply_gain(n_in_array, em_gain, numel_gain_register)
+        n_out_array = _apply_gain(n_in_array, em_gain, numel_gain_register, fast_gain_mode)
         return n_out_array
 
-def _apply_gain(n_in_array, em_gain, numel_gain_register):
+def _apply_gain(n_in_array, em_gain, numel_gain_register, fast_gain_mode):
     """Apply a specific em_gain to all nonzero n_in values."""
     # physically, integer values of electrons for Matsuo (Galton-Watson branching process) distribution.  
     # Otherwise, we try to keep e- values as floats since EM gain,
@@ -63,23 +70,10 @@ def _apply_gain(n_in_array, em_gain, numel_gain_register):
     # we can get fractions of electrons here for particular gain values.  So we just round 
     # DN output to integer at the end.
 
-    #n_out_array = _rand_pdf(np.round(n_in_array), em_gain, numel_gain_register) 
-    n_out_array = np.random.gamma(n_in_array, em_gain) #XXX this is a good approximation for large n_in_array, but not for small n_in_array; so we will use the exact distribution for small n_in_array and the gamma distribution for large n_in_array
-
-    # threshold=0
-    # n_out_array = np.zeros_like(n_in_array).astype(float)
-    # gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) >= threshold) #XXX change?
-    # not_gamma_inds = np.where(n_in_array*(n_in_array*em_gain - n_in_array) < threshold)
-    # n_out_array[gamma_inds] = np.random.gamma(n_in_array[gamma_inds], em_gain)
-    # # For the others, get unique nonzero n_in values
-    # n_in_unique = np.unique(n_in_array[not_gamma_inds])
-    
-    # if n_in_unique.size != 0:
-    #     n_in_unique = n_in_unique[n_in_unique > 0]
-    #     # Generate random numbers according to the gain distribution for each n_in
-    #     for n_in in n_in_unique:                
-    #         inds = np.where(n_in_array == n_in)[0]
-    #         n_out_array[inds] = _rand_pdf(int(np.round(n_in)), em_gain, numel_gain_register) 
+    if fast_gain_mode:
+        n_out_array = np.random.gamma(n_in_array, em_gain)
+    else:
+        n_out_array = _rand_pdf(np.round(n_in_array), em_gain, numel_gain_register) 
 
     return np.round(n_out_array)
 
@@ -98,7 +92,10 @@ def _rand_pdf(n_in, em_gain, numel_gain_register):
     rng = np.random.default_rng()
     Q = em_gain**(1/numel_gain_register) - 1
     for stage in range(numel_gain_register):
-        n_out += rng.binomial(n_out, Q)
+        if stage == 100:
+            n_out += rng.binomial(n_out, 0.2)
+        else:
+            n_out += rng.binomial(n_out, Q)
         
         # # trinomial (P1 and P2):
         # t = rng.binomial(n_out, Q)

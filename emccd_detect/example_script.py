@@ -47,6 +47,8 @@ if __name__ == '__main__':
     nonlin_sample = Path(here, 'emccd_detect', 'util', 'nonlin_sample.csv')
     flat_path = Path(here, 'emccd_detect', 'util', 'flat_sample.fits')
     flat_path_sub = Path(here, 'emccd_detect', 'util', 'flat_sample_sub.fits')
+    hot_pixel = Path(here, 'emccd_detect', 'util', 'hot_pixel_sample.fits') # contains all ones except for 150 at [33,33]
+    hot_pixel_sub = Path(here, 'emccd_detect', 'util', 'hot_pixel_sample_sub.fits') # contains all ones except for 150 at [33,33]
     
     # For the simplest possible use of EMCCDDetect, use its defaults
     emccd = EMCCDDetect()
@@ -109,12 +111,14 @@ if __name__ == '__main__':
         nbits=14,
         numel_gain_register=604,
         meta_path=meta_path,
-        nonlin_path=nonlin_sample,
+        nonlin_path=nonlin_sample, 
         flat_path=flat_path,
+        hot_pixel_path=hot_pixel,
         row_read_time=223.5e-6, # in seconds
         tail_length=40,
         gain_CIC_Q=0.001,
-        upstream_spill_prob=0.7
+        upstream_spill_prob=0.7,
+        fast_gain_mode=True, # fast method is quite accurate for gain >~ 200; use False for fully accurate method
     )
     # To turn off the smearing effect (due to exposure during readout of rows 
     # that are still exposed), set row_read_time to 0.
@@ -129,12 +133,15 @@ if __name__ == '__main__':
     # The master flat should have the shape of the image area.
     np.random.seed(123)
     #XXX sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
-    # Simulate only the fluxmap
-    # For sim_sub_frame(), you can input a master flat of the same shape as 
-    # the smaller fluxmap. 
-    emccd.flat_path = flat_path_sub
-    #XXX sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
+    sim_full_frame = emccd.sim_full_frame(np.zeros_like(full_fluxmap), frametime)
+    # The data for the flat and hot pixel maps are stored as class attributes as well.
 
+    # Simulate only the fluxmap sub-frame area:
+    # For sim_sub_frame(), you can input a master flat of the same shape as 
+    # the smaller fluxmap. Same goes for the hot pixel map.
+    emccd.flat_path = flat_path_sub
+    emccd.hot_pixel_path = hot_pixel_sub
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
 
     # The class also has some convenience functions to help with inspecting the
     # simulated frame
@@ -153,15 +160,16 @@ if __name__ == '__main__':
     # There are 2 inputs for update_cti() which are specific to how emccd_detect implements
     # arcticpy:  serial=True turns on serial CTI, and parallel=True turns on parallel CTI. 
     # Both are True by default.
-    fluxmap2 = np.zeros((70,70)) # toy fluxmap
-    emccd.em_gain = 5
+    fluxmap2 = np.zeros((1024,1024)) #XXX np.zeros((70,70)) # toy fluxmap
+    #XXX emccd.em_gain = 5
     fluxmap2[30:40,30:40] = 99000 # enough to saturate image area, before gain applied, so vertical blooming happens
     # do some saturation near the edge as well
     fluxmap2[0:2, 10:15] = 99000
-    fluxmap2[-2:, 10:15] = 99000
+    fluxmap2[-2:, -5:] = 99000
     # turn off the flat for this
     emccd.flat_path = None
-    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime=1)
+    #XXX sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime=1)
+    sim_sub_frame = emccd.sim_full_frame(fluxmap2, frametime=1)
     
     imagesc(sim_sub_frame, 'Output Sub Frame Before CTI')
     try: 

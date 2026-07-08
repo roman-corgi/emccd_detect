@@ -104,7 +104,6 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, zff=8e-6,
         # Gaussian distribution of comsic head size because of random walk through field-free section.
         cr_sigma = zff/pixel_pitch # in pixels 
         hit_sigma = np.abs(np.random.normal(loc=0, scale=cr_sigma, size=total_number))
-        hit_rad = 2*hit_sigma # have to truncate somewhere, and this should include most of the significant values of the Gaussian.
         # angle of incidence on detector, theta
         theta = np.random.uniform(low=0, high=np.pi/2, size=total_number)
         # azimuthal orientation of cosmic ray relative to positive x (col) axis
@@ -134,7 +133,16 @@ def cosmic_hits(image_frame, cr_rate, frametime, pixel_pitch, zff=8e-6,
         # detector (into shielded area), but a smaller amount delivered to pixels, which is what happens in for loop 
         # below.
         total_e = np.append(total_prim_e, total_sec_e)
-        amplitudes = total_e/(2*np.pi*sigma_x*sigma_y) 
+        amplitudes = total_e/(2*np.pi*sigma_x*sigma_y)
+        # treating x and y separately as 1D Gaussians separately, 
+        # what factor multiplied by simga is needed so that value 
+        # at this radius is 0.1 (basically 0, where Gaussian dies out).
+        # But this takes a long time for simulation.  Instead, factor of 3 is fairly sufficient.
+        #sigma_factor = np.sqrt(np.abs(np.log(amplitudes/0.1)/(2*np.min(np.stack([sigma_x,sigma_y]), axis=0)**2)))
+        sigma_factor = 3 
+        # have to truncate somewhere, and this should include most of the 
+        # significant values of the Gaussian. 
+        hit_rad = sigma_factor*hit_sigma 
 
         # Create hits
         for i in range(total_number):
@@ -204,12 +212,11 @@ def sat_tails(serial_frame, full_well_serial, tail_length):
                 tail_vals = np.array([])
                 val = 2 # initiate, something bigger than 0.1.  (We clip fractional e- values during readout.)
                 n = 1
-                j = i-1 # column to draw from and spread out over j+1 onward
+                j = i # column to draw from and spread out over j+1 onward
                 spread_val = np.sum(serial_frame[j:j+1])
-                #below is sum(1/2n from n=2 to end of tail_length), which is approx equal to 1 so that charge is conserved.
                 while val >= 0.1 and np.sum(tail_vals) < spread_val:
                     n += 1
-                    val = spread_val / (scalar*n) #XXX make the 3 variable input
+                    val = spread_val / (scalar*n) 
                     tail_vals = np.append(tail_vals, val)
                 if j+len(tail_vals) > len(serial_frame):
                     end_ind = len(serial_frame)
@@ -250,8 +257,10 @@ def H(s):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-
-    cosmic_frame = cosmic_hits(np.zeros((1024, 1024)), cr_rate=5, frametime=100, pixel_pitch=13e-6, sh_thickness=0)
+    import time
+    t= time.time()
+    cosmic_frame = cosmic_hits(np.zeros((1024, 1024)), cr_rate=5, frametime=100, pixel_pitch=13e-6, sh_thickness=0.01, zff=8e-6)
+    print("It took ", time.time() - t, 'seconds')
     full_well_serial = 90000
 
     row = np.ones(100)
