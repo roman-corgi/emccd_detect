@@ -636,13 +636,13 @@ class EMCCDDetectBase:
                     self.fpn = hdul[0].data
             elif self.fpn_path == "roman":
                 if serial_counts.shape[0] == self.meta.data['frame_rows'] and serial_counts.shape[1] == self.meta.data['frame_cols']:
-                    with fits.open(Path(here, 'util', 'FPN_map.fits')) as hdul:
+                    with fits.open(Path(here, 'util', 'fpn_map.fits')) as hdul:
                         frame_data = hdul[0].data
                     self.fpn = frame_data
                 elif serial_counts.shape[0] <= self.meta.data['geom']['image']['rows'] and serial_counts.shape[1] <= self.meta.data['geom']['image']['cols']:
                     #If the area specificed by the user is not full frame then
                     #this code cuts out a portion/the entire image area on the fpn map to apply to amp
-                    with fits.open(Path(here, 'util', 'FPN_map.fits')) as hdul:
+                    with fits.open(Path(here, 'util', 'fpn_map.fits')) as hdul:
                         frame_data = hdul[0].data
                     r0c0 = self.meta.data['geom']['image']['r0c0']
                     subframe_array = frame_data[r0c0[0]:r0c0[0]+serial_counts.shape[0], r0c0[1]:r0c0[1]+serial_counts.shape[1]]

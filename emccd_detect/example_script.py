@@ -112,17 +112,17 @@ if __name__ == '__main__':
         nbits=14,
         numel_gain_register=604,
         meta_path=meta_path,
-        nonlin_path=None, #nonlin_sample, 
-        flat_path=None,#XXX flat_path,
-        hot_pixel_path=None, #hot_pixel,
-        row_read_time=0, #XXX 223.5e-6, # in seconds
+        nonlin_path=nonlin_sample, 
+        flat_path=flat_path,
+        hot_pixel_path=hot_pixel,
+        row_read_time=223.5e-6, # in seconds
         tail_length=40,
         gain_CIC_Q=0, # default is 0; this specifies the average probability for CIC produced in the gain register
         gain_CIC_specs=None, #default; can specify particular "hot" stages with respect to CIC in the gain register
         upstream_spill_prob=0.7,
         fast_gain_mode=True, # fast method is quite accurate for gain >~ 200; use False for fully accurate method
         gain_stage_specs=None, #default; can specify particular "hot" stages with respect to usual multiplication in the gain register
-        fpn_path = None, #'roman', #None, #custom file
+        fpn_path = None, #'roman', #None, #custom file path
         bias_sigma_row = 35,
         bias_sigma_col = 35
     )
