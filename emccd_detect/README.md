@@ -5,9 +5,14 @@ Given an input fluxmap, emccd_detect will return a simulated EMCCD detector imag
 
 # Version
 
-The latest version of emccd\_detect is 2.5.0.  Main differences from previous version, 2.4.0: 
---the ability to implement smear due to exposure of some rows while others are being read out.  Credit for this smearing code: Peter Williams, Tellus1, 2024.
---the ability to implement non-uniformity in pixel response via an input master flat.  Assumed to be a FITS file.
+The latest version of emccd\_detect is 2.6.0.  Main differences from previous version, 2.5.0: 
+Main differences from previous version:
+--cosmic rays are more accurate, more like what the Roman CGI expects to see at L2 (including secondary cosmic ray events due to the shielding surrounding CGI). Almost nothing is hard coded about the cosmic rays. The tail length can be tuned as well.
+--Fixed-pattern noise (FPN) is now implemented: 'roman' for Roman FPN found in TVAC, custom input file, or stripe pattern in rows and/or columns. File for Roman FPN included in util folder.
+--CIC in gain register ("partial CIC") implemented (defaults to no partial CIC). One can specify particular "hot" gain stages with respect to CIC as well.
+--EM gain simulation now conforms to exact binomial branching process instead of the approximate Gamma distribution. fast_gain_mode allows (fine for gain >~ 200) is available and uses the Gamma distribution.
+--"Hot" gain stages with respect to EM gain multiplication also implemented. Defaults to None.
+--Hot pixel map input available.
 
 
 ## Getting Started
@@ -50,4 +55,5 @@ For an example of how to use emccd\_detect, see example_script.py.
 * Bijan Nemati (<bijan.nemati@tellus1.com>)
 * Sam Miller (<sam.miller@uah.edu>)
 * Kevin Ludwick (<kevin.ludwick@uah.edu>)
+* Joshua Ludwick
 
