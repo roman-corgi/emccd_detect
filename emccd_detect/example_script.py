@@ -112,16 +112,16 @@ if __name__ == '__main__':
         nbits=14,
         numel_gain_register=604,
         meta_path=meta_path,
-        nonlin_path=nonlin_sample, 
-        flat_path=flat_path,
-        hot_pixel_path=hot_pixel,
-        row_read_time=223.5e-6, # in seconds
+        nonlin_path=None, #nonlin_sample, 
+        flat_path=None,#XXX flat_path,
+        hot_pixel_path=None, #hot_pixel,
+        row_read_time=0, #XXX 223.5e-6, # in seconds
         tail_length=40,
         gain_CIC_Q=0, # default is 0; this specifies the average probability for CIC produced in the gain register
         gain_CIC_specs=None, #default; can specify particular "hot" stages with respect to CIC in the gain register
         upstream_spill_prob=0.7,
         fast_gain_mode=True, # fast method is quite accurate for gain >~ 200; use False for fully accurate method
-        gain_stage_specs=None #default; can specify particular "hot" stages with respect to usual multiplication in the gain register
+        gain_stage_specs=None, #default; can specify particular "hot" stages with respect to usual multiplication in the gain register
         fpn_path = None, #'roman', #None, #custom file
         bias_sigma_row = 35,
         bias_sigma_col = 35
@@ -141,8 +141,9 @@ if __name__ == '__main__':
     sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
     # The data for the flat and hot pixel maps are stored as class attributes as well.
 
-    # This is a showcase of the FPN map implementation
-    # If fpn_path is None they the column and row pattern will be present
+    # This is a showcase of the FPN map implementation:
+    # If fpn_path is None they the column and row pattern will be present.  
+    # Set FPN=None and bias_sigma_col and bias_sigma_row to 0 if no FPN desired.
     # And if fpn_path is on 'roman' the FPN map from the roman telescope will be present
 
     emccd.cic = 0
@@ -151,13 +152,14 @@ if __name__ == '__main__':
     emccd.read_noise = 0
     emccd.fpn_path = 'roman'
     test_array = np.zeros((1024,1024))
-    fpn_array = emccd.sim_full_frame(test_array, .001)
-    plt.imshow(fpn_array)
+    fpn_array = emccd.sim_full_frame(test_array, 1)
+    # This plot below should look just like the input FPN map, except for the input nonlinearity which hasn't been accounted for
+    imagesc(fpn_array*emccd.eperdn - emccd.bias, vmax=300, title='Roman FPN (Enhanced View)')
 
     emccd.fpn_path = None
     test_array = np.zeros((1024,1024))
-    fpn_array = emccd.sim_full_frame(test_array, .001)
-    plt.imshow(fpn_array)
+    fpn_array = emccd.sim_full_frame(test_array, 1)
+    imagesc(fpn_array, 'Simulated Stripe FPN')
 
     # resetting parameters
     emccd.fpn_path = 'roman'

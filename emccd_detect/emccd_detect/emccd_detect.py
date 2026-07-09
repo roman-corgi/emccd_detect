@@ -631,7 +631,7 @@ class EMCCDDetectBase:
 
         if hasattr(self, 'fpn_path'):
             here = os.path.abspath(os.path.dirname(__file__))
-            if self.fpn_path is not None and not 'roman':
+            if self.fpn_path is not None and self.fpn_path != 'roman':
                 with fits.open(self.fpn_path) as hdul:
                     self.fpn = hdul[0].data
             elif self.fpn_path == "roman":
@@ -654,14 +654,14 @@ class EMCCDDetectBase:
                 seed2 = self.em_gain + self.bias + frametime + self.dark_current
                 np.random.seed(int(seed2))
                 self.fpn = np.zeros_like(serial_counts)
-                bias_row_offset = np.random.normal(self.bias, self.bias_sigma_row, self.fpn.shape[0])
+                bias_row_offset = np.random.normal(0, self.bias_sigma_row, self.fpn.shape[0])
                 self.fpn += bias_row_offset[:, np.newaxis]
                 bias_col_offset = np.random.normal(0, self.bias_sigma_col, self.fpn.shape[1])
                 self.fpn += bias_col_offset[np.newaxis, :]
             else: #exception
-                raise EMCCDDetectException('Current input for fpn_path is not one of the accepted inputs')
+                raise EMCCDDetectException('Current input for fpn_path should be a string file path, \'roman\', or None.')
         else: # just self.bias constant
-            self.fpn = self.bias
+            self.fpn = np.zeros_like(serial_counts)
 
         np.random.set_state(old_state)
 
@@ -669,7 +669,7 @@ class EMCCDDetectBase:
         read_noise_e = self.read_noise * np.random.normal(size=serial_counts.shape)
 
         # Apply read noise and bias to counts to get output electron volts
-        amp_ev = serial_counts + read_noise_e + self.fpn
+        amp_ev = serial_counts + read_noise_e + self.fpn + self.bias
 
         return amp_ev
 
@@ -843,26 +843,28 @@ class EMCCDDetect(EMCCDDetectBase):
         corresponding probability values.  If the input fast_gain_mode
         is True, the average gain over all stages is computed and applied. 
         Defaults to None, in which case the same P value applies to all stages.
-    fpn_path : str
+    fpn_path: str
         Inserting a FITS file that will serve as the fixed pattern noise (FPN) for the
-        image.  Assumed to be a FITS file for which the FPN data resides in
-        the primary HDU. If it is 'roman' automatically puts in Roman
-        Telescope FITS file for FPN. If it is None then it adds horizontal and
-        vertical FPN according to a normal distribution according to the
-        bias_sigman_row and bias_sigman_col varibles. If it is a FITS file that
-        the user specifices then it will use that file as the FPN.
-    bias_sigma_row: int
-        This number affects how large the normal distrubtion of FPN values for
-        the rows of the self.bias array. This parameter is irrelevant if fpn_path is not None.
+        image.  Assumed to be a FITS file for which the FPN data is in units of electrons 
+        (no voltage bias included) and resides in
+        the primary HDU. If 'roman', the Roman
+        CGI EXCAM FPN is used. If None, horizontal and
+        vertical stripes of FPN are included, according to a normal distribution 
+        specified by the bias_sigma_row and bias_sigma_col variables.  If one 
+        of these is 0, no stripes will appear in that corresponding dimension (e.g., 
+        no FPN pattern if fpn_path=None, bias_sigma_row=0, and bias_sigma_col=0).
+    bias_sigma_row: float
+        This number (in units of electrons) affects how large the normal distrubtion of FPN values for
+        the rows of the FPN, with the input bias serving as the mean of the normal 
+        distribution. This parameter is irrelevant if fpn_path is not None.
         The random seed for this variable depends on gain (em_gain), voltage bias (bias), exposure time (frametime), and dark current (dark_current).
-        And if you put in the same numbers for each of the three elements you will get the same
-        FPN.
-    bias_sigma_col: int
-        This number affects how large the normal distrubtion of FPN values for
-        the columns of the self.bias array. This parameter is irrelevant if fpn_path is not None.
+        The FPN pattern is unique for a specific choice of these three parameters.
+    bias_sigma_col: float
+        This number (in units of electrons) affects how large the normal distrubtion of FPN values for
+        the columns of the FPN, with the input bias serving as the mean of the normal 
+        distribution. This parameter is irrelevant if fpn_path is not None.
         The random seed for this variable depends on gain (em_gain), voltage bias (bias), exposure time (frametime), and dark current (dark_current).
-        And if you put in the same numbers for each of the three elements you will get the same
-        FPN.
+        The FPN pattern is unique for a specific choice of these three parameters.
 
     """
     def __init__(
@@ -1046,7 +1048,7 @@ class EMCCDDetect(EMCCDDetectBase):
         # Simulate serial clocking
         gain_counts = self.clock_serial(parallel_counts_full, empty_element_m)
 
-        # Cap at full well capacity of gain register since any excess charge not cleaned out via overscan (very unlikely) would presumably be placed in
+        # Cap at full well capacity of gain register since any excess charge that isn't cleaned out via overscan (very unlikely) would presumably be placed in
         # the next frame, which is not simulated here. 
         gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
 
