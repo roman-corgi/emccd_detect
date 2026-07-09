@@ -31,6 +31,9 @@ def imagesc(data, title=None, vmin=None, vmax=None, cmap='viridis',
 
 
 if __name__ == '__main__':
+    import time 
+
+    start_time = time.time()
     # Set up some inputs here
     here = os.path.abspath(os.path.dirname(__file__))
     # Get fluxmap
@@ -44,7 +47,9 @@ if __name__ == '__main__':
     nonlin_sample = Path(here, 'emccd_detect', 'util', 'nonlin_sample.csv')
     flat_path = Path(here, 'emccd_detect', 'util', 'flat_sample.fits')
     flat_path_sub = Path(here, 'emccd_detect', 'util', 'flat_sample_sub.fits')
-
+    hot_pixel = Path(here, 'emccd_detect', 'util', 'hot_pixel_sample.fits') # contains all ones except for 150 at [33,33]
+    hot_pixel_sub = Path(here, 'emccd_detect', 'util', 'hot_pixel_sample_sub.fits') # contains all ones except for 150 at [33,33]
+    
     # For the simplest possible use of EMCCDDetect, use its defaults
     emccd = EMCCDDetect()
 
@@ -67,7 +72,7 @@ if __name__ == '__main__':
     try:
         emccd.update_cti()
     except:
-        pass
+        pass 
     # Simulate only the fluxmap
     sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
     # Simulate the full frame (surround the full fluxmap with prescan, etc.)
@@ -89,8 +94,9 @@ if __name__ == '__main__':
     meta_path = Path(here, 'emccd_detect', 'util', 'metadata.yaml')
     fpn_path= Path(here, 'emccd_detect', 'util', 'FPN_map.fits')
     # Note that the defaults for full_well_serial and eperdn are specified in
-    # the metadata file.  Nonlinearity during readout can be applied.  See
-    # nonlinearity.py for details.
+    # the metadata file.  Nonlinearity during readout can be applied.  See 
+    # nonlinearity.py for details.  
+
     emccd = EMCCDDetect(
         em_gain=5000.,
         full_well_image=78000.,  # e-
@@ -98,7 +104,7 @@ if __name__ == '__main__':
         dark_current=0.00031,  # e-/pix/s
         cic=0.016,  # e-/pix/frame
         read_noise=110.,  # e-/pix/frame
-        bias=1500.,  # e-
+        bias=1500.,  # e- 
         qe=0.9,
         cr_rate=5.,  # hits/cm^2/s
         pixel_pitch=13e-6,  # m
@@ -106,9 +112,16 @@ if __name__ == '__main__':
         nbits=14,
         numel_gain_register=604,
         meta_path=meta_path,
-        nonlin_path=nonlin_sample,
-        flat_path=flat_path,
-        row_read_time=223.5e-6, # in seconds
+        nonlin_path=None, #nonlin_sample, 
+        flat_path=None,#XXX flat_path,
+        hot_pixel_path=None, #hot_pixel,
+        row_read_time=0, #XXX 223.5e-6, # in seconds
+        tail_length=40,
+        gain_CIC_Q=0, # default is 0; this specifies the average probability for CIC produced in the gain register
+        gain_CIC_specs=None, #default; can specify particular "hot" stages with respect to CIC in the gain register
+        upstream_spill_prob=0.7,
+        fast_gain_mode=True, # fast method is quite accurate for gain >~ 200; use False for fully accurate method
+        gain_stage_specs=None, #default; can specify particular "hot" stages with respect to usual multiplication in the gain register
         fpn_path = None, #'roman', #None, #custom file
         bias_sigma_row = 35,
         bias_sigma_col = 35
@@ -116,45 +129,51 @@ if __name__ == '__main__':
     # To turn off the smearing effect (due to exposure during readout of rows
     # that are still exposed), set row_read_time to 0.
 
-    # To retain the same output for multiple runs using the same class
-    # instance, one can specify the same seed before each instance of creating
-    # a frame.
+    # To turn off vertical blooming (the overspill into neighboring rows from saturated pixels), set upstream_spill_prob to None.
+    # If upstream_spill_prob is < 0.5, downstream overspill is more likely instead of upstream overspill. 
+
+    # To retain the same output for multiple runs using the same class 
+    # instance, one can specify the same seed before each instance of creating 
+    # a frame
     # Simulate the full frame (surround the full fluxmap with prescan, etc.).
     # The master flat should have the shape of the image area.
     np.random.seed(123)
     sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+    # The data for the flat and hot pixel maps are stored as class attributes as well.
 
-    # This is a showcase of the FPN map implementation
-    # If fpn_path is None they the column and row pattern will be present
+    # This is a showcase of the FPN map implementation:
+    # If fpn_path is None they the column and row pattern will be present.  
+    # Set FPN=None and bias_sigma_col and bias_sigma_row to 0 if no FPN desired.
     # And if fpn_path is on 'roman' the FPN map from the roman telescope will be present
 
     emccd.cic = 0
     emccd.dark_current = 0
     emccd.cr_rate = 0
     emccd.read_noise = 0
-    fpn_path = 'roman'
+    emccd.fpn_path = 'roman'
     test_array = np.zeros((1024,1024))
-    fpn_array = emccd.sim_full_frame(test_array, .001)
-    plt.imshow(fpn_array)
+    fpn_array = emccd.sim_full_frame(test_array, 1)
+    # This plot below should look just like the input FPN map, except for the input nonlinearity which hasn't been accounted for
+    imagesc(fpn_array*emccd.eperdn - emccd.bias, vmax=300, title='Roman FPN (Enhanced View)')
 
-    fpn_path = None
+    emccd.fpn_path = None
     test_array = np.zeros((1024,1024))
-    fpn_array = emccd.sim_full_frame(test_array, .001)
-    plt.imshow(fpn_array)
+    fpn_array = emccd.sim_full_frame(test_array, 1)
+    imagesc(fpn_array, 'Simulated Stripe FPN')
 
     # resetting parameters
-    fpn_path = 'roman'
+    emccd.fpn_path = 'roman'
     emccd.read_noise = 110
     emccd.cic = 0.016
     emccd.dark_current = 0.00031
     emccd.cr_rate = 5.
-    # Simulate only the fluxmap
-    # For sim_sub_frame(), you can input a master flat of the same shape as
-    # the smaller fluxmap.
-    emccd.flat_path = flat_path_sub
-    np.random.seed(123)
-    sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
 
+    # Simulate only the fluxmap sub-frame area:
+    # For sim_sub_frame(), you can input a master flat of the same shape as 
+    # the smaller fluxmap. Same goes for the hot pixel map.
+    emccd.flat_path = flat_path_sub
+    emccd.hot_pixel_path = hot_pixel_sub
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
 
     # The class also has some convenience functions to help with inspecting the
     # simulated frame
@@ -174,17 +193,30 @@ if __name__ == '__main__':
     # arcticpy:  serial=True turns on serial CTI, and parallel=True turns on parallel CTI.
     # Both are True by default.
     fluxmap2 = np.zeros((70,70)) # toy fluxmap
-    fluxmap2[30:40,30:40] = 200
-    # turn off the flat for this
+    emccd.em_gain = 5
+    fluxmap2[30:40,30:40] = 99000 # enough to saturate image area, before gain applied, so vertical blooming happens
+    # do some saturation near the edge as well
+    fluxmap2[0:2, 10:15] = 99000
+    fluxmap2[-2:, -5:] = 99000
+    # turn off the flat and hot pixel map for this
     emccd.flat_path = None
-    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime)
+    emccd.hot_pixel_path = None
+    # Gain is low, so no noticeable effect from cosmic ray tails, 
+    # but trailing still happens below due to spillover from saturation 
+    # and not charge traps in the gain register
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime=1)
+    
     imagesc(sim_sub_frame, 'Output Sub Frame Before CTI')
     try:
         emccd.update_cti(parallel_traps=[ap.TrapInstantCapture(density=1,release_timescale=1)], serial=False)
     except:
         pass
-    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime)
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime=1)
+
+    print('Total time for example script:  %.2f seconds' % (time.time() - start_time))
+
     imagesc(sim_sub_frame, 'Output Sub Frame After CTI')
+    imagesc(fluxmap2, "Input Fluxmap Used for CTI Comparison")
 
     # Plot images
     imagesc(full_fluxmap, 'Input Fluxmap')

@@ -69,7 +69,7 @@ if __name__ == '__main__':
     # Plot image file (optional)
     plot_fits = True
     if plot_fits:
-        fits_im = fits.getdata(Path('data', 'sci_frame.fits'))
+        fits_im = fits.getdata(Path('emccd_detect', 'data', 'sci_frame.fits'))
         fig_fits, ax_fits = plt.subplots()
         ax_fits.imshow(np.log(fits_im+10), origin=origin, cmap='Greys')
         ax_fits.set_title('SCI Frame')
