@@ -91,7 +91,9 @@ def _rand_pdf(n_in, gain_stage_specs, numel_gain_register):
     except:
         n_out = int(np.round(n_in))
     rng = np.random.default_rng()
-    for stage, Q in gain_stage_specs.items():
+    # reverse list so that you're counting down from stage n to stage 1
+    # Stage numbers mean the number of stages remaining 
+    for stage, Q in reversed(list(gain_stage_specs.items())):
         n_out += rng.binomial(n_out, Q)
         
         # # trinomial (P1 and P2):
@@ -314,7 +316,7 @@ def partial_CIC(array_size, gain_stage_specs, numel_gain_register, gain_CIC_Q,
        # So we take the first stage_numbers[i] elements of it
        input_gain_stage_specs =  dict(islice(gain_stage_specs.items(), stage_numbers[i]))
        inds = np.where(stage_chunks[i] > 0)
-       if inds[0].size > 0:
+       if inds[0].size > 0: 
            n_out = rand_em_gain(stage_chunks[i][inds], input_gain_stage_specs, stage_numbers[i])
            partial_CIC[inds] = partial_CIC[inds] + n_out
     

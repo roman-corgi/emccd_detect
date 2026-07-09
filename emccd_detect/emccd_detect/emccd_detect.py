@@ -569,7 +569,7 @@ class EMCCDDetectBase:
             self.fast_gain_mode = False # use the fully accurate method
         if not hasattr(self, 'gain_stage_specs'):
             self.gain_stage_specs = None # default value
-        all_gain_stage_specs = {n: self.em_gain**(1/self.numel_gain_register) - 1 for n in range(1, self.numel_gain_register)}
+        all_gain_stage_specs = {n: self.em_gain**(1/self.numel_gain_register) - 1 for n in range(1, self.numel_gain_register+1)}
         if self.gain_stage_specs is not None:
             for num_stages_left in range(1, self.numel_gain_register+1):
                 if num_stages_left in self.gain_stage_specs.keys():
@@ -583,8 +583,6 @@ class EMCCDDetectBase:
         # assuming partial CIC independently propagates through gain register 
         #if hasattr() for the inputs in emccdDetect but not base class
         if hasattr(self, 'gain_CIC_Q') and hasattr(self, 'gain_CIC_specs'):
-            if self.gain_CIC_Q is None:
-                self.gain_CIC_Q = (self.em_gain**(1/self.numel_gain_register) - 1)/10
             if self.gain_CIC_Q != 0 or self.gain_CIC_specs is not None:
                 partial_cic = partial_CIC(gain_counts.size, 
                                         all_gain_stage_specs,
@@ -754,12 +752,12 @@ class EMCCDDetect(EMCCDDetectBase):
         to simulate smear on the image due to clocking during the exposure to 
         light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
         simulated.  Defaults to 0 seconds.
-    gain_CIC_Q : float or None
+    gain_CIC_Q : float
         Probability Q (or mean rate) of production of a clock-induced charge (CIC)
-        in a given gain register stage. We call this "partial CIC". If None,
-        Q=P/10 is used, where P is the probability of charge multiplication 
+        in a given gain register stage. We call this "partial CIC".  
+        Physically, Q < P, where P is the average probability of charge multiplication 
         for a single gain stage, and em_gain = (1+P)^numel_gain_register.  
-        Physically, Q < P.  To simulate no partial CIC, let this input be 0.
+        To simulate no partial CIC, let this input be 0.
         Defaults to 0 (no partial CIC simulated).
     gain_CIC_specs: dict or None
         This input supercedes gain_CIC_Q and renders the value of gain_CIC_Q 
