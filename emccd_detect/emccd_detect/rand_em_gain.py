@@ -12,40 +12,36 @@ try:
     from partial_CIC_MLE import _LogPn, _LogGamma
 except:
     pass
-
+from itertools import islice
 
 class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
 
-def rand_em_gain(n_in_array, em_gain, numel_gain_register, fast_gain_mode=False):
+def rand_em_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode=False):
     """Generate random numbers according to EM gain pdfs.
 
     Parameters
     ----------
     n_in_array : array_like
         Array of electron values (e-).
-    em_gain : float
-        EM gain multiplication factor.
+    gain_stage_specs : dict
+        The dictionary keys should be 
+        integer-valued and be the number of stages until the end (e.g., 1 means 
+        last stage), and the values for the dictionary should be the 
+        corresponding probability values.  Should have a length equal to numel_gain_register.
     numel_gain_register : int
         Number of gain stages in the register.
     fast_gain_mode : bool, optional
             If True, a faster but less accurate method (uses Erlang/Gamma distribution for EM gain)
             of simulating the gain register is used.  If False, a slower but more accurate method 
             (marches each pixel through the gain register with binomial distribution) is used.
-            The fast method is quite accurate for em_gain > 200.  Defaults to False.
+            The fast method is quite accurate for EM gain > 200.  Defaults to False.
 
     Returns
     -------
     array_like
-        Electron values multiplied by random EM gain distribution (e-).
-
-    Notes
-    -----
-    This function returns an array of the same size as n_in_array. Every element
-    in n_in_array is multiplied by em_gain*rand_val, where rand_val is a random
-    number drawn from a specific pdf selected based on the value of the
-    n_in_array element.
+        Electron values multiplied by EM gain random variate (e-).
 
     References
     ----------
@@ -54,16 +50,19 @@ def rand_em_gain(n_in_array, em_gain, numel_gain_register, fast_gain_mode=False)
     [3] https://arxiv.org/abs/2405.17622
 
     """
+    # average gain value
+    avg_P = np.sum(list(gain_stage_specs.values()))/numel_gain_register
+    em_gain = (1+avg_P)**numel_gain_register
     if em_gain < 1:
         raise RandEMGainException('EM gain cannot be set to less than 1')
     elif em_gain == 1:
         return n_in_array
     else:
-        n_out_array = _apply_gain(n_in_array, em_gain, numel_gain_register, fast_gain_mode)
+        n_out_array = _apply_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode)
         return n_out_array
 
-def _apply_gain(n_in_array, em_gain, numel_gain_register, fast_gain_mode):
-    """Apply a specific em_gain to all nonzero n_in values."""
+def _apply_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode):
+    """Apply a specific EM gain to all nonzero n_in values."""
     # physically, integer values of electrons for Matsuo (Galton-Watson branching process) distribution.  
     # Otherwise, we try to keep e- values as floats since EM gain,
     # k gain, nonlinearity, master flat, etc are calibrated assuming fractions of electrons, and 
@@ -71,16 +70,18 @@ def _apply_gain(n_in_array, em_gain, numel_gain_register, fast_gain_mode):
     # DN output to integer at the end.
 
     if fast_gain_mode:
+        avg_P = np.sum(list(gain_stage_specs.values()))/numel_gain_register
+        em_gain = (1+avg_P)**numel_gain_register
         n_out_array = np.random.gamma(n_in_array, em_gain)
     else:
-        n_out_array = _rand_pdf(np.round(n_in_array), em_gain, numel_gain_register) 
+        n_out_array = _rand_pdf(np.round(n_in_array), gain_stage_specs, numel_gain_register) 
 
     return np.round(n_out_array)
 
 
-def _rand_pdf(n_in, em_gain, numel_gain_register):
-    """Draw samples from the EM gain distribution assuming Matsuo's exact 
-    PDF (via Brian Sutin's formulation).
+def _rand_pdf(n_in, gain_stage_specs, numel_gain_register):
+    """Apply the branching process for EM gain (consistent with Matsuo's exact 
+    PDF).
     
     Brian Sutin's paper: 
     https://doi.org/10.1117/1.JATIS.9.2.028001 
@@ -90,12 +91,8 @@ def _rand_pdf(n_in, em_gain, numel_gain_register):
     except:
         n_out = int(np.round(n_in))
     rng = np.random.default_rng()
-    Q = em_gain**(1/numel_gain_register) - 1
-    for stage in range(numel_gain_register):
-        if stage == 100:
-            n_out += rng.binomial(n_out, 0.2)
-        else:
-            n_out += rng.binomial(n_out, Q)
+    for stage, Q in gain_stage_specs.items():
+        n_out += rng.binomial(n_out, Q)
         
         # # trinomial (P1 and P2):
         # t = rng.binomial(n_out, Q)
@@ -250,7 +247,7 @@ def exact_gain_PDF(gain, M, w, x):
     print('Time for exact_gain_PDF:', time.time() - t)
     return P[x.astype(int)]
 
-def partial_CIC(array_size, em_gain, numel_gain_register, gain_CIC_Q, 
+def partial_CIC(array_size, gain_stage_specs, numel_gain_register, gain_CIC_Q, 
                 gain_CIC_specs):
     '''Computes the contribution of partial CIC (clock-induced charge generated 
     in the gain register).  
@@ -262,8 +259,11 @@ def partial_CIC(array_size, em_gain, numel_gain_register, gain_CIC_Q,
     ----------
     array_size : int
         Number of pixels.
-    em_gain : float
-        EM gain of full gain register.
+    gain_stage_specs : dict
+            The dictionary keys should be 
+            integer-valued and be the number of stages until the end (e.g., 1 means 
+            last stage), and the values for the dictionary should be the 
+            corresponding probability values.  Should have a length equal to numel_gain_register.
     numel_gain_register : int
         Number of elements/stages in EM gain register.
     gain_CIC_Q : float 
@@ -283,10 +283,8 @@ def partial_CIC(array_size, em_gain, numel_gain_register, gain_CIC_Q,
     array-like (1D)
         partial CIC contribution
 
-    '''#XXX CIC_gain_specs should also have slots for the p value for EM multiplication, which should be > Q for partial CIC; and allow Q=0 for these so that only EM gain is hot
+    '''
     partial_CIC = np.zeros(array_size).astype(float)
-    # probability of multiplication in gain register for a given stage
-    P = em_gain**(1/numel_gain_register) - 1
 
     # CIC events in gain register: Poisson
     # Each pixel goes through all numel_gain_register stages
@@ -311,10 +309,13 @@ def partial_CIC(array_size, em_gain, numel_gain_register, gain_CIC_Q,
             stage_numbers = np.append(stage_numbers, stage).astype(int)
         
     for i in range(len(stage_numbers)):
-       gain = (1+P)**stage_numbers[i] 
+       #gain = (1+P)**stage_numbers[i]
+       # gain_stage_specs is already ordered by construction, which ensures gain branching process is sequential
+       # So we take the first stage_numbers[i] elements of it
+       input_gain_stage_specs =  dict(islice(gain_stage_specs.items(), stage_numbers[i]))
        inds = np.where(stage_chunks[i] > 0)
        if inds[0].size > 0:
-           n_out = rand_em_gain(stage_chunks[i][inds], gain, stage_numbers[i])
+           n_out = rand_em_gain(stage_chunks[i][inds], input_gain_stage_specs, stage_numbers[i])
            partial_CIC[inds] = partial_CIC[inds] + n_out
     
     return partial_CIC

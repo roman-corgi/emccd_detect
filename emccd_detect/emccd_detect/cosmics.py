@@ -188,7 +188,17 @@ def sat_tails(serial_frame, full_well_serial, tail_length):
         Desired length of tail of cosmic ray.
     
     From https://doi.org/10.1117/1.JATIS.9.1.016003 :
-    tail length of about 40 expected from surface traps in gain register.
+    tail length of about 40 expected from surface traps in gain register for 
+    high gains (> 1000).  For smaller gains have roughly proportionally smaller
+    tail lengths (e.g., gain of 1000/40 = 25 may have an average tail length of
+    40/40 = 1).  However, tails are always cut off whenever the spillover level 
+    becomes a fractional amount of charge (0.1 e-), so high tail values for low
+    gain wouldn't make too much difference in most normal cases, but better to 
+    use a smaller tail length for smaller gains. 
+
+    Note that if this is a sub-frame, wrap-around for spillover will happen, 
+    whereas for a full frame, the wrap-around goes into the prescan and 
+    overscan regions.
 
     """
     serial_frame = serial_frame.astype(float) 
@@ -216,7 +226,10 @@ def sat_tails(serial_frame, full_well_serial, tail_length):
                 spread_val = np.sum(serial_frame[j:j+1])
                 while val >= 0.1 and np.sum(tail_vals) < spread_val:
                     n += 1
-                    val = spread_val / (scalar*n) 
+                    if scalar <= 0: # happens when tail_length <= 1
+                        val = spread_val
+                    else:
+                        val = spread_val / (scalar*n) 
                     tail_vals = np.append(tail_vals, val)
                 if j+len(tail_vals) > len(serial_frame):
                     end_ind = len(serial_frame)

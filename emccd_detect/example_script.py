@@ -74,9 +74,9 @@ if __name__ == '__main__':
     except:
         pass 
     # Simulate only the fluxmap
-    #XXX sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap, frametime)
     # Simulate the full frame (surround the full fluxmap with prescan, etc.)
-    #XXX sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
+    sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
     # to turn off CTI application to future frames made with the same class
     # instance (If arcticpy not viable, trying to run unset_cti() will not
     # work):
@@ -116,9 +116,11 @@ if __name__ == '__main__':
         hot_pixel_path=hot_pixel,
         row_read_time=223.5e-6, # in seconds
         tail_length=40,
-        gain_CIC_Q=0.001,
+        gain_CIC_Q=0, # default is 0; this specifies the average probability for CIC produced in the gain register
+        gain_CIC_specs=None, #default; can specify particular "hot" stages with respect to CIC in the gain register
         upstream_spill_prob=0.7,
         fast_gain_mode=True, # fast method is quite accurate for gain >~ 200; use False for fully accurate method
+        gain_stage_specs=None #default; can specify particular "hot" stages with respect to usual multiplication in the gain register
     )
     # To turn off the smearing effect (due to exposure during readout of rows 
     # that are still exposed), set row_read_time to 0.
@@ -132,8 +134,7 @@ if __name__ == '__main__':
     # Simulate the full frame (surround the full fluxmap with prescan, etc.).
     # The master flat should have the shape of the image area.
     np.random.seed(123)
-    #XXX sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
-    sim_full_frame = emccd.sim_full_frame(np.zeros_like(full_fluxmap), frametime)
+    sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
     # The data for the flat and hot pixel maps are stored as class attributes as well.
 
     # Simulate only the fluxmap sub-frame area:
@@ -146,30 +147,33 @@ if __name__ == '__main__':
     # The class also has some convenience functions to help with inspecting the
     # simulated frame
     # Get a gain divided, bias subtracted frame in units of e-
-    #XXX frame_e = emccd.get_e_frame(sim_full_frame)
+    frame_e = emccd.get_e_frame(sim_full_frame)
     # Return just the 1024x1024 region of a full frame
-    #XXX image = emccd.slice_fluxmap(sim_full_frame)
+    image = emccd.slice_fluxmap(sim_full_frame)
     # Return the prescan region of a full frame
-    #XXX prescan = emccd.slice_prescan(sim_full_frame)
+    prescan = emccd.slice_prescan(sim_full_frame)
 
 
     # For legacy purposes, the class can also be called from a function wrapper
-    #XXX sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
+    sim_old_style = emccd_detect(fluxmap, frametime, em_gain=5000.)
 
     ########### example with arcitcpy-specific inputs 
     # There are 2 inputs for update_cti() which are specific to how emccd_detect implements
     # arcticpy:  serial=True turns on serial CTI, and parallel=True turns on parallel CTI. 
     # Both are True by default.
-    fluxmap2 = np.zeros((1024,1024)) #XXX np.zeros((70,70)) # toy fluxmap
-    #XXX emccd.em_gain = 5
+    fluxmap2 = np.zeros((70,70)) # toy fluxmap
+    emccd.em_gain = 5
     fluxmap2[30:40,30:40] = 99000 # enough to saturate image area, before gain applied, so vertical blooming happens
     # do some saturation near the edge as well
     fluxmap2[0:2, 10:15] = 99000
     fluxmap2[-2:, -5:] = 99000
-    # turn off the flat for this
+    # turn off the flat and hot pixel map for this
     emccd.flat_path = None
-    #XXX sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime=1)
-    sim_sub_frame = emccd.sim_full_frame(fluxmap2, frametime=1)
+    emccd.hot_pixel_path = None
+    # Gain is low, so no noticeable effect from cosmic ray tails, 
+    # but trailing still happens below due to spillover from saturation 
+    # and not charge traps in the gain register
+    sim_sub_frame = emccd.sim_sub_frame(fluxmap2, frametime=1)
     
     imagesc(sim_sub_frame, 'Output Sub Frame Before CTI')
     try: 
@@ -181,7 +185,7 @@ if __name__ == '__main__':
     print('Total time for example script:  %.2f seconds' % (time.time() - start_time))
 
     imagesc(sim_sub_frame, 'Output Sub Frame After CTI')
-
+    imagesc(fluxmap2, "Input Fluxmap Used for CTI Comparison")
 
     # Plot images
     imagesc(full_fluxmap, 'Input Fluxmap')

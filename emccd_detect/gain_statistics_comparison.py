@@ -142,8 +142,11 @@ if __name__ == '__main__':
         numel_gain_register=604,
         meta_path=meta_path,
         row_read_time=223.5e-6, # in seconds
+        upstream_spill_prob=0.7,
+        fast_gain_mode=False,
         gain_CIC_Q=0, #0.001, #0.001, #0.001, #0.001, #0
-        gain_CIC_specs=None, #{200:.01,204:.01,300:.01,400:.01}, #gain_CIC_specs, #None,
+        gain_CIC_specs= None, #{200:.01,204:.01,300:.01,400:.01}, #gain_CIC_specs, #None,
+        gain_stage_specs=None
     )
 
 
@@ -162,7 +165,8 @@ if __name__ == '__main__':
 
     plots = False
     if plots:
-        emccd.gain_CIC_specs = {100: .02,300:.003}
+        #emccd.gain_CIC_specs = {100: .02,300:.003}
+        emccd.gain_stage_specs = {44:.05} 
         # dark frame
         full_fluxmap = np.zeros((1024, 1024)).astype(float)
         # Specify frametime

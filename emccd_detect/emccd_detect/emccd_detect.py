@@ -567,10 +567,18 @@ class EMCCDDetectBase:
         gain_counts = np.zeros_like(serial_counts)
         if not hasattr(self, 'fast_gain_mode'):
             self.fast_gain_mode = False # use the fully accurate method
+        if not hasattr(self, 'gain_stage_specs'):
+            self.gain_stage_specs = None # default value
+        all_gain_stage_specs = {n: self.em_gain**(1/self.numel_gain_register) - 1 for n in range(1, self.numel_gain_register)}
+        if self.gain_stage_specs is not None:
+            for num_stages_left in range(1, self.numel_gain_register+1):
+                if num_stages_left in self.gain_stage_specs.keys():
+                    all_gain_stage_specs[num_stages_left] = self.gain_stage_specs[num_stages_left]
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
-            em_gain=self.em_gain, 
-            numel_gain_register=self.numel_gain_register, fast_gain_mode=self.fast_gain_mode)
+            gain_stage_specs=all_gain_stage_specs, 
+            numel_gain_register=self.numel_gain_register, fast_gain_mode=self.fast_gain_mode
+            )
 
         # assuming partial CIC independently propagates through gain register 
         #if hasattr() for the inputs in emccdDetect but not base class
@@ -579,19 +587,19 @@ class EMCCDDetectBase:
                 self.gain_CIC_Q = (self.em_gain**(1/self.numel_gain_register) - 1)/10
             if self.gain_CIC_Q != 0 or self.gain_CIC_specs is not None:
                 partial_cic = partial_CIC(gain_counts.size, 
-                                        self.em_gain,
+                                        all_gain_stage_specs,
                                         self.numel_gain_register, 
-                                        self.gain_CIC_Q, 
+                                        self.gain_CIC_Q,
                                         self.gain_CIC_specs)
                 gain_counts = gain_counts + partial_cic
-
+    
         # Simulate saturation tails
         # Cosmic tails mainly due to downstream spillover in gain register and trapping effects in gain register; 
         # not modeled with arCTIc, where serial register is merely clocking with
         # no EM gain(?), so we simulate these effects here.
         # The traps in the gain register are simulated in sat_tails here.
         if not hasattr(self, 'tail_length'):
-            self.tail_length = 40
+            self.tail_length = 40 # default value
         gain_counts_tails = sat_tails(gain_counts, self.full_well_serial, self.tail_length)
 
         return gain_counts_tails
@@ -762,8 +770,13 @@ class EMCCDDetect(EMCCDDetectBase):
         CIC appears in the last stage and gets clocked through that 1 gain stage),
         and the values for the dictionary should be the corresponding Q values. 
         Physically, Q < P, but we only know an average P from em_gain, so a 
-        "hot" stage could have Q >= P, where 
-        em_gain = (1+P)^numel_gain_register. Defaults to None.
+        "hot" stage could have Q >= P, where em_gain = (1+P)^numel_gain_register.
+        In fact, gain_CIC_specs can also be used to simulate charge traps in 
+        the gain register (e.g., a small Q value in stage n could represent 
+        charge capture, and a large Q value in stage n+2 could represent a 
+        charge release on average 2 clockings later), though this should be 
+        coordinated with the input tail_length, which also simulates this effect 
+        but on a coarser scale.  Defaults to None.
     upstream_spill_prob : float or None
         For simulation of blooming (the overspill into neighboring rows from saturated pixels).  
         This parameter is the probability of charge in a saturated pixel to spill upstream (away from the readout direction) 
@@ -777,6 +790,17 @@ class EMCCDDetect(EMCCDDetectBase):
         of simulating the gain register is used.  If False, a slower but more accurate method 
         (marches each pixel through the gain register with binomial distribution) is used.
         The fast method is quite accurate for em_gain > 200.  Defaults to False.
+    gain_stage_specs: dict or None
+            This input is used for specifying particular gain stages which are "hot"
+            with respect to the average probability of multiplication, P.  The input 
+            em_gain specifies the average P value given no "hot" stages, and that value is applied to all 
+            gain stages except for the ones specified by this gain_stage_specs.  
+            If a dictionary is provided, the keys should be 
+            integer-valued and be the number of stages until the end (e.g., 1 means 
+            last stage), and the values for the dictionary should be the 
+            corresponding probability values.  If the input fast_gain_mode
+            is True, the average gain over all stages is computed and applied. 
+            Defaults to None, in which case the same P value applies to all stages.
 
     """
     def __init__(
@@ -807,8 +831,10 @@ class EMCCDDetect(EMCCDDetectBase):
         gain_CIC_Q=0,
         gain_CIC_specs=None,
         upstream_spill_prob=0.7,
-        fast_gain_mode=False
+        fast_gain_mode=False,
+        gain_stage_specs=None,
     ):     
+        
         if tail_length < 0:
             raise EMCCDDetectException('tail_length cannot be negative.') 
         if row_read_time < 0:
@@ -816,8 +842,33 @@ class EMCCDDetect(EMCCDDetectBase):
         if upstream_spill_prob is not None:
             if not (0 <= upstream_spill_prob <= 1):
                 raise EMCCDDetectException('upstream_spill_prob must be between 0 and 1.')
+        # specify same P value for all stages to initialize; this attribute present whether gain_stage_specs specified or not
+        all_gain_stage_specs = {n:em_gain**(1/numel_gain_register) - 1 for n in range(1, numel_gain_register+1)}
+        if gain_stage_specs is not None: 
+            if not isinstance(gain_stage_specs, dict):
+                raise EMCCDDetectException('gain_stage_specs must either be None or a dictionary.')
+            if len(gain_stage_specs.values()) > numel_gain_register:
+                raise EMCCDDetectException('The number of stages specified in gain_stage_specs is more than numel_gain_register.')
+            if np.max(list(gain_stage_specs.keys())) > numel_gain_register:
+                raise EMCCDDetectException('gain_stage_specs specifies a stage number beyond numel_gain_register.')
+            if np.min(list(gain_stage_specs.keys())) < 1:
+                raise EMCCDDetectException('gain_stage_specs specifies a stage number less than 1.')
+            _, non_unique_counts = np.unique(gain_stage_specs.keys(), return_counts=True)
+            if (non_unique_counts > 1).any():
+                raise EMCCDDetectException('At least one gain stage was specified more than once in gain_stage_specs.')
+            #overwrite with the specified values; and we do for loop in this way so that the dictionary is ordered, which is 
+            # necessary in order for the branching process for gain application to be sequential
+            for key, val in gain_stage_specs.items():
+                if key//1 != key:
+                    raise EMCCDDetectException('All keys in gain_stage_specs must be whole numbers.')
+                if val < 0:
+                    raise EMCCDDetectException("All values in gain_stage_specs must be non-negative.")
+            for num_stages_left in range(1, numel_gain_register+1):
+                if num_stages_left in gain_stage_specs.keys():
+                    all_gain_stage_specs[num_stages_left] = gain_stage_specs[num_stages_left]
+        self.avg_gain_P = np.sum(list(all_gain_stage_specs.values()))/numel_gain_register
         if gain_CIC_Q is not None:
-            if gain_CIC_Q > em_gain**(1/numel_gain_register) - 1:
+            if gain_CIC_Q > self.avg_gain_P:
                 raise EMCCDDetectException('gain_CIC_Q >= P, where em_gain = '
                             '(1+P)^numel_gain_register. gain_CIC_Q must be < P.')
         if gain_CIC_specs is not None:
@@ -826,12 +877,21 @@ class EMCCDDetect(EMCCDDetectBase):
             for key, val in gain_CIC_specs.items():
                 if key//1 != key:
                     raise EMCCDDetectException('All keys in gain_CIC_specs must be whole numbers.')
-            # check that the average Q < P (i.e., the mean production rate of partial CIC electrons is less than the rate for gain multiplication)
+                if val < 0:
+                    raise EMCCDDetectException("All values in gain_stage_specs must be non-negative.")
             if len(gain_CIC_specs.values()) > numel_gain_register:
                 raise EMCCDDetectException('The number of stages specified in gain_CIC_specs is more than numel_gain_register.')
-            if np.sum(list(gain_CIC_specs.values()))/numel_gain_register >= em_gain**(1/numel_gain_register) - 1: # won't cause problems for typical case where only a few stage values filled in
-                raise EMCCDDetectException('The average Q over all gain stages gain_CIC_specs must be < P, where em_gain = '
-                        '(1+P)^numel_gain_register.')
+            if np.max(list(gain_CIC_specs.keys())) > numel_gain_register:
+                raise EMCCDDetectException('gain_CIC_specs specifies a stage number beyond numel_gain_register.')
+            if np.min(list(gain_CIC_specs.keys())) < 1:
+                raise EMCCDDetectException('gain_CIC_specs specifies a stage number less than 1.')
+            _, non_unique_counts = np.unique(gain_CIC_specs.keys(), return_counts=True)
+            if (non_unique_counts > 1).any():
+                raise EMCCDDetectException('At least one gain stage was specified more than once in gain_CIC_specs.')
+            # check that the average Q < P (i.e., the mean production rate of partial CIC electrons is less than the rate for gain multiplication)
+            avg_CIC_Q = np.sum(list(gain_CIC_specs.values()))/numel_gain_register
+            if avg_CIC_Q >= self.avg_gain_P: # won't cause problems for typical case where only a few stage values filled in
+                raise EMCCDDetectException('The average Q over all gain stages must be < P, the average EM gain multiplication probability.')
         # If no metadata file path specified, default to metadata.yaml in util
         if meta_path is None:
             here = os.path.abspath(os.path.dirname(__file__))
@@ -841,7 +901,7 @@ class EMCCDDetect(EMCCDDetectBase):
         self.meta_path = meta_path
         self.meta = MetadataWrapper(self.meta_path)
 
-        # instantiate other inputs not included in EMCCDDetectBase
+        # instantiate remaining inputs not included in EMCCDDetectBase
         self.nonlin_path = nonlin_path
         self.row_read_time = row_read_time
         self.flat_path = flat_path
@@ -855,6 +915,7 @@ class EMCCDDetect(EMCCDDetectBase):
         self.oversample_factor = oversample_factor
         self.upstream_spill_prob = upstream_spill_prob
         self.fast_gain_mode = fast_gain_mode
+        self.gain_stage_specs = gain_stage_specs
 
 
         super().__init__(
@@ -872,7 +933,7 @@ class EMCCDDetect(EMCCDDetectBase):
             nbits=nbits,
             numel_gain_register=numel_gain_register
         )
-
+    
     def sim_full_frame(self, fluxmap, frametime):
         """Simulate a full detector frame.
 
