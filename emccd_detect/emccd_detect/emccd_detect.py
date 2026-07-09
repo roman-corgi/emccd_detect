@@ -122,7 +122,7 @@ class EMCCDDetectBase:
         self.serial_roe = None
         self.serial_traps = None
         self.serial_express = None
-     
+
 
         # Placeholders for derived values
         self.mean_expected_rate = None
@@ -154,16 +154,16 @@ class EMCCDDetectBase:
             serial_roe=None,
             serial_traps=None,
             serial_express=1,
-            parallel=True, 
+            parallel=True,
             serial=True,
             **kwargs # any other arguments that arcticpy.add_cti() might accept
         ):
-            '''See arcticpy documentation for details on parameters. Any arguments 
+            '''See arcticpy documentation for details on parameters. Any arguments
             not explicitly listed here can be handed to arcticpy.add_cti() via
-            kwargs.  
-            
-            Parallel and serial CTI can each be switched on or off via the 
-            "parallel" and "serial" arguments of this function.  True means that 
+            kwargs.
+
+            Parallel and serial CTI can each be switched on or off via the
+            "parallel" and "serial" arguments of this function.  True means that
             type of CTI is simulated.  Both are True by default.'''
             # Update parameters
             self.parallel_ccd = parallel_ccd
@@ -264,7 +264,7 @@ class EMCCDDetectBase:
         gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
 
         # Simulate amplifier and adc redout
-        output_dn = self.readout(gain_counts)
+        output_dn = self.readout(gain_counts.reshape(parallel_counts.shape), frametime)
 
         # Reshape from 1d to 2d
         return output_dn.reshape(actualized_e.shape)
@@ -407,9 +407,9 @@ class EMCCDDetectBase:
 
         return gain_counts
 
-    def readout(self, gain_counts):
+    def readout(self, gain_counts, frametime):
         # Pass electrons through amplifier
-        amp_ev = self._amp(gain_counts)
+        amp_ev = self._amp(gain_counts, frametime)
 
         # Pass amp electron volt counts through analog to digital converter,
         # applying nonlinearity if applicable
@@ -602,13 +602,15 @@ class EMCCDDetectBase:
 
         return gain_counts_tails
 
-    def _amp(self, serial_counts):
+    def _amp(self, serial_counts, frametime):
         """Simulate amp behavior.
 
         Parameters
         ----------
         serial_counts : array_like
             Electron counts from the serial register.
+        frametime: float
+            Frame exposure time (s).
 
         Returns
         -------
@@ -622,10 +624,52 @@ class EMCCDDetectBase:
 
         """
         # Create read noise distribution in units of electrons XXX add in optional mu for mean?
+        
+        # get pseudo-random state to enable consistent FPN simulation given the 
+        # same settings
+        old_state = np.random.get_state()
+
+        if hasattr(self, 'fpn_path'):
+            here = os.path.abspath(os.path.dirname(__file__))
+            if self.fpn_path is not None and not 'roman':
+                with fits.open(self.fpn_path) as hdul:
+                    self.fpn = hdul[0].data
+            elif self.fpn_path == "roman":
+                if serial_counts.shape[0] == self.meta.data['frame_rows'] and serial_counts.shape[1] == self.meta.data['frame_cols']:
+                    with fits.open(Path(here, 'util', 'FPN_map.fits')) as hdul:
+                        frame_data = hdul[0].data
+                    self.fpn = frame_data
+                elif serial_counts.shape[0] <= self.meta.data['geom']['image']['rows'] and serial_counts.shape[1] <= self.meta.data['geom']['image']['cols']:
+                    #If the area specificed by the user is not full frame then
+                    #this code cuts out a portion/the entire image area on the fpn map to apply to amp
+                    with fits.open(Path(here, 'util', 'FPN_map.fits')) as hdul:
+                        frame_data = hdul[0].data
+                    r0c0 = self.meta.data['geom']['image']['r0c0']
+                    subframe_array = frame_data[r0c0[0]:r0c0[0]+serial_counts.shape[0], r0c0[1]:r0c0[1]+serial_counts.shape[1]]
+                    self.fpn = subframe_array
+                else:
+                    raise EMCCDDetectException('Input fpn_path specifies an array that is incompatible with Roman full frame and Roman image/sub-image area.  If '
+                                               'Roman FPN pattern desired for a different frame shape, please specify your own custom filepath.')
+            elif self.fpn_path is None:
+                seed2 = self.em_gain + self.bias + frametime + self.dark_current
+                np.random.seed(int(seed2))
+                self.fpn = np.zeros_like(serial_counts)
+                bias_row_offset = np.random.normal(self.bias, self.bias_sigma_row, self.fpn.shape[0])
+                self.fpn += bias_row_offset[:, np.newaxis]
+                bias_col_offset = np.random.normal(0, self.bias_sigma_col, self.fpn.shape[1])
+                self.fpn += bias_col_offset[np.newaxis, :]
+            else: #exception
+                raise EMCCDDetectException('Current input for fpn_path is not one of the accepted inputs')
+        else: # just self.bias constant
+            self.fpn = self.bias
+
+        np.random.set_state(old_state)
+
+        # Create read noise distribution in units of electrons
         read_noise_e = self.read_noise * np.random.normal(size=serial_counts.shape)
 
         # Apply read noise and bias to counts to get output electron volts
-        amp_ev = serial_counts + read_noise_e + self.bias
+        amp_ev = serial_counts + read_noise_e + self.fpn
 
         return amp_ev
 
@@ -647,7 +691,7 @@ class EMCCDDetectBase:
         dn = amp_ev / self.eperdn
         if hasattr(self, 'nonlin_path'):
             if self.nonlin_path is not None:
-                nonlin_factors = apply_relgains(dn, self.em_gain, 
+                nonlin_factors = apply_relgains(dn, self.em_gain,
                                                 self.nonlin_path)
                 dn *= nonlin_factors
         dn_min = 0
@@ -719,9 +763,9 @@ class EMCCDDetect(EMCCDDetectBase):
         Full path of metadata.yaml.  If None, defaults to metadata.yaml in util
         folder.
     nonlin_path : str
-        Path of nonlinearity correction file.  See doc string of 
-        nonlinearity.apply_relgains for details on the required 
-        format of the file.  If None, no application of 
+        Path of nonlinearity correction file.  See doc string of
+        nonlinearity.apply_relgains for details on the required
+        format of the file.  If None, no application of
         nonlinearity is performed.  Defaults to None.
     flat_path : str
         Path of master flat file.  Assumed to be a FITS file for which the flat
@@ -789,16 +833,36 @@ class EMCCDDetect(EMCCDDetectBase):
         (marches each pixel through the gain register with binomial distribution) is used.
         The fast method is quite accurate for em_gain > 200.  Defaults to False.
     gain_stage_specs: dict or None
-            This input is used for specifying particular gain stages which are "hot"
-            with respect to the average probability of multiplication, P.  The input 
-            em_gain specifies the average P value given no "hot" stages, and that value is applied to all 
-            gain stages except for the ones specified by this gain_stage_specs.  
-            If a dictionary is provided, the keys should be 
-            integer-valued and be the number of stages until the end (e.g., 1 means 
-            last stage), and the values for the dictionary should be the 
-            corresponding probability values.  If the input fast_gain_mode
-            is True, the average gain over all stages is computed and applied. 
-            Defaults to None, in which case the same P value applies to all stages.
+        This input is used for specifying particular gain stages which are "hot"
+        with respect to the average probability of multiplication, P.  The input 
+        em_gain specifies the average P value given no "hot" stages, and that value is applied to all 
+        gain stages except for the ones specified by this gain_stage_specs.  
+        If a dictionary is provided, the keys should be 
+        integer-valued and be the number of stages until the end (e.g., 1 means 
+        last stage), and the values for the dictionary should be the 
+        corresponding probability values.  If the input fast_gain_mode
+        is True, the average gain over all stages is computed and applied. 
+        Defaults to None, in which case the same P value applies to all stages.
+    fpn_path : str
+        Inserting a FITS file that will serve as the fixed pattern noise (FPN) for the
+        image.  Assumed to be a FITS file for which the FPN data resides in
+        the primary HDU. If it is 'roman' automatically puts in Roman
+        Telescope FITS file for FPN. If it is None then it adds horizontal and
+        vertical FPN according to a normal distribution according to the
+        bias_sigman_row and bias_sigman_col varibles. If it is a FITS file that
+        the user specifices then it will use that file as the FPN.
+    bias_sigma_row: int
+        This number affects how large the normal distrubtion of FPN values for
+        the rows of the self.bias array. This parameter is irrelevant if fpn_path is not None.
+        The random seed for this variable depends on gain (em_gain), voltage bias (bias), exposure time (frametime), and dark current (dark_current).
+        And if you put in the same numbers for each of the three elements you will get the same
+        FPN.
+    bias_sigma_col: int
+        This number affects how large the normal distrubtion of FPN values for
+        the columns of the self.bias array. This parameter is irrelevant if fpn_path is not None.
+        The random seed for this variable depends on gain (em_gain), voltage bias (bias), exposure time (frametime), and dark current (dark_current).
+        And if you put in the same numbers for each of the three elements you will get the same
+        FPN.
 
     """
     def __init__(
@@ -831,6 +895,9 @@ class EMCCDDetect(EMCCDDetectBase):
         upstream_spill_prob=0.7,
         fast_gain_mode=False,
         gain_stage_specs=None,
+        fpn_path= 'roman',
+        bias_sigma_col=35,
+        bias_sigma_row=35
     ):     
         
         if tail_length < 0:
@@ -914,7 +981,9 @@ class EMCCDDetect(EMCCDDetectBase):
         self.upstream_spill_prob = upstream_spill_prob
         self.fast_gain_mode = fast_gain_mode
         self.gain_stage_specs = gain_stage_specs
-
+        self.fpn_path = fpn_path
+        self.bias_sigma_row = bias_sigma_row
+        self.bias_sigma_col = bias_sigma_col
 
         super().__init__(
             em_gain=em_gain,
@@ -982,7 +1051,7 @@ class EMCCDDetect(EMCCDDetectBase):
         gain_counts[gain_counts > self.full_well_serial] = self.full_well_serial
 
         # Simulate amplifier and adc redout
-        output_dn = self.readout(gain_counts)
+        output_dn = self.readout(gain_counts.reshape(parallel_counts_full.shape), frametime)
 
         # Reshape from 1d to 2d
         return output_dn.reshape(parallel_counts_full.shape)
@@ -1039,7 +1108,7 @@ class EMCCDDetect(EMCCDDetectBase):
         """
         if hasattr(self, 'nonlin_path'):
             if self.nonlin_path is not None:
-                nonlin_factors = apply_relgains(frame_dn, self.em_gain, 
+                nonlin_factors = apply_relgains(frame_dn, self.em_gain,
                                                 self.nonlin_path)
                 # correct for nonlin by dividing
                 frame_dn = frame_dn/nonlin_factors
