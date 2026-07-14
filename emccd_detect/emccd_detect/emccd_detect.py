@@ -36,6 +36,14 @@ except:
 # Partial CIC is observationally degenerate with the effect of surface traps which release a captured trap
 # many pixels downstream.  Probability of capture increases with charge packeet (probability ~1 for ~100e- or higher).
 # Small effect for low to moderate EM gains.  
+
+# NOTE A value of Q=1e-3 was found using maximum likelihood estimation from real 
+# Roman testbed data at a commanded gain of 5000, which serves as a benchmark value. However,
+# the model used for the fit used an approximate form for the partial CIC probability, out of computational necessity, 
+# which used an average gain stage value which was representative of all the stages, 
+# so the fitted value of 1e-3 is physically akin to the middle stages having that value.  It was verified 
+# that this is similar to P/40 for all the stages. 
+
 class EMCCDDetectException(Exception):
     """Exception class for emccd_detect module."""
 
@@ -87,7 +95,8 @@ class EMCCDDetectBase:
         pixel_pitch,
         eperdn,
         nbits,
-        numel_gain_register
+        numel_gain_register,
+        **kwargs
     ):
         # Input checks
         if not isinstance(nbits, (int, np.integer)):
@@ -597,7 +606,7 @@ class EMCCDDetectBase:
         # no EM gain(?), so we simulate these effects here.
         # The traps in the gain register are simulated in sat_tails here.
         if not hasattr(self, 'tail_length'):
-            self.tail_length = 40 # default value
+            self.tail_length = int(np.round(self.em_gain*40/1000)) # default value
         gain_counts_tails = sat_tails(gain_counts, self.full_well_serial, self.tail_length)
 
         return gain_counts_tails
@@ -746,9 +755,11 @@ class EMCCDDetect(EMCCDDetectBase):
     oversample_factor : int
         Factor of oversampling of cosmic Gaussian over which to bin-sum to get 
         pixel values.  Default is 10.
-    tail_length: int
-            Desired tail length of cosmic ray.  Defaults to 40 (what is expected in flight 
-            for the Roman Telescope).
+    tail_length: int or str
+        Desired tail length of cosmic ray (in pixels).  Defaults to 'roman', which gives a 
+        tail length of about 40 for EM gain of 1000 (what is expected in flight 
+        for the Roman Telescope) and shorter lengths for proportionally smaller EM gain.
+        For example, a gain of 500 would mean a tail length of 20 in the 'roman' case.
     pixel_pitch : float
         Distance between pixel centers (m). Defaults to 13e-6.
     eperdn : float
@@ -795,14 +806,15 @@ class EMCCDDetect(EMCCDDetectBase):
         the time for each row to be clocked toward the register). This is used 
         to simulate smear on the image due to clocking during the exposure to 
         light.  Especially useful for shutterless EMCCDs.  If 0, no smear is 
-        simulated.  Defaults to 0 seconds.
-    gain_CIC_Q : float
+        simulated.  Defaults to 223.5e-6 seconds (applicable to the Roman CGI).
+    gain_CIC_Q : float or str
         Probability Q (or mean rate) of production of a clock-induced charge (CIC)
         in a given gain register stage. We call this "partial CIC".  
         Physically, Q < P, where P is the average probability of charge multiplication 
         for a single gain stage, and em_gain = (1+P)^numel_gain_register.  
         To simulate no partial CIC, let this input be 0.
-        Defaults to 0 (no partial CIC simulated).
+        Defaults to 'roman', in which case P/40 is used, which is consistent with data 
+        and gives negligible partial CIC for lower gains as expected.  
     gain_CIC_specs: dict or None
         This input supercedes gain_CIC_Q and renders the value of gain_CIC_Q 
         irrelevant.  This is used for specifying particular "hot" stages which source the 
@@ -882,7 +894,7 @@ class EMCCDDetect(EMCCDDetectBase):
         loc=1590,
         scale=550, 
         oversample_factor=10,
-        tail_length=40,
+        tail_length='roman',
         pixel_pitch=13e-6,
         eperdn=8.2,
         nbits=14,
@@ -891,19 +903,24 @@ class EMCCDDetect(EMCCDDetectBase):
         nonlin_path=None,
         flat_path=None,
         hot_pixel_path=None, 
-        row_read_time=0,  # seconds
-        gain_CIC_Q=0,
+        row_read_time=223.5e-6,  # seconds
+        gain_CIC_Q='roman',
         gain_CIC_specs=None,
         upstream_spill_prob=0.7,
         fast_gain_mode=False,
         gain_stage_specs=None,
         fpn_path= 'roman',
         bias_sigma_col=35,
-        bias_sigma_row=35
+        bias_sigma_row=35,
+        **kwargs #accommodating other keyword args for backward compatibility
     ):     
-        
-        if tail_length < 0:
-            raise EMCCDDetectException('tail_length cannot be negative.') 
+        if type(tail_length) != int and tail_length != 'roman':
+            raise EMCCDDetectException("tail_length should be an integer or \'roman\'.")
+        elif type(tail_length) == int:
+            if tail_length < 0:
+                raise EMCCDDetectException('tail_length cannot be negative.')             
+        elif tail_length == 'roman':
+            tail_length = int(np.round(em_gain*40/1000))
         if row_read_time < 0:
             raise EMCCDDetectException('row_read_time must be >= 0 seconds.')
         if upstream_spill_prob is not None:
@@ -934,10 +951,14 @@ class EMCCDDetect(EMCCDDetectBase):
                 if num_stages_left in gain_stage_specs.keys():
                     all_gain_stage_specs[num_stages_left] = gain_stage_specs[num_stages_left]
         self.avg_gain_P = np.sum(list(all_gain_stage_specs.values()))/numel_gain_register
-        if gain_CIC_Q is not None:
+        if gain_CIC_Q != 'roman':
             if gain_CIC_Q > self.avg_gain_P:
                 raise EMCCDDetectException('gain_CIC_Q >= P, where em_gain = '
                             '(1+P)^numel_gain_register. gain_CIC_Q must be < P.')
+        elif gain_CIC_Q == 'roman':
+            self.gain_CIC_Q = self.avg_gain_P/40
+        else:
+            raise EMCCDDetectException('gain_CIC_Q must be float or \'roman\'.')
         if gain_CIC_specs is not None:
             if not isinstance(gain_CIC_specs, dict):
                 raise EMCCDDetectException('gain_CIC_specs must either be None or a dictionary.')
@@ -973,9 +994,8 @@ class EMCCDDetect(EMCCDDetectBase):
         self.row_read_time = row_read_time
         self.flat_path = flat_path
         self.hot_pixel_path = hot_pixel_path
-        self.gain_CIC_Q = gain_CIC_Q
         self.gain_CIC_specs = gain_CIC_specs
-        self.tail_length = tail_length
+        self.tail_length = tail_length 
         self.zff = zff
         self.loc = loc
         self.scale = scale

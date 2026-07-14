@@ -117,7 +117,7 @@ if __name__ == '__main__':
         hot_pixel_path=hot_pixel,
         row_read_time=223.5e-6, # in seconds
         tail_length=40,
-        gain_CIC_Q=0, # default is 0; this specifies the average probability for CIC produced in the gain register
+        gain_CIC_Q=0.001, # this specifies the average probability for CIC produced in the gain register; default is 'roman', which means 1/40 of the probability of EM gain multiplication per stage is applied
         gain_CIC_specs=None, #default; can specify particular "hot" stages with respect to CIC in the gain register
         upstream_spill_prob=0.7,
         fast_gain_mode=True, # fast method is quite accurate for gain >~ 200; use False for fully accurate method
