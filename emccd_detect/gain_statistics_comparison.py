@@ -125,9 +125,11 @@ if __name__ == '__main__':
     gain_CIC_specs = {}
     for r in range(200,400): #range(1,400):
         gain_CIC_specs[r] = .001
-
+    em_gain = 1000 #5000.
+    numel_gain_register=604
+    gain_P = em_gain**(1/numel_gain_register) - 1
     emccd = EMCCDDetect(
-        em_gain=5000.,
+        em_gain=em_gain,
         full_well_image=90000.,  # e-
         full_well_serial=105000.,  # e-
         dark_current=0.001,  # e-/pix/s
@@ -143,9 +145,9 @@ if __name__ == '__main__':
         meta_path=meta_path,
         row_read_time=223.5e-6, # in seconds
         upstream_spill_prob=0.7,
-        fast_gain_mode=False,
-        gain_CIC_Q=0, #0.001, #0.001, #0.001, #0.001, #0
-        gain_CIC_specs= None, #gain_CIC_specs, #{200:.01,204:.01,300:.01,400:.01}, #gain_CIC_specs, #None,
+        fast_gain_mode=True,
+        gain_CIC_Q='roman',#gain_P/100, #0.001, #0.001, #0.001, #0.001, #0
+        gain_CIC_specs= None, #{i:gain_P*5/(i) for i in range(1, 605)},#{i:gain_P/10 for i in range(1, numel_gain_register+ 1)}, #{i:gain_P/10 for i in range(int(np.round(numel_gain_register/4)), int(np.round(3*numel_gain_register/4) + 1))}, #gain_CIC_specs, #{200:.01,204:.01,300:.01,400:.01}, #gain_CIC_specs, #None,
         gain_stage_specs=None
     )
 
@@ -166,7 +168,7 @@ if __name__ == '__main__':
     plots = True
     if plots:
         emccd.gain_CIC_specs = None#{100:0.02,300:.003} #{i:.001 for i in range(200,401)}#{100: .02,300:.003}
-        emccd.gain_stage_specs = {i:0.02 for i in range(200,400)} #{44:.1} 
+        emccd.gain_stage_specs = {300:0.2} #{44:.1} 
         # dark frame
         full_fluxmap = np.zeros((1024, 1024)).astype(float)
         # Specify frametime
@@ -190,8 +192,8 @@ if __name__ == '__main__':
             gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.3}
         )
         ax.tick_params(labeltop=False, labelbottom=True)
-        ax.plot(x_vals, y_vals, label=r'Q=0.001 for stages 200-400')
-        ax.plot(x_vals, y_vals2, label='Q=0.02 for stage 100, 0.003 for stage 300')
+        ax.plot(x_vals, y_vals, label=r'normal stages')#r'Q=0.001 for stages 200-400')
+        ax.plot(x_vals, y_vals2, label=r'P=0.2 for stage 300')#'Q=0.02 for stage 100, 0.003 for stage 300')
         ax.set_xlim(-1000, 2500)
         ax.set_ylabel('Count frequency')
         ax.set_title(title)
