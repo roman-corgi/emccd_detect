@@ -955,6 +955,7 @@ class EMCCDDetect(EMCCDDetectBase):
             if gain_CIC_Q > self.avg_gain_P:
                 raise EMCCDDetectException('gain_CIC_Q >= P, where em_gain = '
                             '(1+P)^numel_gain_register. gain_CIC_Q must be < P.')
+            self.gain_CIC_Q = gain_CIC_Q
         elif gain_CIC_Q == 'roman':
             self.gain_CIC_Q = self.avg_gain_P/40
         else:
