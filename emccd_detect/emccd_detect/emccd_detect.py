@@ -914,13 +914,6 @@ class EMCCDDetect(EMCCDDetectBase):
         bias_sigma_row=35,
         **kwargs #accommodating other keyword args for backward compatibility
     ):     
-        if type(tail_length) != int and tail_length != 'roman':
-            raise EMCCDDetectException("tail_length should be an integer or \'roman\'.")
-        elif type(tail_length) == int:
-            if tail_length < 0:
-                raise EMCCDDetectException('tail_length cannot be negative.')             
-        elif tail_length == 'roman':
-            tail_length = int(np.round(em_gain*40/1000))
         if row_read_time < 0:
             raise EMCCDDetectException('row_read_time must be >= 0 seconds.')
         if upstream_spill_prob is not None:
@@ -951,6 +944,16 @@ class EMCCDDetect(EMCCDDetectBase):
                 if num_stages_left in gain_stage_specs.keys():
                     all_gain_stage_specs[num_stages_left] = gain_stage_specs[num_stages_left]
         self.avg_gain_P = np.sum(list(all_gain_stage_specs.values()))/numel_gain_register
+        # reset what the value is based gain_CIC_specs
+        em_gain = (1+self.avg_gain_P)**numel_gain_register
+        if type(tail_length) != int and tail_length != 'roman':
+            raise EMCCDDetectException("tail_length should be an integer or \'roman\'.")
+        elif type(tail_length) == int:
+            if tail_length < 0:
+                raise EMCCDDetectException('tail_length cannot be negative.')             
+        elif tail_length == 'roman':
+            gain_avg = (1+self.avg_gain_P)**numel_gain_register
+            tail_length = int(np.round(gain_avg*40/1000))
         if gain_CIC_Q != 'roman':
             if gain_CIC_Q > self.avg_gain_P:
                 raise EMCCDDetectException('gain_CIC_Q >= P, where em_gain = '
