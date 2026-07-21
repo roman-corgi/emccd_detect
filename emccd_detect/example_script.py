@@ -120,7 +120,7 @@ if __name__ == '__main__':
         gain_CIC_Q='roman', # this specifies the average probability for CIC produced in the gain register; default is 'roman', which means 1/40 of the probability of EM gain multiplication per stage is applied
         gain_CIC_specs=None, #default; can specify particular "hot" stages with respect to CIC in the gain register
         upstream_spill_prob=0.7,
-        fast_gain_mode=True, # fast method is quite accurate for gain >~ 200; use False for fully accurate method
+        fast_gain_mode='auto', # fast method is quite accurate for gain >~ 200; use False for fully accurate method; 'auto' automatically applies fast method for gain > 200 with gain register CIC and slow method for gain <= 200 with now gain register CIC (negligible in that case)
         gain_stage_specs=None, #default; can specify particular "hot" stages with respect to usual multiplication in the gain register
         fpn_path = None, #'roman', #None, #custom file path
         bias_sigma_row = 35,
@@ -140,7 +140,6 @@ if __name__ == '__main__':
     np.random.seed(123)
     sim_full_frame = emccd.sim_full_frame(full_fluxmap, frametime)
     # The data for the flat and hot pixel maps are stored as class attributes as well.
-
     # This is a showcase of the FPN map implementation:
     # If fpn_path is None they the column and row pattern will be present.  
     # Set FPN=None and bias_sigma_col and bias_sigma_row to 0 if no FPN desired.

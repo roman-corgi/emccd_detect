@@ -575,7 +575,7 @@ class EMCCDDetectBase:
         # is effectively performed with sat_tails() afterwards. 
         gain_counts = np.zeros_like(serial_counts)
         if not hasattr(self, 'fast_gain_mode'):
-            self.fast_gain_mode = False # use the fully accurate method
+            self.fast_gain_mode = False # use accurate method in this case
         if not hasattr(self, 'gain_stage_specs'):
             self.gain_stage_specs = None # default value
         all_gain_stage_specs = {n: self.em_gain**(1/self.numel_gain_register) - 1 for n in range(1, self.numel_gain_register+1)}
@@ -583,10 +583,15 @@ class EMCCDDetectBase:
             for num_stages_left in range(1, self.numel_gain_register+1):
                 if num_stages_left in self.gain_stage_specs.keys():
                     all_gain_stage_specs[num_stages_left] = self.gain_stage_specs[num_stages_left]
+        if hasattr(self, 'n1_fast'):
+            n1_fast = False #handle n=1 case using slow, accurate method regardless of gain value
+        else:
+            n1_fast = self.fast_gain_mode # inherent this bool in this case 
         gain_counts = rand_em_gain(
             n_in_array=serial_counts,
             gain_stage_specs=all_gain_stage_specs, 
-            numel_gain_register=self.numel_gain_register, fast_gain_mode=self.fast_gain_mode
+            numel_gain_register=self.numel_gain_register, fast_gain_mode=self.fast_gain_mode,
+            n1_fast=n1_fast
             )
 
         # assuming partial CIC independently propagates through gain register 
@@ -839,11 +844,15 @@ class EMCCDDetect(EMCCDDetectBase):
         If a float, it must be between 0 and 1.  If < 0.5, overspill to the row downstream is 
         more likely than upstream overspill.  Defaults to 0.7.  Upstream overspill 
         is more likely for the Roman CGI EMCCDs.
-    fast_gain_mode : bool
+    fast_gain_mode : bool or 'auto'
         If True, a faster but less accurate method (uses Erlang/Gamma distribution for EM gain)
         of simulating the gain register is used.  If False, a slower but more accurate method 
         (marches each pixel through the gain register with binomial distribution) is used.
-        The fast method is quite accurate for em_gain > 200.  Defaults to False.
+        The fast method is quite accurate for em_gain > 200 if the number of incoming particles 
+        to the gain register is n > 1.  If 'auto', both speed and accuracy 
+        are prioritized:  the fast method is used if em_gain > 200 (and n>1) and 'roman' is used for gain_CIC_Q, 
+        and the slow method is used with gain_CIC_Q = 0 (since partial CIC is negligible for low gains) 
+        for em_gain <= 200 (or if n=1 for any gain). Defaults to 'auto'.
     gain_stage_specs: dict or None
         This input is used for specifying particular gain stages which are "hot"
         with respect to the average probability of multiplication, P.  The input 
@@ -907,7 +916,7 @@ class EMCCDDetect(EMCCDDetectBase):
         gain_CIC_Q='roman',
         gain_CIC_specs=None,
         upstream_spill_prob=0.7,
-        fast_gain_mode=False,
+        fast_gain_mode='auto',
         gain_stage_specs=None,
         fpn_path= 'roman',
         bias_sigma_col=35,
@@ -946,6 +955,16 @@ class EMCCDDetect(EMCCDDetectBase):
         self.avg_gain_P = np.sum(list(all_gain_stage_specs.values()))/numel_gain_register
         # reset what the value is based gain_CIC_specs
         em_gain = (1+self.avg_gain_P)**numel_gain_register
+        if fast_gain_mode == 'auto':
+            self.n1_fast = False # if n=1, use accurate method no matter what the gain; only defined if 'auto' mode used
+            if em_gain <= 200:
+                fast_gain_mode = False
+                gain_CIC_Q = 0
+                gain_CIC_specs = None
+            else:
+                fast_gain_mode = True
+                gain_CIC_Q = 'roman'
+                gain_CIC_specs = None
         if type(tail_length) != int and tail_length != 'roman':
             raise EMCCDDetectException("tail_length should be an integer or \'roman\'.")
         elif type(tail_length) == int:

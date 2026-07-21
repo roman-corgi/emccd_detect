@@ -18,7 +18,7 @@ class RandEMGainException(Exception):
     """Exception class for rand_em_gain module."""
 
 
-def rand_em_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode=False):
+def rand_em_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode=False, n1_fast=False):
     """Generate random numbers according to EM gain pdfs.
 
     Parameters
@@ -37,6 +37,10 @@ def rand_em_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mo
             of simulating the gain register is used.  If False, a slower but more accurate method 
             (marches each pixel through the gain register with binomial distribution) is used.
             The fast method is quite accurate for EM gain > 200.  Defaults to False.
+    n1_fast : bool, optional
+            If True, the fast method is used for the case of n=1 incoming particles to the gain register.
+            If False, the slow method is used for the case of n=1 incoming particles to the gain register.
+            Defaults to False.
 
     Returns
     -------
@@ -58,21 +62,27 @@ def rand_em_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mo
     elif em_gain == 1:
         return n_in_array
     else:
-        n_out_array = _apply_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode)
+        n_out_array = _apply_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode, n1_fast)
         return n_out_array
 
-def _apply_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode):
+def _apply_gain(n_in_array, gain_stage_specs, numel_gain_register, fast_gain_mode, n1_fast):
     """Apply a specific EM gain to all nonzero n_in values."""
     # physically, integer values of electrons for Matsuo (Galton-Watson branching process) distribution.  
     # Otherwise, we try to keep e- values as floats since EM gain,
     # k gain, nonlinearity, master flat, etc are calibrated assuming fractions of electrons, and 
     # we can get fractions of electrons here for particular gain values.  So we just round 
     # DN output to integer at the end.
-
+    n_out_array = np.zeros_like(n_in_array)
     if fast_gain_mode:
         avg_P = np.sum(list(gain_stage_specs.values()))/numel_gain_register
         em_gain = (1+avg_P)**numel_gain_register
-        n_out_array = np.random.gamma(n_in_array, em_gain)
+        if n1_fast:
+            n_out_array = np.random.gamma(n_in_array, em_gain)
+        else:
+            the_rest_inds = np.where(n_in_array > 1)
+            n1_inds = np.where(n_in_array == 1)
+            n_out_array[n1_inds] = _rand_pdf(np.round(n_in_array[n1_inds]), gain_stage_specs, numel_gain_register)
+            n_out_array[the_rest_inds] = np.random.gamma(n_in_array[the_rest_inds], em_gain)
     else:
         n_out_array = _rand_pdf(np.round(n_in_array), gain_stage_specs, numel_gain_register) 
 
@@ -90,11 +100,10 @@ def _rand_pdf(n_in, gain_stage_specs, numel_gain_register):
         n_out = n_in.astype(int) 
     except:
         n_out = int(np.round(n_in))
-    rng = np.random.default_rng()
     # reverse list so that you're counting down from stage n to stage 1
     # Stage numbers mean the number of stages remaining 
     for stage, Q in reversed(list(gain_stage_specs.items())):
-        n_out += rng.binomial(n_out, Q)
+        n_out += np.random.binomial(n_out, Q) 
         
         # # trinomial (P1 and P2):
         # t = rng.binomial(n_out, Q)
@@ -311,14 +320,14 @@ def partial_CIC(array_size, gain_stage_specs, numel_gain_register, gain_CIC_Q,
             stage_numbers = np.append(stage_numbers, stage).astype(int)
         
     for i in range(len(stage_numbers)):
-       #gain = (1+P)**stage_numbers[i]
-       # gain_stage_specs is already ordered by construction, which ensures gain branching process is sequential
-       # So we take the first stage_numbers[i] elements of it
-       input_gain_stage_specs =  dict(islice(gain_stage_specs.items(), stage_numbers[i]))
-       inds = np.where(stage_chunks[i] > 0)
-       if inds[0].size > 0: 
-           n_out = rand_em_gain(stage_chunks[i][inds], input_gain_stage_specs, stage_numbers[i])
-           partial_CIC[inds] = partial_CIC[inds] + n_out
+        #gain = (1+P)**stage_numbers[i]
+        # gain_stage_specs is already ordered by construction, which ensures gain branching process is sequential
+        # So we take the first stage_numbers[i] elements of it
+        input_gain_stage_specs =  dict(islice(gain_stage_specs.items(), stage_numbers[i]))
+        inds = np.where(stage_chunks[i] > 0)
+        if inds[0].size > 0: 
+            n_out = rand_em_gain(stage_chunks[i][inds], input_gain_stage_specs, stage_numbers[i])
+            partial_CIC[inds] = partial_CIC[inds] + n_out
     
     return partial_CIC
 
@@ -343,10 +352,10 @@ if __name__ == '__main__':
         plt.yscale('log')
         plt.grid(True)
 
-    
-    #g=5000; n=1; M=604
+    g=1000; n=2; M=600
+    g=200; n=1; M=600
     #g=500; n=2; M=604
-    g=3; n=100; M=604
+    #g=3; n=100; M=604
     #g=3; n=10; M=604
     #g=150; n=10; M=604
     nmax=int(g*n*4)

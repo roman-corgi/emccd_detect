@@ -5,7 +5,7 @@ Given an input fluxmap, emccd_detect will return a simulated EMCCD detector imag
 
 # Version
 
-The latest version of emccd\_detect is 2.6.0.  Main differences from previous version, 2.5.0: 
+The latest version of emccd\_detect is 2.6.2.  Main differences from previous version, 2.5.0: 
 Main differences from previous version:
 --cosmic rays are more accurate, more like what the Roman CGI expects to see at L2 (including secondary cosmic ray events due to the shielding surrounding CGI). Almost nothing is hard coded about the cosmic rays. The tail length can be tuned as well.
 --Fixed-pattern noise (FPN) is now implemented: 'roman' for Roman FPN found in TVAC, custom input file, or stripe pattern in rows and/or columns. File for Roman FPN included in util folder.
